@@ -19,7 +19,7 @@ jobs:
           npm install
           npm run build
 
-  deploy:
+deploy:
     name: Production Deployment
     needs: test
     runs-on: ubuntu-latest
@@ -32,7 +32,7 @@ jobs:
       - name: Configure SSH and Deploy
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          VM_IP: ${{ secrets.VM_IP }} # console.custardlev.uk
+          VM_IP: ${{ secrets.VM_IP }} # ssh.sooryah.me
           CF_ID: ${{ secrets.CF_CLIENT_ID }}
           CF_SECRET: ${{ secrets.CF_CLIENT_SECRET }}
         run: |
@@ -40,18 +40,19 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           
-          # Create an SSH config to handle the ProxyCommand cleanly
+          # Create a clean config to avoid "missing port" shell errors
           cat <<EOF > ~/.ssh/config
           Host $VM_IP
             HostName $VM_IP
             User sooryah
             IdentityFile ~/.ssh/id_ed25519
+            # Use %h for hostname and %p for port 22
             ProxyCommand cloudflared access ssh --hostname %h --id $CF_ID --secret $CF_SECRET
             StrictHostKeyChecking no
           EOF
           chmod 600 ~/.ssh/config
 
-          # Now run the deployment over the configured tunnel
+          # Now run the deployment over the web-tunnel
           ssh $VM_IP << 'EOF'
             cd ~/sooryah-web
             git fetch origin
