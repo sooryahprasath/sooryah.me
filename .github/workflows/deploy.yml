@@ -22,18 +22,22 @@ jobs:
   deploy:
     name: Production Deployment
     needs: test
-    runs-on: self-hosted
+    runs-on: self-hosted  # Executes on your VM
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        # This step is what pulls the latest "git pull origin main" 
+        # into the runner's local workspace.
 
       - name: Link Environment File
         run: |
-          # Ensure the .env is present for the tunnel service
+          # Links the .env from your manual folder so the tunnel container starts
           ln -sf /home/sooryah/sooryah-web/.env .env
 
       - name: Local Docker Deploy
         run: |
-          # We use -p to force the project name to match your original deployment
-          # This allows Compose to stop and replace the existing 'web-tunnel'
+          # 1. -p sooryah-web: Forces the project name to match your manual setup
+          #    so it replaces existing containers instead of making copies.
+          # 2. --build: Re-runs the Dockerfile (npm run build) to capture your 
+          #    new Hero Section code.
           docker compose -p sooryah-web up -d --build
