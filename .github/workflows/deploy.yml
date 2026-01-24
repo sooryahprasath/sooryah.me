@@ -32,7 +32,7 @@ jobs:
       - name: SSH and Deploy
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          VM_IP: ${{ secrets.VM_IP }}
+          VM_IP: ${{ secrets.VM_IP }} # console.custardlev.uk
           CF_ID: ${{ secrets.CF_CLIENT_ID }}
           CF_SECRET: ${{ secrets.CF_CLIENT_SECRET }}
         run: |
@@ -40,7 +40,7 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           
-          # Using native SSH with cloudflared as a ProxyCommand
+          # Using the correct ProxyCommand syntax with %h and %p
           ssh -i ~/.ssh/id_ed25519 \
               -o "StrictHostKeyChecking=no" \
               -o "ProxyCommand=cloudflared access ssh --hostname %h --id $CF_ID --secret $CF_SECRET" \
