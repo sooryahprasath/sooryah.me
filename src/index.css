@@ -1,170 +1,85 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Silkscreen:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  /* Dark Mode (Default) - Charcoal with electric blue */
+  /* Slate & Teal Light Mode (Default) */
   :root,
-  [data-theme="dark"] {
-    --background: 0 0% 7%;
-    --foreground: 210 20% 90%;
-
-    --card: 0 0% 10%;
-    --card-foreground: 210 20% 90%;
-
-    --popover: 0 0% 10%;
-    --popover-foreground: 210 20% 90%;
-
-    --primary: 207 90% 54%;
-    --primary-foreground: 0 0% 7%;
-
-    --secondary: 207 70% 45%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 0 0% 15%;
-    --muted-foreground: 210 10% 55%;
-
-    --accent: 207 90% 54%;
-    --accent-foreground: 0 0% 7%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
-    --ring: 207 90% 54%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 7%;
-    --sidebar-foreground: 210 20% 90%;
-    --sidebar-primary: 207 90% 54%;
-    --sidebar-primary-foreground: 0 0% 7%;
-    --sidebar-accent: 0 0% 15%;
-    --sidebar-accent-foreground: 210 20% 90%;
-    --sidebar-border: 0 0% 18%;
-    --sidebar-ring: 207 90% 54%;
-
-    /* Custom tokens */
-    --teal: 207 90% 54%;
-    --teal-glow: 207 90% 64%;
-    --light-blue: 200 60% 65%;
-    --charcoal-deep: 0 0% 5%;
-    --charcoal: 0 0% 7%;
-    --charcoal-light: 0 0% 12%;
-    
-    /* Hero image filter */
-    --hero-brightness: 0.7;
-    --hero-contrast: 1.1;
-    --hero-saturate: 0.8;
-  }
-
-  /* Light Mode - Off-white with navy and teal */
   [data-theme="light"] {
-    --background: 60 9% 96%;
-    --foreground: 222 47% 11%;
+    --background: 210 20% 96%;
+    --foreground: 215 25% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 215 25% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 215 25% 15%;
 
-    --primary: 174 62% 40%;
+    --primary: 174 62% 42%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 222 47% 20%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 210 15% 88%;
+    --secondary-foreground: 215 25% 15%;
 
-    --muted: 210 20% 92%;
-    --muted-foreground: 222 30% 40%;
+    --muted: 210 15% 92%;
+    --muted-foreground: 215 15% 45%;
 
-    --accent: 174 62% 40%;
+    --accent: 174 62% 42%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 85%;
-    --input: 220 13% 85%;
-    --ring: 174 62% 40%;
+    --border: 210 15% 88%;
+    --input: 210 15% 88%;
+    --ring: 174 62% 42%;
 
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 174 62% 40%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 20% 92%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 220 13% 85%;
-    --sidebar-ring: 174 62% 40%;
+    --radius: 1rem;
 
     /* Custom tokens */
-    --teal: 174 62% 40%;
-    --teal-glow: 174 62% 50%;
-    --light-blue: 200 60% 50%;
-    --charcoal-deep: 222 47% 11%;
-    --charcoal: 222 47% 15%;
-    --charcoal-light: 222 47% 20%;
-    
-    /* Hero image filter */
-    --hero-brightness: 1.1;
-    --hero-contrast: 1;
-    --hero-saturate: 1;
+    --teal: 174 62% 42%;
+    --teal-glow: 174 62% 52%;
+    --slate: 210 20% 96%;
+    --slate-dark: 210 15% 88%;
   }
 
-  /* Aviation Teal - Cockpit inspired */
-  [data-theme="aviation"] {
-    --background: 185 25% 22%;
-    --foreground: 0 0% 98%;
+  /* Midnight Navy Dark Mode */
+  [data-theme="dark"] {
+    --background: 222 35% 12%;
+    --foreground: 210 20% 92%;
 
-    --card: 185 25% 18%;
-    --card-foreground: 0 0% 98%;
+    --card: 222 32% 16%;
+    --card-foreground: 210 20% 92%;
 
-    --popover: 185 25% 18%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 222 32% 16%;
+    --popover-foreground: 210 20% 92%;
 
-    --primary: 48 100% 50%;
-    --primary-foreground: 185 25% 15%;
+    --primary: 174 62% 50%;
+    --primary-foreground: 222 35% 12%;
 
-    --secondary: 174 50% 50%;
-    --secondary-foreground: 185 25% 15%;
+    --secondary: 222 25% 22%;
+    --secondary-foreground: 210 20% 92%;
 
-    --muted: 185 20% 28%;
-    --muted-foreground: 180 15% 70%;
+    --muted: 222 25% 20%;
+    --muted-foreground: 210 15% 60%;
 
-    --accent: 48 100% 50%;
-    --accent-foreground: 185 25% 15%;
+    --accent: 174 62% 50%;
+    --accent-foreground: 222 35% 12%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 185 20% 30%;
-    --input: 185 20% 30%;
-    --ring: 48 100% 50%;
-
-    --sidebar-background: 185 25% 22%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 48 100% 50%;
-    --sidebar-primary-foreground: 185 25% 15%;
-    --sidebar-accent: 185 20% 28%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 185 20% 30%;
-    --sidebar-ring: 48 100% 50%;
+    --border: 222 25% 22%;
+    --input: 222 25% 22%;
+    --ring: 174 62% 50%;
 
     /* Custom tokens */
-    --teal: 48 100% 50%;
-    --teal-glow: 48 100% 60%;
-    --light-blue: 174 50% 50%;
-    --charcoal-deep: 185 25% 15%;
-    --charcoal: 185 25% 22%;
-    --charcoal-light: 185 25% 28%;
-    
-    /* Hero image filter */
-    --hero-brightness: 0.6;
-    --hero-contrast: 1.2;
-    --hero-saturate: 0.6;
+    --teal: 174 62% 50%;
+    --teal-glow: 174 62% 60%;
+    --slate: 222 35% 12%;
+    --slate-dark: 222 32% 8%;
   }
 }
 
@@ -178,84 +93,52 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground antialiased;
     font-family: 'Inter', sans-serif;
-    transition: background-color 0.3s ease, color 0.3s ease;
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Silkscreen', cursive;
+    transition: background-color 0.4s ease, color 0.3s ease;
   }
 }
 
 @layer components {
-  .pixel-heading {
-    font-family: 'Silkscreen', cursive;
-    @apply tracking-wider;
+  .bento-tile {
+    @apply bg-card rounded-2xl p-6 transition-all duration-300 ease-out;
+    box-shadow: 0 1px 3px hsl(var(--foreground) / 0.04);
+  }
+
+  .bento-tile:hover {
+    box-shadow: 0 8px 30px hsl(var(--foreground) / 0.08);
   }
 
   .text-glow {
-    text-shadow: 0 0 20px hsl(var(--primary) / 0.5);
-  }
-
-  .card-hover {
-    @apply transition-all duration-300 ease-out;
-  }
-
-  .card-hover:hover {
-    @apply -translate-y-1;
-    box-shadow: 0 8px 30px hsl(var(--primary) / 0.15);
-  }
-
-  .timeline-line {
-    @apply bg-gradient-to-b from-primary via-primary to-transparent;
-  }
-
-  .timeline-marker {
-    @apply w-3 h-3 rounded-full bg-primary ring-4 ring-background;
-    box-shadow: 0 0 12px hsl(var(--primary) / 0.6);
+    text-shadow: 0 0 30px hsl(var(--primary) / 0.4);
   }
 
   .theme-transition {
-    @apply transition-all duration-300 ease-out;
+    @apply transition-all duration-400 ease-out;
   }
 }
 
-/* A320 Animation */
+/* A320 Animation - flies behind tiles */
 @keyframes fly-across {
   0% {
-    transform: translateX(-100px) translateY(0);
+    transform: translateX(-150px) translateY(0);
     opacity: 0;
   }
-  5% {
-    opacity: 0.7;
+  8% {
+    opacity: 0.15;
   }
-  95% {
-    opacity: 0.7;
+  92% {
+    opacity: 0.15;
   }
   100% {
-    transform: translateX(calc(100vw + 100px)) translateY(-30px);
+    transform: translateX(calc(100vw + 150px)) translateY(-40px);
     opacity: 0;
   }
 }
 
 .a320-fly {
-  animation: fly-across 15s linear infinite;
-  animation-delay: 0s;
-}
-
-/* Parallax */
-.parallax-container {
-  perspective: 1px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  height: 100vh;
-}
-
-.parallax-layer {
-  position: absolute;
-  inset: 0;
-  transform: translateZ(-1px) scale(2);
+  animation: fly-across 20s linear infinite;
+  animation-delay: 3s;
 }
 
 /* Scrollbar */
@@ -264,14 +147,14 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(var(--charcoal-deep));
+  background: hsl(var(--background));
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--primary) / 0.5);
+  background: hsl(var(--primary) / 0.3);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.5);
 }

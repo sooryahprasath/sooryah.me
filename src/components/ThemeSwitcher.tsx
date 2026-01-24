@@ -1,69 +1,44 @@
 import { useState, useEffect } from 'react';
-import { Moon, Sun, Plane } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 
-type Theme = 'dark' | 'light' | 'aviation';
-
-const themes: { id: Theme; label: string; icon: React.ReactNode }[] = [
-  { id: 'dark', label: 'Dark', icon: <Moon className="w-4 h-4" /> },
-  { id: 'light', label: 'Light', icon: <Sun className="w-4 h-4" /> },
-  { id: 'aviation', label: 'Aviation', icon: <Plane className="w-4 h-4" /> },
-];
+type Theme = 'light' | 'dark';
 
 const ThemeSwitcher = () => {
-  const [theme, setTheme] = useState<Theme>('dark');
-  const [isOpen, setIsOpen] = useState(false);
+  const [theme, setTheme] = useState<Theme>('light');
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('portfolio-theme') as Theme | null;
-    if (savedTheme && ['dark', 'light', 'aviation'].includes(savedTheme)) {
+    if (savedTheme && ['light', 'dark'].includes(savedTheme)) {
       setTheme(savedTheme);
       document.documentElement.setAttribute('data-theme', savedTheme);
     }
   }, []);
 
-  const handleThemeChange = (newTheme: Theme) => {
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('portfolio-theme', newTheme);
-    setIsOpen(false);
   };
 
-  const currentTheme = themes.find((t) => t.id === theme);
-
   return (
-    <div className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 hover:bg-muted border border-border text-foreground transition-all duration-200"
-        aria-label="Toggle theme"
+    <button
+      onClick={toggleTheme}
+      className="relative w-14 h-8 bg-secondary rounded-full p-1 transition-colors duration-300 hover:bg-secondary/80"
+      aria-label="Toggle theme"
+    >
+      <div
+        className={`absolute top-1 w-6 h-6 bg-card rounded-full shadow-sm flex items-center justify-center transition-transform duration-300 ${
+          theme === 'dark' ? 'translate-x-6' : 'translate-x-0'
+        }`}
       >
-        {currentTheme?.icon}
-        <span className="text-xs font-medium hidden sm:inline">{currentTheme?.label}</span>
-      </button>
-
-      {isOpen && (
-        <>
-          <div 
-            className="fixed inset-0 z-40" 
-            onClick={() => setIsOpen(false)}
-          />
-          <div className="absolute right-0 top-full mt-2 z-50 bg-card border border-border rounded-lg shadow-lg overflow-hidden min-w-[140px]">
-            {themes.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => handleThemeChange(t.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-muted/50 ${
-                  theme === t.id ? 'bg-primary/10 text-primary' : 'text-foreground'
-                }`}
-              >
-                {t.icon}
-                <span>{t.label}</span>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+        {theme === 'light' ? (
+          <Sun className="w-3.5 h-3.5 text-primary" />
+        ) : (
+          <Moon className="w-3.5 h-3.5 text-primary" />
+        )}
+      </div>
+    </button>
   );
 };
 
