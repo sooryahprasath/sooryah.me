@@ -47,13 +47,13 @@ const HeroSection = () => {
       <div className="relative z-10 h-full flex flex-col justify-center items-center px-6">
         <div className="max-w-3xl text-center">
           <h1 className="font-pixel text-3xl md:text-4xl lg:text-5xl text-foreground mb-4 text-glow animate-fade-in">
-            Sooryah Prasath.
+            Sooryah Prasath
           </h1>
           <p
             className="font-pixel text-sm md:text-base text-primary mb-6 opacity-0"
             style={{ animation: 'fade-in 0.6s ease-out 0.2s forwards' }}
           >
-            Senior Network Engineer & Automation Enthusiast
+            Senior Network Automation Engineer
           </p>
           <p
             className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto opacity-0"

@@ -25,18 +25,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: SSH Remote Rebuild
-        uses: appleboy/ssh-action@v1.0.3 # Use a specific version
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VM_IP }}
           username: sooryah
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           proxy_host: ${{ secrets.VM_IP }}
           proxy_username: sooryah
-          # Note: We move the Cloudflare headers to the 'envs' or use the proxy bypass logic
-          # If your VM is behind Cloudflare Access, we use the 'proxy' fields as headers
+          # These headers allow the GitHub Runner to bypass the Cloudflare Access login
           proxy_headers: |
-            cf-access-client-id: ${{ secrets.CF_CLIENT_ID }}
-            cf-access-client-secret: ${{ secrets.CF_CLIENT_SECRET }}
+            CF-Access-Client-Id: ${{ secrets.CF_CLIENT_ID }}
+            CF-Access-Client-Secret: ${{ secrets.CF_CLIENT_SECRET }}
           script: |
             cd ~/sooryah-web
             git fetch origin
