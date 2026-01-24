@@ -19,7 +19,7 @@ jobs:
           npm install
           npm run build
 
-  deploy:
+ deploy:
     name: Production Deployment
     needs: test
     runs-on: ubuntu-latest
@@ -30,12 +30,14 @@ jobs:
           host: ${{ secrets.VM_IP }}
           username: sooryah
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          proxy_host: ${{ secrets.VM_IP }}
-          proxy_username: sooryah
-          # These headers allow the GitHub Runner to bypass the Cloudflare Access login
-          proxy_headers: |
-            CF-Access-Client-Id: ${{ secrets.CF_CLIENT_ID }}
-            CF-Access-Client-Secret: ${{ secrets.CF_CLIENT_SECRET }}
+          port: 22
+          # Use envs to pass the tokens as headers
+          envs: CF_CLIENT_ID,CF_CLIENT_SECRET
+        env:
+          CF_CLIENT_ID: ${{ secrets.CF_CLIENT_ID }}
+          CF_CLIENT_SECRET: ${{ secrets.CF_CLIENT_SECRET }}
+          # We manually inject the headers for Cloudflare Access
+          HTTP_HEADERS: "CF-Access-Client-Id: ${{ secrets.CF_CLIENT_ID }}\nCF-Access-Client-Secret: ${{ secrets.CF_CLIENT_SECRET }}"
           script: |
             cd ~/sooryah-web
             git fetch origin
