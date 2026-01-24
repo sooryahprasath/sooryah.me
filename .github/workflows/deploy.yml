@@ -22,38 +22,12 @@ jobs:
   deploy:
     name: Production Deployment
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: self-hosted  # <--- This targets your VM directly
     steps:
-      - name: Install Cloudflared
+      - uses: actions/checkout@v4
+      
+      - name: Local Docker Deploy
         run: |
-          curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-          sudo dpkg -i cloudflared.deb
-
-      - name: Deploy via Tunnel Bridge
-        env:
-          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          CF_ID: ${{ secrets.CF_CLIENT_ID }}
-          CF_SECRET: ${{ secrets.CF_CLIENT_SECRET }}
-          HOST: ${{ secrets.VM_IP }} # ssh.sooryah.me
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-
-          # 1. Start a background tunnel to Cloudflare
-          # This maps your web-tunnel to localhost:2222 on the runner
-          cloudflared access tcp --hostname $HOST --listener 127.0.0.1:2222 --id $CF_ID --secret $CF_SECRET &
-          
-          # 2. Wait for the tunnel handshake (5 seconds)
-          sleep 5
-
-          # 3. SSH into the LOCAL bridge port
-          ssh -i ~/.ssh/id_ed25519 \
-              -p 2222 \
-              -o "StrictHostKeyChecking=no" \
-              sooryah@127.0.0.1 << 'EOF'
-                cd ~/sooryah-web
-                git fetch origin
-                git reset --hard origin/main
-                docker compose up -d --build
-          EOF
+          # The runner is already inside your VM!
+          cd ~/sooryah-web
+          docker compose up -d --build
