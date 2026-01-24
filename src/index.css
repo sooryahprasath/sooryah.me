@@ -5,53 +5,166 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 220 15% 8%;
-    --foreground: 200 20% 90%;
+  /* Dark Mode (Default) - Charcoal with electric blue */
+  :root,
+  [data-theme="dark"] {
+    --background: 0 0% 7%;
+    --foreground: 210 20% 90%;
 
-    --card: 220 15% 11%;
-    --card-foreground: 200 20% 90%;
+    --card: 0 0% 10%;
+    --card-foreground: 210 20% 90%;
 
-    --popover: 220 15% 11%;
-    --popover-foreground: 200 20% 90%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 210 20% 90%;
 
-    --primary: 174 62% 47%;
-    --primary-foreground: 220 15% 8%;
+    --primary: 207 90% 54%;
+    --primary-foreground: 0 0% 7%;
 
-    --secondary: 200 60% 65%;
-    --secondary-foreground: 220 15% 8%;
+    --secondary: 207 70% 45%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 220 15% 15%;
-    --muted-foreground: 200 10% 55%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 210 10% 55%;
 
-    --accent: 174 62% 47%;
-    --accent-foreground: 220 15% 8%;
+    --accent: 207 90% 54%;
+    --accent-foreground: 0 0% 7%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 220 15% 18%;
-    --input: 220 15% 18%;
-    --ring: 174 62% 47%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 207 90% 54%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 220 15% 8%;
-    --sidebar-foreground: 200 20% 90%;
-    --sidebar-primary: 174 62% 47%;
-    --sidebar-primary-foreground: 220 15% 8%;
-    --sidebar-accent: 220 15% 15%;
-    --sidebar-accent-foreground: 200 20% 90%;
-    --sidebar-border: 220 15% 18%;
-    --sidebar-ring: 174 62% 47%;
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 207 90% 54%;
+    --sidebar-primary-foreground: 0 0% 7%;
+    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent-foreground: 210 20% 90%;
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 207 90% 54%;
 
     /* Custom tokens */
-    --teal: 174 62% 47%;
-    --teal-glow: 174 62% 55%;
+    --teal: 207 90% 54%;
+    --teal-glow: 207 90% 64%;
     --light-blue: 200 60% 65%;
-    --charcoal-deep: 220 15% 6%;
-    --charcoal: 220 15% 8%;
-    --charcoal-light: 220 15% 12%;
+    --charcoal-deep: 0 0% 5%;
+    --charcoal: 0 0% 7%;
+    --charcoal-light: 0 0% 12%;
+    
+    /* Hero image filter */
+    --hero-brightness: 0.7;
+    --hero-contrast: 1.1;
+    --hero-saturate: 0.8;
+  }
+
+  /* Light Mode - Off-white with navy and teal */
+  [data-theme="light"] {
+    --background: 60 9% 96%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 174 62% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 222 47% 20%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 210 20% 92%;
+    --muted-foreground: 222 30% 40%;
+
+    --accent: 174 62% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 13% 85%;
+    --input: 220 13% 85%;
+    --ring: 174 62% 40%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 174 62% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 20% 92%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 220 13% 85%;
+    --sidebar-ring: 174 62% 40%;
+
+    /* Custom tokens */
+    --teal: 174 62% 40%;
+    --teal-glow: 174 62% 50%;
+    --light-blue: 200 60% 50%;
+    --charcoal-deep: 222 47% 11%;
+    --charcoal: 222 47% 15%;
+    --charcoal-light: 222 47% 20%;
+    
+    /* Hero image filter */
+    --hero-brightness: 1.1;
+    --hero-contrast: 1;
+    --hero-saturate: 1;
+  }
+
+  /* Aviation Teal - Cockpit inspired */
+  [data-theme="aviation"] {
+    --background: 185 25% 22%;
+    --foreground: 0 0% 98%;
+
+    --card: 185 25% 18%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 185 25% 18%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 48 100% 50%;
+    --primary-foreground: 185 25% 15%;
+
+    --secondary: 174 50% 50%;
+    --secondary-foreground: 185 25% 15%;
+
+    --muted: 185 20% 28%;
+    --muted-foreground: 180 15% 70%;
+
+    --accent: 48 100% 50%;
+    --accent-foreground: 185 25% 15%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 185 20% 30%;
+    --input: 185 20% 30%;
+    --ring: 48 100% 50%;
+
+    --sidebar-background: 185 25% 22%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 48 100% 50%;
+    --sidebar-primary-foreground: 185 25% 15%;
+    --sidebar-accent: 185 20% 28%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 185 20% 30%;
+    --sidebar-ring: 48 100% 50%;
+
+    /* Custom tokens */
+    --teal: 48 100% 50%;
+    --teal-glow: 48 100% 60%;
+    --light-blue: 174 50% 50%;
+    --charcoal-deep: 185 25% 15%;
+    --charcoal: 185 25% 22%;
+    --charcoal-light: 185 25% 28%;
+    
+    /* Hero image filter */
+    --hero-brightness: 0.6;
+    --hero-contrast: 1.2;
+    --hero-saturate: 0.6;
   }
 }
 
@@ -67,6 +180,7 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -100,6 +214,10 @@
   .timeline-marker {
     @apply w-3 h-3 rounded-full bg-primary ring-4 ring-background;
     box-shadow: 0 0 12px hsl(var(--primary) / 0.6);
+  }
+
+  .theme-transition {
+    @apply transition-all duration-300 ease-out;
   }
 }
 

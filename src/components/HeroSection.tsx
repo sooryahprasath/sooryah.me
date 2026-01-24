@@ -24,7 +24,7 @@ const HeroSection = () => {
       ref={heroRef}
       className="relative h-screen w-full overflow-hidden"
     >
-      {/* Parallax Background */}
+      {/* Parallax Background with theme-aware filter */}
       <div
         className="absolute inset-0 w-full h-[120%]"
         style={{
@@ -35,7 +35,10 @@ const HeroSection = () => {
         <img
           src={mountainsHero}
           alt="Dark moody mountains"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover transition-all duration-500"
+          style={{
+            filter: `brightness(var(--hero-brightness)) contrast(var(--hero-contrast)) saturate(var(--hero-saturate))`,
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-background" />
       </div>
@@ -43,14 +46,20 @@ const HeroSection = () => {
       {/* Content */}
       <div className="relative z-10 h-full flex flex-col justify-center items-center px-6">
         <div className="max-w-3xl text-center">
-          <h1 className="font-pixel text-4xl md:text-5xl lg:text-6xl text-foreground mb-6 text-glow animate-fade-in">
-            NETWORK_ENGINEER
+          <h1 className="font-pixel text-3xl md:text-4xl lg:text-5xl text-foreground mb-4 text-glow animate-fade-in">
+            Sooryah Prasath.
           </h1>
           <p
-            className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto opacity-0"
-            style={{ animation: 'fade-in 0.6s ease-out 0.3s forwards' }}
+            className="font-pixel text-sm md:text-base text-primary mb-6 opacity-0"
+            style={{ animation: 'fade-in 0.6s ease-out 0.2s forwards' }}
           >
-            I solve network problems with modern automation solutions. I like mountains and planes.
+            Senior Network Engineer & Automation Enthusiast
+          </p>
+          <p
+            className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto opacity-0"
+            style={{ animation: 'fade-in 0.6s ease-out 0.4s forwards' }}
+          >
+            I solve network problems with modern automation using cloud solutions. I like mountains and planes.
           </p>
         </div>
 
