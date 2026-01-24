@@ -22,12 +22,13 @@ jobs:
   deploy:
     name: Production Deployment
     needs: test
-    runs-on: self-hosted  # <--- This targets your VM directly
+    runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Local Docker Deploy
         run: |
-          # The runner is already inside your VM!
-          cd ~/sooryah-web
+          # The runner is already in the directory where the new code was pulled.
+          # We use --build to ensure Docker doesn't use a cached image of your old Hero Section.
           docker compose up -d --build
