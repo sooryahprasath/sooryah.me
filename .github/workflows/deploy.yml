@@ -32,11 +32,12 @@ jobs:
       - name: SSH Remote Rebuild
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.VM_IP }} # Use your domain: console.custardlev.uk
+          # Use the domain name here, e.g., console.custardlev.uk
+          host: ${{ secrets.VM_IP }}
           username: sooryah
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          # This command tells SSH to use cloudflared as the tunnel
+          # We use a custom proxy command to pierce the Cloudflare wall
           proxy_command: cloudflared access ssh --hostname ${{ secrets.VM_IP }} --id ${{ secrets.CF_CLIENT_ID }} --secret ${{ secrets.CF_CLIENT_SECRET }}
           script: |
             cd ~/sooryah-web
