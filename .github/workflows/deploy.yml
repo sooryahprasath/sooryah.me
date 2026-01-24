@@ -29,7 +29,7 @@ jobs:
           curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared.deb
 
-      - name: SSH and Deploy
+      - name: Configure SSH and Deploy
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           VM_IP: ${{ secrets.VM_IP }} # console.custardlev.uk
@@ -40,13 +40,21 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           
-          # Using the correct ProxyCommand syntax with %h and %p
-          ssh -i ~/.ssh/id_ed25519 \
-              -o "StrictHostKeyChecking=no" \
-              -o "ProxyCommand=cloudflared access ssh --hostname %h --id $CF_ID --secret $CF_SECRET" \
-              sooryah@$VM_IP << 'EOF'
-                cd ~/sooryah-web
-                git fetch origin
-                git reset --hard origin/main
-                docker compose up -d --build
+          # Create an SSH config to handle the ProxyCommand cleanly
+          cat <<EOF > ~/.ssh/config
+          Host $VM_IP
+            HostName $VM_IP
+            User sooryah
+            IdentityFile ~/.ssh/id_ed25519
+            ProxyCommand cloudflared access ssh --hostname %h --id $CF_ID --secret $CF_SECRET
+            StrictHostKeyChecking no
+          EOF
+          chmod 600 ~/.ssh/config
+
+          # Now run the deployment over the configured tunnel
+          ssh $VM_IP << 'EOF'
+            cd ~/sooryah-web
+            git fetch origin
+            git reset --hard origin/main
+            docker compose up -d --build
           EOF
