@@ -19,7 +19,7 @@ jobs:
           npm install
           npm run build
 
-deploy:
+  deploy:
     name: Production Deployment
     needs: test
     runs-on: ubuntu-latest
@@ -32,7 +32,7 @@ deploy:
       - name: SSH and Deploy
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          VM_IP: ${{ secrets.VM_IP }} # console.custardlev.uk
+          VM_IP: ${{ secrets.VM_IP }}
           CF_ID: ${{ secrets.CF_CLIENT_ID }}
           CF_SECRET: ${{ secrets.CF_CLIENT_SECRET }}
         run: |
@@ -40,8 +40,7 @@ deploy:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           
-          # We use -o StrictHostKeyChecking=no to bypass the need for known_hosts
-          # And we ensure the ProxyCommand is correctly quoted for Bash
+          # Using native SSH with cloudflared as a ProxyCommand
           ssh -i ~/.ssh/id_ed25519 \
               -o "StrictHostKeyChecking=no" \
               -o "ProxyCommand=cloudflared access ssh --hostname %h --id $CF_ID --secret $CF_SECRET" \
