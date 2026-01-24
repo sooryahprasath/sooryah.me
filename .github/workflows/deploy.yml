@@ -10,12 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - name: Install & Build
         run: |
           npm install
@@ -29,13 +27,12 @@ jobs:
       - name: SSH Remote Rebuild
         uses: appleboy/ssh-action@v1.2.0
         with:
-          # Use your domain name here (console.custardlev.uk) in VM_IP secret
-          host: ${{ secrets.VM_IP }}
+          host: ${{ secrets.VM_IP }} # Ensure this is console.custardlev.uk
           username: sooryah
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          # proxy_host triggers the logic needed for proxy_headers to work
+          port: 443 # Cloudflare Access listens on 443 for web-wrapped SSH
           proxy_host: ${{ secrets.VM_IP }}
+          proxy_port: 443
           proxy_username: sooryah
           proxy_headers: |
             CF-Access-Client-Id: ${{ secrets.CF_CLIENT_ID }}
