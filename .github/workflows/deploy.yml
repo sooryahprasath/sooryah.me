@@ -29,31 +29,31 @@ jobs:
           curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared.deb
 
-      - name: SSH and Deploy
+      - name: Deploy via Tunnel Bridge
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          VM_IP: ${{ secrets.VM_IP }} # Should be ssh.sooryah.me
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           CF_ID: ${{ secrets.CF_CLIENT_ID }}
           CF_SECRET: ${{ secrets.CF_CLIENT_SECRET }}
+          HOST: ${{ secrets.VM_IP }} # ssh.sooryah.me
         run: |
           mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          
-          # We create an SSH config to handle the ProxyCommand cleanly.
-          # This tells cloudflared specifically to look for port 22 on the origin.
-          cat <<EOF > ~/.ssh/config
-          Host $VM_IP
-            ProxyCommand cloudflared access ssh --hostname %h --id $CF_ID --secret $CF_SECRET
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-          EOF
-          chmod 600 ~/.ssh/config
 
-          # Now we simply call ssh. It uses the config above to pierce the web-tunnel.
-          ssh -i ~/.ssh/id_ed25519 sooryah@$VM_IP << 'EOF'
-            cd ~/sooryah-web
-            git fetch origin
-            git reset --hard origin/main
-            docker compose up -d --build
+          # 1. Start a background tunnel to Cloudflare
+          # This maps your web-tunnel to localhost:2222 on the runner
+          cloudflared access tcp --hostname $HOST --listener 127.0.0.1:2222 --id $CF_ID --secret $CF_SECRET &
+          
+          # 2. Wait for the tunnel handshake (5 seconds)
+          sleep 5
+
+          # 3. SSH into the LOCAL bridge port
+          ssh -i ~/.ssh/id_ed25519 \
+              -p 2222 \
+              -o "StrictHostKeyChecking=no" \
+              sooryah@127.0.0.1 << 'EOF'
+                cd ~/sooryah-web
+                git fetch origin
+                git reset --hard origin/main
+                docker compose up -d --build
           EOF
