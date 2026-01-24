@@ -27,8 +27,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Link Environment File
+        run: |
+          # Link the .env from your main project folder to the runner's workspace
+          ln -sf /home/sooryah/sooryah-web/.env .env
+
       - name: Local Docker Deploy
         run: |
-          # The runner is already in the directory where the new code was pulled.
-          # We use --build to ensure Docker doesn't use a cached image of your old Hero Section.
+          # Now that .env is linked, the build will succeed
           docker compose up -d --build
