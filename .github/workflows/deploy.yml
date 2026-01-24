@@ -1,0 +1,42 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Build Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install & Build
+        run: |
+          npm install
+          npm run build
+
+  deploy:
+    name: Production Deployment
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH Remote Rebuild
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VM_IP }}
+          username: sooryah
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          proxy_host: ${{ secrets.VM_IP }}
+          proxy_username: sooryah
+          custom_headers: |
+            CF-Access-Client-Id: ${{ secrets.CF_CLIENT_ID }}
+            CF-Access-Client-Secret: ${{ secrets.CF_CLIENT_SECRET }}
+          script: |
+            cd ~/sooryah-web
+            git fetch origin
+            git reset --hard origin/main
+            docker compose up -d --build
