@@ -29,10 +29,11 @@ jobs:
 
       - name: Link Environment File
         run: |
-          # Link the .env from your main project folder to the runner's workspace
+          # Ensure the .env is present for the tunnel service
           ln -sf /home/sooryah/sooryah-web/.env .env
 
       - name: Local Docker Deploy
         run: |
-          # Now that .env is linked, the build will succeed
-          docker compose up -d --build
+          # We use -p to force the project name to match your original deployment
+          # This allows Compose to stop and replace the existing 'web-tunnel'
+          docker compose -p sooryah-web up -d --build
