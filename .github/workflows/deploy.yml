@@ -24,19 +24,20 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
+      - name: Install Cloudflared
+        run: |
+          curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared.deb
+
       - name: SSH Remote Rebuild
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.VM_IP }} # Ensure this is console.custardlev.uk
+          host: ${{ secrets.VM_IP }} # Use your domain: console.custardlev.uk
           username: sooryah
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 443 # Cloudflare Access listens on 443 for web-wrapped SSH
-          proxy_host: ${{ secrets.VM_IP }}
-          proxy_port: 443
-          proxy_username: sooryah
-          proxy_headers: |
-            CF-Access-Client-Id: ${{ secrets.CF_CLIENT_ID }}
-            CF-Access-Client-Secret: ${{ secrets.CF_CLIENT_SECRET }}
+          port: 22
+          # This command tells SSH to use cloudflared as the tunnel
+          proxy_command: cloudflared access ssh --hostname ${{ secrets.VM_IP }} --id ${{ secrets.CF_CLIENT_ID }} --secret ${{ secrets.CF_CLIENT_SECRET }}
           script: |
             cd ~/sooryah-web
             git fetch origin
