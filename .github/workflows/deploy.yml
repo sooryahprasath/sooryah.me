@@ -19,7 +19,7 @@ jobs:
           npm install
           npm run build
 
-deploy:
+  deploy:
     name: Production Deployment
     needs: test
     runs-on: ubuntu-latest
