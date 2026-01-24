@@ -10,16 +10,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - name: Install & Build
         run: |
           npm install
           npm run build
 
- deploy:
+  deploy:
     name: Production Deployment
     needs: test
     runs-on: ubuntu-latest
@@ -27,17 +29,17 @@ jobs:
       - name: SSH Remote Rebuild
         uses: appleboy/ssh-action@v1.2.0
         with:
+          # Use your domain name here (console.custardlev.uk) in VM_IP secret
           host: ${{ secrets.VM_IP }}
           username: sooryah
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          # Use envs to pass the tokens as headers
-          envs: CF_CLIENT_ID,CF_CLIENT_SECRET
-        env:
-          CF_CLIENT_ID: ${{ secrets.CF_CLIENT_ID }}
-          CF_CLIENT_SECRET: ${{ secrets.CF_CLIENT_SECRET }}
-          # We manually inject the headers for Cloudflare Access
-          HTTP_HEADERS: "CF-Access-Client-Id: ${{ secrets.CF_CLIENT_ID }}\nCF-Access-Client-Secret: ${{ secrets.CF_CLIENT_SECRET }}"
+          # proxy_host triggers the logic needed for proxy_headers to work
+          proxy_host: ${{ secrets.VM_IP }}
+          proxy_username: sooryah
+          proxy_headers: |
+            CF-Access-Client-Id: ${{ secrets.CF_CLIENT_ID }}
+            CF-Access-Client-Secret: ${{ secrets.CF_CLIENT_SECRET }}
           script: |
             cd ~/sooryah-web
             git fetch origin
