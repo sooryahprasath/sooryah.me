@@ -29,14 +29,17 @@ jobs:
 
       - name: Link Environment File
         run: |
+          # Use the absolute path to your .env to ensure the tunnel has credentials
           ln -sf /home/sooryah/sooryah-web/.env .env
 
-      - name: Local Docker Deploy
+      - name: Force Production Sync
         run: |
-          # We force the project name so it replaces your manual 'sooryah-web' containers
+          # 1. Force a clean build using the files the runner just pulled
+          # 2. --force-recreate ensures the 18-hour old container is replaced
+          # 3. -p sooryah-web keeps your project namespace consistent
           docker compose -p sooryah-web up -d --build --force-recreate --remove-orphans
-          
-      - name: Cleanup Stale Layers
+
+      - name: Post-Deploy Verification
         run: |
-          # This clears the internal Docker cache to ensure the next pull is 100% fresh
-          docker image prune -f
+          # Check if the running container actually has the new title
+          docker exec web-nginx grep -q "Senior Network Automation Engineer" /usr/share/nginx/html/index.html && echo "✅ Site Updated" || echo "❌ Update Failed"
