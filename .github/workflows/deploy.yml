@@ -5,23 +5,8 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
-    name: Build Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Install & Build
-        run: |
-          npm install
-          npm run build
-
   deploy:
     name: Production Deployment
-    needs: test
     runs-on: self-hosted
     steps:
       - name: Checkout Code
@@ -30,17 +15,15 @@ jobs:
       - name: Link Environment File
         run: ln -sf /home/sooryah/sooryah-web/.env .env
 
-      - name: Scratch Build & Deploy
+      - name: Fresh Build & Deploy
         run: |
-          # --no-cache: Force Docker to ignore all previous layers
-          # --pull: Force it to grab the latest Nginx/Node images
+          # Force a pull of latest images and a no-cache build
           docker compose -p sooryah-web build --no-cache --pull
           docker compose -p sooryah-web up -d --force-recreate
 
-      - name: Verify Localhost
+      - name: Verification
         run: |
-          # Wait 5 seconds for Nginx to stabilize
           sleep 5
-          # Search for your specific new title inside the running container
+          # Final proof: Grep the live container for your new title
           docker exec web-nginx grep "Senior Network Automation Engineer" /usr/share/nginx/html/index.html
-          echo "✅ Internal verification successful. Site updated on VM."
+          echo "✅ Site verified as updated on VM."
