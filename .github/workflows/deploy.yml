@@ -22,22 +22,23 @@ jobs:
   deploy:
     name: Production Deployment
     needs: test
-    runs-on: self-hosted  # Executes on your VM
+    runs-on: self-hosted
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        # This step is what pulls the latest "git pull origin main" 
-        # into the runner's local workspace.
 
       - name: Link Environment File
         run: |
-          # Links the .env from your manual folder so the tunnel container starts
           ln -sf /home/sooryah/sooryah-web/.env .env
 
       - name: Local Docker Deploy
         run: |
-          # 1. -p sooryah-web: Forces the project name to match your manual setup
-          #    so it replaces existing containers instead of making copies.
-          # 2. --build: Re-runs the Dockerfile (npm run build) to capture your 
-          #    new Hero Section code.
-          docker compose -p sooryah-web up -d --build
+          # 1. Force a build and recreate the containers
+          # --force-recreate ensures the 18-hour old container is killed
+          # --remove-orphans cleans up any 'ghost' containers from previous tries
+          docker compose -p sooryah-web up -d --build --force-recreate --remove-orphans
+
+      - name: Cleanup Old Images
+        run: |
+          # Remove unused images to save disk space on your VM
+          docker image prune -f
