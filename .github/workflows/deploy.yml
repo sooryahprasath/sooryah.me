@@ -29,24 +29,22 @@ jobs:
 
       - name: Link Environment File
         run: |
-          # Linking the credentials from your original manual setup folder
           ln -sf /home/sooryah/sooryah-web/.env .env
 
       - name: Total Reset & Build
         run: |
-          # 1. Kill everything in the project namespace to avoid stale states
+          # 1. Kill everything to clear the 502/Bad Gateway state
           docker compose -p sooryah-web down --remove-orphans
-
-          # 2. Rebuild from scratch with NO cache to capture the new HeroSection
+          
+          # 2. Rebuild with NO CACHE to grab the new HeroSection.tsx
           docker compose -p sooryah-web build --no-cache --pull
-
-          # 3. Bring it up fresh with force-recreate
+          
+          # 3. Start fresh
           docker compose -p sooryah-web up -d --force-recreate
 
       - name: Verify Live Container Content
         run: |
-          # Give Nginx a few seconds to start
           sleep 5
-          # Search for your specific new title inside the running container
+          # This verifies the new text is actually inside the running container
           docker exec web-nginx grep "Senior Network Automation Engineer" /usr/share/nginx/html/index.html
-          echo "✅ Internal verification successful. Site updated on VM."
+          echo "✅ Internal site content verified."

@@ -2,8 +2,6 @@ services:
   web-nginx:
     build:
       context: .
-      # Ensuring the builder has access to the host network for DNS resolution if needed
-      network: host 
     container_name: web-nginx
     restart: unless-stopped
     volumes:
@@ -15,7 +13,6 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: web-tunnel
     restart: unless-stopped
-    # The command stays the same, using the token from your .env
     command: tunnel --no-autoupdate run
     env_file: .env
     networks:
