@@ -28,23 +28,18 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Link Environment File
-        run: |
-          # Links the credentials from your original folder
-          ln -sf /home/sooryah/sooryah-web/.env .env
+        run: ln -sf /home/sooryah/sooryah-web/.env .env
 
-      - name: Total Reset & Build
+      - name: Scratch Build & Deploy
         run: |
-          # 1. Kill everything to clear stale DNS/routing tables
-          docker compose -p sooryah-web down --remove-orphans
-
-          # 2. Rebuild with NO CACHE to ensure HeroSection.tsx is fresh
+          # --no-cache: Force Docker to ignore all previous layers
+          # --pull: Force it to grab the latest Nginx/Node images
           docker compose -p sooryah-web build --no-cache --pull
-
-          # 3. Start fresh with force-recreate
           docker compose -p sooryah-web up -d --force-recreate
 
-      - name: Verify Live Container Content
+      - name: Verify Localhost
         run: |
+          # Wait 5 seconds for Nginx to stabilize
           sleep 5
           # Search for your specific new title inside the running container
           docker exec web-nginx grep "Senior Network Automation Engineer" /usr/share/nginx/html/index.html
