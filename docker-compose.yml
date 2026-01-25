@@ -2,7 +2,7 @@ services:
   web-nginx:
     build:
       context: .
-      # Uses the VM's network for DNS resolution to prevent npm install failures
+      # Use host network for DNS resolution during npm install
       network: host 
     container_name: web-nginx
     restart: unless-stopped

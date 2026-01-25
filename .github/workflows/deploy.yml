@@ -29,25 +29,23 @@ jobs:
 
       - name: Link Environment File
         run: |
-          # Links the Cloudflare Tunnel credentials from your original folder
+          # Links the credentials from your original folder
           ln -sf /home/sooryah/sooryah-web/.env .env
 
       - name: Total Reset & Build
         run: |
-          # 1. Kill everything in the project namespace to avoid stale states or DNS conflicts
+          # 1. Kill everything to clear stale DNS/routing tables
           docker compose -p sooryah-web down --remove-orphans
 
-          # 2. Rebuild from scratch with NO cache to capture the new HeroSection
-          # Using --pull to ensure base images are up to date
+          # 2. Rebuild with NO CACHE to ensure HeroSection.tsx is fresh
           docker compose -p sooryah-web build --no-cache --pull
 
-          # 3. Bring it up fresh with force-recreate to clear the 502 state
+          # 3. Start fresh with force-recreate
           docker compose -p sooryah-web up -d --force-recreate
 
       - name: Verify Live Container Content
         run: |
-          # Give Nginx a few seconds to stabilize
           sleep 5
-          # Search for your specific new title inside the running container's compiled files
+          # Search for your specific new title inside the running container
           docker exec web-nginx grep "Senior Network Automation Engineer" /usr/share/nginx/html/index.html
           echo "✅ Internal verification successful. Site updated on VM."
