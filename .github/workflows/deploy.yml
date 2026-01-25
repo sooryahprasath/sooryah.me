@@ -29,19 +29,24 @@ jobs:
 
       - name: Link Environment File
         run: |
-          # Use the absolute path to your original .env
+          # Linking the credentials from your original manual setup folder
           ln -sf /home/sooryah/sooryah-web/.env .env
 
       - name: Total Reset & Build
         run: |
-          # --no-cache: Completely ignores all previous build layers
-          # --pull: Grabs the latest base images from Docker Hub
-          docker compose -p sooryah-web build --no-cache --pull
-          docker compose -p sooryah-web up -d --force-recreate --remove-orphans
+          # 1. Kill everything in the project namespace to avoid stale states
+          docker compose -p sooryah-web down --remove-orphans
 
-      - name: Internal Verification
+          # 2. Rebuild from scratch with NO cache to capture the new HeroSection
+          docker compose -p sooryah-web build --no-cache --pull
+
+          # 3. Bring it up fresh with force-recreate
+          docker compose -p sooryah-web up -d --force-recreate
+
+      - name: Verify Live Container Content
         run: |
+          # Give Nginx a few seconds to start
           sleep 5
-          # Verify the content exists inside the container before the tunnel sees it
+          # Search for your specific new title inside the running container
           docker exec web-nginx grep "Senior Network Automation Engineer" /usr/share/nginx/html/index.html
-          echo "✅ Internal site content is verified as updated."
+          echo "✅ Internal verification successful. Site updated on VM."
