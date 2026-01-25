@@ -29,16 +29,19 @@ jobs:
 
       - name: Link Environment File
         run: |
+          # Use the absolute path to your original .env
           ln -sf /home/sooryah/sooryah-web/.env .env
 
-      - name: Force Rebuild & Sync
+      - name: Total Reset & Build
         run: |
-          # --build: Re-compiles your HeroSection.tsx into fresh HTML/JS
-          # --force-recreate: Kills the old container immediately
-          # --remove-orphans: Cleans up any leftover troubleshooting containers
-          docker compose -p sooryah-web up -d --build --force-recreate --remove-orphans
+          # --no-cache: Completely ignores all previous build layers
+          # --pull: Grabs the latest base images from Docker Hub
+          docker compose -p sooryah-web build --no-cache --pull
+          docker compose -p sooryah-web up -d --force-recreate --remove-orphans
 
-      - name: Verify Live Content
+      - name: Internal Verification
         run: |
-          # This command checks the ACTIVE container for your new title
-          docker exec web-nginx grep -q "Senior Network Automation Engineer" /usr/share/nginx/html/index.html && echo "✅ SUCCESS" || echo "❌ STALE CODE DETECTED"
+          sleep 5
+          # Verify the content exists inside the container before the tunnel sees it
+          docker exec web-nginx grep "Senior Network Automation Engineer" /usr/share/nginx/html/index.html
+          echo "✅ Internal site content is verified as updated."
