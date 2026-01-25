@@ -29,17 +29,14 @@ jobs:
 
       - name: Link Environment File
         run: |
-          # Links the Cloudflare Tunnel credentials from your original folder
           ln -sf /home/sooryah/sooryah-web/.env .env
 
       - name: Local Docker Deploy
         run: |
-          # --build: Re-runs 'npm run build' inside the Dockerfile
-          # --force-recreate: Kills the 18-hour-old container and starts fresh
-          # --remove-orphans: Cleans up any 'ghost' containers from previous tries
+          # We force the project name so it replaces your manual 'sooryah-web' containers
           docker compose -p sooryah-web up -d --build --force-recreate --remove-orphans
-
-      - name: Cleanup
+          
+      - name: Cleanup Stale Layers
         run: |
-          # Frees up space by removing the old, unused image layers
+          # This clears the internal Docker cache to ensure the next pull is 100% fresh
           docker image prune -f
