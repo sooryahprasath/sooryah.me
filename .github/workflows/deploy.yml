@@ -29,17 +29,16 @@ jobs:
 
       - name: Link Environment File
         run: |
-          # Use the absolute path to your .env to ensure the tunnel has credentials
           ln -sf /home/sooryah/sooryah-web/.env .env
 
-      - name: Force Production Sync
+      - name: Force Rebuild & Sync
         run: |
-          # 1. Force a clean build using the files the runner just pulled
-          # 2. --force-recreate ensures the 18-hour old container is replaced
-          # 3. -p sooryah-web keeps your project namespace consistent
+          # --build: Re-compiles your HeroSection.tsx into fresh HTML/JS
+          # --force-recreate: Kills the old container immediately
+          # --remove-orphans: Cleans up any leftover troubleshooting containers
           docker compose -p sooryah-web up -d --build --force-recreate --remove-orphans
 
-      - name: Post-Deploy Verification
+      - name: Verify Live Content
         run: |
-          # Check if the running container actually has the new title
-          docker exec web-nginx grep -q "Senior Network Automation Engineer" /usr/share/nginx/html/index.html && echo "✅ Site Updated" || echo "❌ Update Failed"
+          # This command checks the ACTIVE container for your new title
+          docker exec web-nginx grep -q "Senior Network Automation Engineer" /usr/share/nginx/html/index.html && echo "✅ SUCCESS" || echo "❌ STALE CODE DETECTED"
