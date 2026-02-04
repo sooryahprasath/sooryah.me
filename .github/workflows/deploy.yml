@@ -12,25 +12,18 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Link Environment File
-        run: ln -sf /home/sooryah/sooryah-web/.env .env
-
-      - name: Fresh Build & Deploy
+      - name: Deploy Updates
         run: |
-          # 1. STOP and REMOVE old containers
-          docker compose -p sooryah-web down --remove-orphans
+          # 1. Pull the latest Docker Image (fast and simple)
+          docker compose -p sooryah-web pull
 
-          # 2. CLEAR local build artifacts
-          rm -rf dist
-
-          # 3. FORCE a totally fresh build
-          docker compose -p sooryah-web build --no-cache --pull
-
-          # 4. START the new containers
-          docker compose -p sooryah-web up -d
+          # 2. Restart containers to load new HTML content
+          # We use --force-recreate to ensure Nginx sees the new file
+          docker compose -p sooryah-web up -d --force-recreate
 
       - name: Verification
         run: |
-          sleep 10
+          sleep 5
+          # Verify the new title exists inside the live container
           docker exec web-nginx grep "Senior Network Automation Engineer" /usr/share/nginx/html/index.html
-          echo "✅ Verification Passed."
+          echo "✅ Verification Passed: Site is live with correct title."

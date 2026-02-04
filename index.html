@@ -1,24 +1,119 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en" class="dark">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Network Engineer | Automation & Infrastructure</title>
-    <meta name="description" content="Senior Network Automation Engineer specializing in modern infrastructure solutions. Python, Ansible, Palo Alto, and cloud automation." />
-    <meta name="author" content="Network Engineer" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sooryah Prasath | Network Automation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { background: '#09090b', card: '#18181b', primary: '#3b82f6' },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #09090b; color: #fafafa; }
+        .bento-tile {
+            background-color: #18181b; border: 1px solid #27272a; border-radius: 1rem; padding: 1.5rem;
+            transition: transform 0.2s;
+        }
+        .bento-tile:hover { transform: translateY(-4px); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-6 font-sans">
 
-    <meta property="og:title" content="Network Engineer Portfolio" />
-    <meta property="og:description" content="Solving network problems with modern automation solutions." />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <nav class="fixed top-0 w-full z-50 bg-black/50 backdrop-blur border-b border-white/10">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+            <span class="text-blue-500 font-bold text-xl">SP</span>
+        </div>
+    </nav>
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@NetworkEngineer" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-  </head>
+    <main class="max-w-6xl w-full mt-24 grid grid-cols-1 md:grid-cols-4 gap-4">
 
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+        <div class="col-span-1 md:col-span-2 bento-tile flex flex-col justify-center gap-2">
+            <h1 class="text-4xl md:text-5xl font-bold tracking-tight">Sooryah Prasath</h1>
+            <p class="text-blue-500 text-xl font-medium">Senior Network Automation Engineer</p>
+        </div>
+
+        <div class="col-span-1 md:col-span-2 row-span-2 relative overflow-hidden rounded-2xl border border-zinc-800 group">
+            <img src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2000&auto=format&fit=crop" 
+                 class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-500" alt="Mountains">
+            <div class="absolute bottom-6 left-6">
+                <p class="text-white/90 font-medium">Where I find clarity</p>
+            </div>
+        </div>
+
+        <div class="col-span-1 md:col-span-2 bento-tile flex items-center">
+            <p class="text-gray-400 text-lg leading-relaxed">
+                I solve network problems with modern automation using cloud solutions. I like mountains and planes.
+            </p>
+        </div>
+
+        <div class="bento-tile flex flex-col items-center justify-center aspect-square gap-3 group">
+            <i data-lucide="compass" class="w-8 h-8 text-gray-500 group-hover:text-blue-500 transition-colors"></i>
+            <span class="text-xs text-gray-500">Explore</span>
+        </div>
+        <div class="bento-tile flex flex-col items-center justify-center aspect-square gap-3 group">
+            <i data-lucide="crosshair" class="w-8 h-8 text-gray-500 group-hover:text-blue-500 transition-colors"></i>
+            <span class="text-xs text-gray-500">Focus</span>
+        </div>
+
+        <div class="bento-tile group">
+            <i data-lucide="shield" class="w-8 h-8 text-blue-500 mb-4"></i>
+            <h3 class="font-semibold text-lg mb-2">Palo Alto APIs</h3>
+            <div class="flex gap-2 mb-3">
+                <span class="text-xs px-2 py-1 bg-zinc-800 rounded-full text-gray-400">Python</span>
+                <span class="text-xs px-2 py-1 bg-zinc-800 rounded-full text-gray-400">XML API</span>
+            </div>
+            <p class="text-sm text-gray-500">Automated firewall rule deployment and policy management.</p>
+        </div>
+
+        <div class="bento-tile group">
+            <i data-lucide="container" class="w-8 h-8 text-blue-500 mb-4"></i>
+            <h3 class="font-semibold text-lg mb-2">Docker Infra</h3>
+            <div class="flex gap-2 mb-3">
+                <span class="text-xs px-2 py-1 bg-zinc-800 rounded-full text-gray-400">Compose</span>
+                <span class="text-xs px-2 py-1 bg-zinc-800 rounded-full text-gray-400">CI/CD</span>
+            </div>
+            <p class="text-sm text-gray-500">Containerized network monitoring stack with Prometheus.</p>
+        </div>
+
+        <div class="bento-tile group">
+            <i data-lucide="server" class="w-8 h-8 text-blue-500 mb-4"></i>
+            <h3 class="font-semibold text-lg mb-2">Homelab</h3>
+            <div class="flex gap-2 mb-3">
+                <span class="text-xs px-2 py-1 bg-zinc-800 rounded-full text-gray-400">Proxmox</span>
+                <span class="text-xs px-2 py-1 bg-zinc-800 rounded-full text-gray-400">Ansible</span>
+            </div>
+            <p class="text-sm text-gray-500">Production-grade home infrastructure. VLANs & VPNs.</p>
+        </div>
+
+        <div class="col-span-1 md:col-span-2 bento-tile">
+            <h3 class="font-semibold text-lg mb-4">Let's Connect</h3>
+            <div class="flex gap-3">
+                <a href="mailto:hello@example.com" class="flex items-center gap-2 px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition">
+                    <i data-lucide="send" class="w-4 h-4"></i> Email
+                </a>
+                <a href="#" class="flex items-center gap-2 px-4 py-2 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition">
+                    <i data-lucide="linkedin" class="w-4 h-4"></i> LinkedIn
+                </a>
+                <a href="#" class="flex items-center gap-2 px-4 py-2 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition">
+                    <i data-lucide="github" class="w-4 h-4"></i> GitHub
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <footer class="w-full max-w-6xl mt-12 py-8 border-t border-zinc-800 flex justify-between text-gray-500 text-sm">
+        <p>© 2026 Sooryah Prasath</p>
+        <p>Built with Precision</p>
+    </footer>
+    <script>lucide.createIcons();</script>
+</body>
 </html>
