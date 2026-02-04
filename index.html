@@ -30,23 +30,27 @@
         :root {
             /* LIGHT MODE */
             --bg-solid: #f0f2f5;
-            --glass-bg: rgba(255, 255, 255, 0.85);
-            --glass-border: rgba(0, 0, 0, 0.06);
+            --glass-bg: rgba(255, 255, 255, 0.9); /* Higher opacity for readability */
+            --glass-border: rgba(0, 0, 0, 0.08);
             --text-main: #18181b;
             --text-muted: #52525b;
             --accent: #2563eb;
-            --map-filter: grayscale(100%) contrast(1.1) brightness(1.0); /* Sharp grey map */
+            /* Light Map: No filter, let the city details show */
+            --map-filter: none; 
+            --map-opacity: 1; 
         }
 
         .dark {
             /* DARK MODE */
             --bg-solid: #050505;
-            --glass-bg: rgba(10, 10, 12, 0.75);
+            --glass-bg: rgba(10, 10, 12, 0.8);
             --glass-border: rgba(255, 255, 255, 0.08);
             --text-main: #ffffff;
             --text-muted: #a1a1aa;
             --accent: #3b82f6;
-            --map-filter: grayscale(100%) brightness(0.6) contrast(1.4); /* Deep dark map */
+            /* Dark Map: High contrast, brightness boosted to show outlines */
+            --map-filter: brightness(1.2) contrast(1.1);
+            --map-opacity: 0.6;
         }
 
         body { 
@@ -60,31 +64,28 @@
         #map-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
             filter: var(--map-filter);
+            opacity: var(--map-opacity);
+            transition: all 0.5s ease;
         }
 
         /* UI CONTAINER */
-        #main-ui {
-            transition: opacity 0.3s ease;
-        }
-        .ui-hidden #main-ui {
-            opacity: 0;
-            pointer-events: none;
-        }
+        #main-ui { transition: opacity 0.3s ease; }
+        .ui-hidden #main-ui { opacity: 0; pointer-events: none; }
 
         /* GLASS CARD DESIGN */
         .glass-panel {
             background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border: 1px solid var(--glass-border);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
             transition: transform 0.2s ease, border-color 0.2s ease;
         }
         
         .project-card:hover {
             border-color: var(--accent);
             transform: translateY(-4px);
-            background: var(--glass-bg); /* Ensure visibility on hover */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
         }
 
         /* BUTTONS */
@@ -96,87 +97,107 @@
         }
         .btn-glass:hover { border-color: var(--text-main); transform: translateY(-1px); }
 
+        /* PLANE LABELS (Fixed Stacking) */
+        .plane-label {
+            background: rgba(9, 9, 11, 0.95);
+            border: 1px solid var(--accent);
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 4px 6px;
+            border-radius: 4px;
+            text-align: left;
+            min-width: 70px;
+            margin-top: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            line-height: 1.1;
+            z-index: 100;
+        }
+        .pl-flight { font-size: 11px; font-weight: 800; color: #fff; margin-bottom: 2px; }
+        .pl-data { font-size: 9px; font-weight: 500; color: #a1a1aa; }
+        
         /* SCROLLBAR */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--text-muted); opacity: 0.2; border-radius: 10px; }
-
-        /* PLANE LABELS (Fixed Layout) */
-        .plane-label {
-            background: rgba(9, 9, 11, 0.9);
-            border: 1px solid var(--accent);
-            color: #fff;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 10px;
-            font-weight: 700;
-            padding: 4px 8px; /* More padding */
-            border-radius: 4px;
-            white-space: nowrap;
-            min-width: 80px; /* Prevent text overflow */
-            margin-top: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        .plane-sub { font-size: 9px; opacity: 0.8; font-weight: 400; }
     </style>
 </head>
 <body class="min-h-screen">
 
     <div id="map-container"></div>
 
-    <div class="fixed top-6 right-6 z-50 flex gap-3">
-        <button onclick="toggleUI()" class="btn-glass px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-bold font-mono text-main group">
-            <i data-lucide="eye" class="w-4 h-4 group-hover:text-accent"></i>
-            <span id="view-btn-text">HIDE UI</span>
-        </button>
-        <button onclick="toggleTheme()" class="btn-glass p-2 rounded-lg">
-            <i data-lucide="sun" class="w-4 h-4 dark:hidden"></i>
-            <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
-        </button>
+    <div class="fixed top-0 left-0 w-full z-50 p-6 flex justify-between items-start pointer-events-none">
+        
+        <div class="flex flex-col gap-2 pointer-events-auto">
+            <a href="http://networkautomation.hashnode.dev/" target="_blank" class="btn-glass px-4 py-2 rounded-lg text-xs font-bold font-mono hover:text-accent transition flex items-center gap-2">
+                <i data-lucide="book-open" class="w-3 h-3"></i> TECHNICAL BLOG
+            </a>
+            
+            <div class="glass-panel px-4 py-2 rounded-lg flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <span id="status-dot" class="w-2 h-2 rounded-full bg-zinc-400"></span>
+                    <span id="status-text" class="text-[10px] font-mono font-bold text-muted tracking-widest">CONNECTING...</span>
+                </div>
+                <div class="h-3 w-px bg-current opacity-10"></div>
+                <div class="text-[10px] font-mono text-muted">
+                    FLIGHTS: <span id="plane-count" class="text-accent font-bold">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex gap-2 pointer-events-auto">
+            <button onclick="toggleUI()" class="btn-glass px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-bold font-mono text-main group">
+                <i data-lucide="eye" class="w-4 h-4 group-hover:text-accent"></i>
+                <span id="view-btn-text">HIDE UI</span>
+            </button>
+            <button onclick="toggleTheme()" class="btn-glass p-2 rounded-lg">
+                <i data-lucide="sun" class="w-4 h-4 dark:hidden"></i>
+                <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
+            </button>
+        </div>
     </div>
 
-    <div id="main-ui" class="relative z-10 max-w-4xl mx-auto px-4 py-12 md:py-20 flex flex-col gap-12">
+    <div id="main-ui" class="relative z-10 max-w-3xl mx-auto px-4 pt-32 pb-20 flex flex-col gap-8">
 
-        <header class="glass-panel rounded-2xl p-8 md:p-12 text-center border-l-4 border-l-blue-500">
+        <header class="glass-panel rounded-2xl p-10 text-center border-t-4 border-t-blue-500">
             
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/5 dark:bg-white/5 border border-theme mb-6">
                 <span class="relative flex h-2 w-2">
                   <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                   <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                 </span>
-                <span class="text-xs font-mono font-bold tracking-widest text-muted">WELCOME</span>
+                <span class="text-[10px] font-mono font-bold tracking-widest text-muted">WELCOME</span>
             </div>
 
-            <h1 class="text-5xl md:text-7xl font-bold tracking-tighter mb-4 text-pri">
+            <h1 class="text-5xl md:text-6xl font-bold tracking-tighter mb-4 text-pri">
                 Sooryah Prasath
             </h1>
             
-            <p class="text-lg md:text-xl font-medium text-muted max-w-2xl mx-auto leading-relaxed mb-8">
+            <p class="text-base md:text-lg font-medium text-muted max-w-xl mx-auto leading-relaxed mb-8">
                 Senior Network Automation Engineer. <br>
-                Building cloud-leveraged automation frameworks and real-time telemetry pipelines for enterprise infrastructure.
+                Bridging hardware connectivity and software-defined agility for enterprise infrastructure.
             </p>
 
-            <div class="flex justify-center gap-4">
-                <a href="mailto:sooryahprasath+website@gmail.com" class="btn-glass px-6 py-3 rounded-lg flex items-center gap-2 text-xs font-bold hover:bg-blue-500 hover:text-white hover:border-blue-500 transition group">
-                    <i data-lucide="mail" class="w-4 h-4"></i> EMAIL ME
+            <div class="flex flex-wrap justify-center gap-4">
+                <a href="mailto:sooryahprasath+website@gmail.com" class="btn-glass px-5 py-2.5 rounded-lg flex items-center gap-2 text-xs font-bold hover:bg-blue-500 hover:text-white hover:border-blue-500 transition group">
+                    <i data-lucide="mail" class="w-4 h-4"></i> EMAIL
                 </a>
-                <a href="https://linkedin.com/in/sooryah" target="_blank" class="btn-glass px-6 py-3 rounded-lg flex items-center gap-2 text-xs font-bold hover:border-accent transition">
+                <a href="https://linkedin.com/in/sooryah" target="_blank" class="btn-glass px-5 py-2.5 rounded-lg flex items-center gap-2 text-xs font-bold hover:border-accent transition">
                     <i data-lucide="linkedin" class="w-4 h-4"></i> LINKEDIN
                 </a>
-                <a href="https://github.com/sooryahprasath" target="_blank" class="btn-glass px-6 py-3 rounded-lg flex items-center gap-2 text-xs font-bold hover:border-accent transition">
+                <a href="https://github.com/sooryahprasath" target="_blank" class="btn-glass px-5 py-2.5 rounded-lg flex items-center gap-2 text-xs font-bold hover:border-accent transition">
                     <i data-lucide="github" class="w-4 h-4"></i> GITHUB
                 </a>
             </div>
         </header>
 
         <div class="flex justify-center">
-            <div class="glass-panel px-4 py-2 rounded-full flex items-center gap-3 text-[10px] font-mono font-bold text-muted uppercase tracking-wider">
+            <div class="glass-panel px-4 py-1.5 rounded-full flex items-center gap-3 text-[10px] font-mono font-bold text-muted uppercase tracking-wider">
                 <i data-lucide="server" class="w-3 h-3"></i>
                 <span>Hosted Locally</span>
-                <span class="text-accent">•</span>
-                <span>Tunneled via Cloudflare</span>
+                <span class="text-accent">/</span>
+                <span>Cloudflare Tunnel</span>
             </div>
         </div>
 
@@ -186,16 +207,16 @@
             </h3>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme text-center">
-                    <div class="font-bold text-sm">Python Automation</div>
-                    <div class="text-[10px] text-muted">REST APIs / Django</div>
+                    <div class="font-bold text-sm">Python</div>
+                    <div class="text-[10px] text-muted">Automation & APIs</div>
                 </div>
                 <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme text-center">
                     <div class="font-bold text-sm">Azure DevOps</div>
                     <div class="text-[10px] text-muted">CI/CD Pipelines</div>
                 </div>
                 <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme text-center">
-                    <div class="font-bold text-sm">Infrastructure</div>
-                    <div class="text-[10px] text-muted">Terraform / Docker</div>
+                    <div class="font-bold text-sm">Terraform</div>
+                    <div class="text-[10px] text-muted">IaC & Config Mgmt</div>
                 </div>
                 <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme text-center">
                     <div class="font-bold text-sm">SD-WAN</div>
@@ -207,27 +228,26 @@
         <section class="flex flex-col gap-6">
             <div class="flex items-center justify-between px-2">
                 <h2 class="text-sm font-mono font-bold text-muted uppercase tracking-widest">Active Systems</h2>
-                <div class="h-px flex-1 bg-current opacity-10 ml-4"></div>
             </div>
 
             <a href="https://planes.custardlev.uk" target="_blank" class="glass-panel project-card rounded-2xl p-8 group block relative overflow-hidden">
-                <div class="flex justify-between items-start mb-6 relative z-10">
+                <div class="flex justify-between items-start mb-6">
                     <div class="p-3 bg-green-500/10 rounded-xl text-green-500 border border-green-500/20">
                         <i data-lucide="radar" class="w-6 h-6"></i>
                     </div>
                     <span class="flex items-center gap-2 px-2 py-1 rounded bg-green-500/10 text-[10px] font-mono font-bold text-green-600 dark:text-green-400 border border-green-500/20">
                         <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                        FLIGHTS TRACKED: <span id="plane-count">0</span>
+                        LIVE
                     </span>
                 </div>
                 
-                <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition relative z-10">ADS-B Ground Station</h3>
-                <p class="text-muted text-sm leading-relaxed mb-6 relative z-10">
+                <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition">ADS-B Ground Station</h3>
+                <p class="text-muted text-sm leading-relaxed mb-6">
                     A distributed sensor network feeding <strong>FlightRadar24</strong>. 
                     Running on Raspberry Pi 4 + RTL-SDR V3 (1090MHz). The live map background on this site is powered by this exact receiver.
                 </p>
 
-                <div class="flex gap-4 text-xs font-mono text-muted relative z-10">
+                <div class="flex gap-4 text-xs font-mono text-muted">
                     <span>#SDR_Hobby</span>
                     <span>#Linux</span>
                     <span>#SignalProcessing</span>
@@ -243,7 +263,7 @@
                 
                 <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition">Enterprise Telemetry Pipeline</h3>
                 <p class="text-muted text-sm leading-relaxed mb-6">
-                    Engineered a centralized pipeline utilizing <strong>Apache Airflow</strong> and <strong>Azure SQL</strong> to ingest real-time data from 150+ global sites, feeding dynamic Power BI dashboards.
+                    Engineered a centralized pipeline utilizing <strong>Apache Airflow</strong> and <strong>Azure SQL</strong> to ingest real-time data from 150+ global sites, feeding dynamic Power BI dashboards for health scoring.
                 </p>
 
                 <div class="flex gap-4 text-xs font-mono text-muted">
@@ -271,16 +291,8 @@
                     <span>#Ansible</span>
                 </div>
             </div>
-            
-            <a href="http://networkautomation.hashnode.dev/" target="_blank" class="glass-panel rounded-2xl p-6 flex items-center justify-between hover:border-accent transition group border-dashed border-2 bg-transparent">
-                <div>
-                    <h3 class="font-bold text-sm">Read Technical Blog</h3>
-                    <p class="text-xs text-muted">Deep dives into network automation challenges.</p>
-                </div>
-                <i data-lucide="arrow-right" class="w-5 h-5 text-muted group-hover:text-accent transition"></i>
-            </a>
 
-            <footer class="mt-8 text-center">
+            <footer class="mt-8 text-center pb-8">
                 <p class="text-xs font-mono text-muted">
                     © 2026 Sooryah Prasath.
                 </p>
@@ -308,7 +320,8 @@
         }
 
         // --- THEME ENGINE ---
-        // Changed Light map to "Voyager" for better contrast (roads are visible)
+        // Light: CartoDB Voyager (Shows colors/buildings)
+        // Dark: CartoDB Dark Matter (High contrast roads)
         const mapLayer = {
             dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
             light: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png' 
@@ -326,8 +339,9 @@
             zoomControl: false, attributionControl: false,
             zoomSnap: 0.1, boxZoom: false, doubleClickZoom: false,
             dragging: false, scrollWheelZoom: false
-        }).setView([12.9716, 77.5946], 10.5);
+        }).setView([12.9716, 77.5946], 11);
 
+        // Initial Tile Load
         tileLayer = L.tileLayer(mapLayer.dark, { maxZoom: 19 }).addTo(map);
 
         // --- RADAR ENGINE ---
@@ -341,15 +355,14 @@
                 className: 'plane-icon-wrapper',
                 html: `
                     <div style="transform: rotate(${heading}deg);">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="${color}" stroke="white" stroke-width="1" style="filter: drop-shadow(0 0 3px #000);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="${color}" stroke="white" stroke-width="1.5" style="filter: drop-shadow(0 0 4px #000);">
                             <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
                         </svg>
                     </div>
                     <div class="plane-label">
-                        <div>${flight || 'N/A'}</div>
-                        <div class="plane-sub">
-                            ALT:${Math.round(alt/100)*100} <span style="opacity:0.5">|</span> SPD:${Math.round(speed)}
-                        </div>
+                        <div class="pl-flight">${flight || 'N/A'}</div>
+                        <div class="pl-data">FL${Math.round(alt/100)}</div>
+                        <div class="pl-data">${Math.round(speed)} kts</div>
                     </div>
                 `,
                 iconSize: [30, 30],
@@ -367,6 +380,8 @@
                 
                 // Update Count
                 document.getElementById('plane-count').innerText = validPlanes.length;
+                document.getElementById('status-text').innerText = "SYSTEM ONLINE";
+                document.getElementById('status-dot').className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
 
                 const currentHexes = new Set();
                 validPlanes.forEach(p => {
