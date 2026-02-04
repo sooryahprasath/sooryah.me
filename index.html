@@ -28,29 +28,33 @@
     <style>
         /* --- THEME ENGINE --- */
         :root {
-            /* LIGHT MODE */
-            --bg-solid: #f0f2f5;
-            --glass-bg: rgba(255, 255, 255, 0.9);
-            --glass-border: rgba(0, 0, 0, 0.08);
-            --text-main: #18181b;
+            /* LIGHT MODE: High Contrast Engineering Look */
+            --bg-solid: #f4f4f5;
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(0, 0, 0, 0.1);
+            --text-main: #09090b;
             --text-muted: #52525b;
-            --accent: #2563eb;
-            --map-filter: none; 
-            --map-opacity: 1;
-            --map-bg: #d4dadc; /* Matches Voyager ocean color to prevent flashing */
+            --accent: #2563eb; /* Blue for visibility */
+            
+            /* Map: Pure Grey/White (Positron) - High Visibility */
+            --map-filter: contrast(1.05) brightness(1); 
+            --map-opacity: 1; 
+            --map-bg: #f2f2f2; /* Matches Positron background */
         }
 
         .dark {
-            /* DARK MODE */
+            /* DARK MODE: Cyberpunk Control Room */
             --bg-solid: #050505;
             --glass-bg: rgba(10, 10, 12, 0.8);
             --glass-border: rgba(255, 255, 255, 0.08);
             --text-main: #ffffff;
             --text-muted: #a1a1aa;
-            --accent: #3b82f6;
+            --accent: #3b82f6; /* Lighter Blue for dark bg */
+            
+            /* Map: Deep Black/Grey (Dark Matter) */
             --map-filter: brightness(1.2) contrast(1.1);
             --map-opacity: 0.6;
-            --map-bg: #09090b; /* Matches Dark Matter ocean color */
+            --map-bg: #09090b; /* Matches Dark Matter background */
         }
 
         body { 
@@ -65,7 +69,7 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
             filter: var(--map-filter);
             opacity: var(--map-opacity);
-            background-color: var(--map-bg); /* Prevents black flash on reload */
+            background-color: var(--map-bg);
             transition: all 0.5s ease;
         }
 
@@ -79,14 +83,14 @@
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border: 1px solid var(--glass-border);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.03);
             transition: transform 0.2s ease, border-color 0.2s ease;
         }
         
         .project-card:hover {
             border-color: var(--accent);
             transform: translateY(-4px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
         }
 
         /* BUTTONS */
@@ -98,7 +102,7 @@
         }
         .btn-glass:hover { border-color: var(--text-main); transform: translateY(-1px); }
 
-        /* PLANE LABELS (Fixed Stacking) */
+        /* PLANE LABELS */
         .plane-label {
             background: rgba(9, 9, 11, 0.95);
             border: 1px solid var(--accent);
@@ -107,7 +111,7 @@
             padding: 4px 6px;
             border-radius: 4px;
             text-align: left;
-            min-width: 80px; /* Increased width for safety */
+            min-width: 80px;
             margin-top: 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
             display: flex;
@@ -159,11 +163,11 @@
         </div>
     </div>
 
-    <div id="main-ui" class="relative z-10 max-w-3xl mx-auto px-4 pt-32 pb-20 flex flex-col gap-8">
+    <div id="main-ui" class="relative z-10 max-w-6xl mx-auto px-6 pt-32 pb-20 flex flex-col gap-10">
 
-        <header class="glass-panel rounded-2xl p-10 text-center border-t-4 border-t-blue-500">
+        <header class="glass-panel rounded-2xl p-12 text-center border-t-4 border-t-blue-500">
             
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/5 dark:bg-white/5 border border-theme mb-6">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/5 dark:bg-white/5 border border-theme mb-8">
                 <span class="relative flex h-2 w-2">
                   <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                   <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
@@ -171,79 +175,83 @@
                 <span class="text-[10px] font-mono font-bold tracking-widest text-muted">WELCOME</span>
             </div>
 
-            <h1 class="text-5xl md:text-6xl font-bold tracking-tighter mb-4 text-pri">
+            <h1 class="text-6xl md:text-8xl font-bold tracking-tighter mb-6 text-pri">
                 Sooryah Prasath
             </h1>
             
-            <p class="text-base md:text-lg font-medium text-muted max-w-xl mx-auto leading-relaxed mb-8">
+            <p class="text-xl md:text-2xl font-medium text-muted max-w-3xl mx-auto leading-relaxed mb-10">
                 Senior Network Automation Engineer. <br>
-                [cite_start]Bridging hardware connectivity and software-defined agility for enterprise infrastructure[cite: 6].
+                Bridging hardware connectivity and software-defined agility for enterprise infrastructure.
             </p>
 
             <div class="flex flex-wrap justify-center gap-4">
-                <a href="mailto:sooryahprasath+website@gmail.com" class="btn-glass px-5 py-2.5 rounded-lg flex items-center gap-2 text-xs font-bold hover:bg-blue-500 hover:text-white hover:border-blue-500 transition group">
-                    <i data-lucide="mail" class="w-4 h-4"></i> EMAIL
+                <a href="mailto:sooryahprasath+website@gmail.com" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold hover:bg-blue-500 hover:text-white hover:border-blue-500 transition group">
+                    <i data-lucide="mail" class="w-5 h-5"></i> EMAIL ME
                 </a>
-                <a href="https://linkedin.com/in/sooryah" target="_blank" class="btn-glass px-5 py-2.5 rounded-lg flex items-center gap-2 text-xs font-bold hover:border-accent transition">
-                    <i data-lucide="linkedin" class="w-4 h-4"></i> LINKEDIN
+                <a href="https://linkedin.com/in/sooryah" target="_blank" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold hover:border-accent transition">
+                    <i data-lucide="linkedin" class="w-5 h-5"></i> LINKEDIN
                 </a>
-                <a href="https://github.com/sooryahprasath" target="_blank" class="btn-glass px-5 py-2.5 rounded-lg flex items-center gap-2 text-xs font-bold hover:border-accent transition">
-                    <i data-lucide="github" class="w-4 h-4"></i> GITHUB
+                <a href="https://github.com/sooryahprasath" target="_blank" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold hover:border-accent transition">
+                    <i data-lucide="github" class="w-5 h-5"></i> GITHUB
                 </a>
             </div>
         </header>
 
         <div class="flex justify-center">
-            <div class="glass-panel px-4 py-1.5 rounded-full flex items-center gap-3 text-[10px] font-mono font-bold text-muted uppercase tracking-wider">
-                <i data-lucide="server" class="w-3 h-3"></i>
-                <span>Hosted Locally</span>
-                <span class="text-accent">/</span>
+            <div class="glass-panel px-6 py-3 rounded-full flex items-center gap-3 text-xs font-mono font-bold text-muted uppercase tracking-wider shadow-lg">
+                <i data-lucide="server" class="w-4 h-4 text-accent"></i>
+                <span>Self-Hosted</span>
+                <span class="text-accent opacity-50">::</span>
+                <span>Docker</span>
+                <i data-lucide="arrow-right" class="w-3 h-3 opacity-50"></i>
+                <span>Nginx</span>
+                <i data-lucide="arrow-right" class="w-3 h-3 opacity-50"></i>
                 <span>Cloudflare Tunnel</span>
             </div>
         </div>
 
-        <section class="glass-panel rounded-2xl p-8">
-            <h3 class="text-xs font-mono font-bold text-muted uppercase mb-6 tracking-widest flex items-center gap-2">
-                <i data-lucide="cpu" class="w-4 h-4"></i> Core Competencies
+        <section class="glass-panel rounded-2xl p-10">
+            <h3 class="text-sm font-mono font-bold text-muted uppercase mb-8 tracking-widest flex items-center gap-2">
+                <i data-lucide="cpu" class="w-5 h-5"></i> Core Competencies
             </h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme text-center">
-                    <div class="font-bold text-sm">Python</div>
-                    <div class="text-[10px] text-muted">Automation & APIs</div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div class="p-4 bg-black/5 dark:bg-white/5 rounded-lg border border-theme text-center">
+                    <div class="font-bold text-base mb-1">Python</div>
+                    <div class="text-xs text-muted">Automation & APIs</div>
                 </div>
-                <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme text-center">
-                    <div class="font-bold text-sm">Azure DevOps</div>
-                    <div class="text-[10px] text-muted">CI/CD Pipelines</div>
+                <div class="p-4 bg-black/5 dark:bg-white/5 rounded-lg border border-theme text-center">
+                    <div class="font-bold text-base mb-1">Azure DevOps</div>
+                    <div class="text-xs text-muted">CI/CD Pipelines</div>
                 </div>
-                <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme text-center">
-                    <div class="font-bold text-sm">Terraform</div>
-                    <div class="text-[10px] text-muted">IaC & Config Mgmt</div>
+                <div class="p-4 bg-black/5 dark:bg-white/5 rounded-lg border border-theme text-center">
+                    <div class="font-bold text-base mb-1">Terraform</div>
+                    <div class="text-xs text-muted">IaC & Config Mgmt</div>
                 </div>
-                <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme text-center">
-                    <div class="font-bold text-sm">SD-WAN</div>
-                    <div class="text-[10px] text-muted">Orchestration</div>
+                <div class="p-4 bg-black/5 dark:bg-white/5 rounded-lg border border-theme text-center">
+                    <div class="font-bold text-base mb-1">SD-WAN</div>
+                    <div class="text-xs text-muted">Orchestration</div>
                 </div>
             </div>
         </section>
 
-        <section class="flex flex-col gap-6">
+        <section class="flex flex-col gap-8">
             <div class="flex items-center justify-between px-2">
                 <h2 class="text-sm font-mono font-bold text-muted uppercase tracking-widest">Active Systems</h2>
             </div>
 
-            <a href="https://planes.custardlev.uk" target="_blank" class="glass-panel project-card rounded-2xl p-8 group block relative overflow-hidden">
+            <a href="https://planes.custardlev.uk" target="_blank" class="glass-panel project-card rounded-2xl p-10 group block relative overflow-hidden">
                 <div class="flex justify-between items-start mb-6">
-                    <div class="p-3 bg-green-500/10 rounded-xl text-green-500 border border-green-500/20">
-                        <i data-lucide="radar" class="w-6 h-6"></i>
+                    <div class="p-4 bg-green-500/10 rounded-xl text-green-500 border border-green-500/20">
+                        <i data-lucide="radar" class="w-8 h-8"></i>
                     </div>
-                    <span class="flex items-center gap-2 px-2 py-1 rounded bg-green-500/10 text-[10px] font-mono font-bold text-green-600 dark:text-green-400 border border-green-500/20">
-                        <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                    <span class="flex items-center gap-2 px-3 py-1.5 rounded bg-green-500/10 text-xs font-mono font-bold text-green-600 dark:text-green-400 border border-green-500/20">
+                        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                         LIVE
                     </span>
                 </div>
                 
-                <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition">ADS-B Ground Station</h3>
-                <p class="text-muted text-sm leading-relaxed mb-6">
+                <h3 class="text-2xl font-bold mb-3 group-hover:text-accent transition">ADS-B Ground Station</h3>
+                <p class="text-muted text-base leading-relaxed mb-6">
                     A distributed sensor network feeding <strong>FlightRadar24</strong>. 
                     Running on Raspberry Pi 4 + RTL-SDR V3 (1090MHz). The live map background on this site is powered by this exact receiver.
                 </p>
@@ -255,15 +263,15 @@
                 </div>
             </a>
 
-            <div class="glass-panel project-card rounded-2xl p-8 group">
+            <div class="glass-panel project-card rounded-2xl p-10 group">
                 <div class="flex justify-between items-start mb-6">
-                    <div class="p-3 bg-purple-500/10 rounded-xl text-purple-500 border border-purple-500/20">
-                        <i data-lucide="activity" class="w-6 h-6"></i>
+                    <div class="p-4 bg-purple-500/10 rounded-xl text-purple-500 border border-purple-500/20">
+                        <i data-lucide="activity" class="w-8 h-8"></i>
                     </div>
                 </div>
                 
-                <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition">Enterprise Telemetry Pipeline</h3>
-                <p class="text-muted text-sm leading-relaxed mb-6">
+                <h3 class="text-2xl font-bold mb-3 group-hover:text-accent transition">Enterprise Telemetry Pipeline</h3>
+                <p class="text-muted text-base leading-relaxed mb-6">
                     Engineered a centralized pipeline utilizing <strong>Apache Airflow</strong> and <strong>Azure SQL</strong> to ingest real-time data from 150+ global sites, feeding dynamic Power BI dashboards for health scoring.
                 </p>
 
@@ -274,15 +282,15 @@
                 </div>
             </div>
 
-            <div class="glass-panel project-card rounded-2xl p-8 group">
+            <div class="glass-panel project-card rounded-2xl p-10 group">
                 <div class="flex justify-between items-start mb-6">
-                    <div class="p-3 bg-orange-500/10 rounded-xl text-orange-500 border border-orange-500/20">
-                        <i data-lucide="server" class="w-6 h-6"></i>
+                    <div class="p-4 bg-orange-500/10 rounded-xl text-orange-500 border border-orange-500/20">
+                        <i data-lucide="server" class="w-8 h-8"></i>
                     </div>
                 </div>
                 
-                <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition">Private Cloud Cluster</h3>
-                <p class="text-muted text-sm leading-relaxed mb-6">
+                <h3 class="text-2xl font-bold mb-3 group-hover:text-accent transition">Private Cloud Cluster</h3>
+                <p class="text-muted text-base leading-relaxed mb-6">
                     Production-grade home infrastructure. A 3-node Proxmox cluster running Kubernetes (K3s), n8n pipelines, and Grafana stacks.
                 </p>
 
@@ -306,14 +314,12 @@
         lucide.createIcons();
         
         // --- UI TOGGLE ---
-        // ZOOM 8.4 = Perfect Mangaluru <-> Chennai coverage
         const DEFAULT_CENTER = [12.98, 77.6];
         const DEFAULT_ZOOM = 8.4;
         
-        // Boundaries (South India Lock) to prevent "Bali Shift"
         const SOUTH_INDIA_BOUNDS = L.latLngBounds(
-            L.latLng(8.0, 73.0), // South West (Below Kerala)
-            L.latLng(18.0, 85.0) // North East (Above Telangana)
+            L.latLng(8.0, 73.0),
+            L.latLng(18.0, 85.0)
         );
 
         function toggleUI() {
@@ -324,20 +330,15 @@
                 // RESET MODE
                 body.classList.remove('ui-hidden');
                 btnText.innerText = "HIDE UI";
-                
-                // Disable & Reset View
                 map.dragging.disable();
                 map.scrollWheelZoom.disable();
                 map.doubleClickZoom.disable();
                 map.boxZoom.disable();
                 map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
-
             } else {
                 // INTERACTIVE MODE
                 body.classList.add('ui-hidden');
                 btnText.innerText = "SHOW UI";
-                
-                // Enable
                 map.dragging.enable();
                 map.scrollWheelZoom.enable();
                 map.doubleClickZoom.enable();
@@ -346,9 +347,11 @@
         }
 
         // --- THEME ENGINE ---
+        // Light: Positron (Grey/White)
+        // Dark: Dark Matter (Black/Grey)
         const mapLayer = {
             dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-            light: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png' 
+            light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
         };
         let tileLayer;
 
@@ -363,9 +366,9 @@
             zoomControl: false, attributionControl: false,
             zoomSnap: 0.1, boxZoom: false, doubleClickZoom: false,
             dragging: false, scrollWheelZoom: false,
-            minZoom: 6, // Prevent zooming out too far
-            maxBounds: SOUTH_INDIA_BOUNDS, // Lock to region
-            maxBoundsViscosity: 1.0 // Hard bounce back
+            minZoom: 6, 
+            maxBounds: SOUTH_INDIA_BOUNDS, 
+            maxBoundsViscosity: 1.0 
         }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
 
         tileLayer = L.tileLayer(mapLayer.dark, { maxZoom: 19 }).addTo(map);
