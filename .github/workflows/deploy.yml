@@ -12,19 +12,15 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Link Environment File
-        # Ensures your Cloudflare tokens and secrets are available to the containers
-        run: ln -sf /home/sooryah/sooryah-web/.env .env
-
       - name: Fresh Build & Deploy
         run: |
-          # 1. STOP and REMOVE old containers to clear naming conflicts (the "Nuke" step)
+          # 1. STOP and REMOVE to clear naming conflicts
           docker compose -p sooryah-web down --remove-orphans
 
-          # 2. CLEAR local build artifacts to ensure no 'ghost' files are copied
+          # 2. CLEAR local build artifacts physically
           rm -rf dist
 
-          # 3. FORCE a totally fresh build from the Dockerfile (no layer cache)
+          # 3. FORCE a totally fresh build (no cache)
           docker compose -p sooryah-web build --no-cache --pull
 
           # 4. START the new containers
@@ -32,12 +28,15 @@ jobs:
 
       - name: Verification
         run: |
-          # Wait for Nginx to initialize
           sleep 10
-          # Verify the content exists inside the LIVE container
+          # Final proof: Grep the live container for your new title
           docker exec web-nginx grep "Senior Network Automation Engineer" /usr/share/nginx/html/index.html
-          echo "✅ Internal Verification Passed: New Title Found in Container."
+          echo "✅ Internal Verification Passed: Container is updated."
 
-      - name: Check Container Status
+      - name: Purge Cloudflare Cache
         run: |
-          docker ps -a --filter "name=web-"
+          curl -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/purge_cache" \
+          -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+          -H "Content-Type: application/json" \
+          --data '{"purge_everything":true}'
+          echo "🚀 Cloudflare Edge Cache Purged."

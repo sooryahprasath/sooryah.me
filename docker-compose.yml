@@ -1,24 +1,13 @@
 services:
   web-nginx:
-    build:
+    build: 
       context: .
+      # Use host network for DNS resolution during the build stage (npm install)
       network: host 
     container_name: web-nginx
     restart: always
-    # We remove the networks block to simplify; using default bridge
-    # Ensure NO old volumes are attached
-    networks:
-      - web-network
-
-  web-tunnel:
-    image: cloudflare/cloudflared:latest
-    container_name: web-tunnel
-    restart: always
-    command: tunnel --no-autoupdate run
-    env_file: .env
-    networks:
-      - web-network
-
-networks:
-  web-network:
-    name: sooryah_shared_net # Explicitly naming it to avoid collision
+    ports:
+      - "80:80"
+    # Link your local Nginx config for routing
+    volumes:
+      - ./default.conf:/etc/nginx/conf.d/default.conf:ro
