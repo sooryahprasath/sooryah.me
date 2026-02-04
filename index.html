@@ -6,66 +6,41 @@
     <title>Sooryah Prasath | Network Engineer</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
-
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
-                    },
-                    colors: {
-                        background: '#09090b',
-                        surface: '#18181b',
-                        accent: '#3b82f6'
-                    }
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+                    colors: { background: '#09090b', surface: '#18181b', accent: '#3b82f6' }
                 }
             }
         }
     </script>
-
     <style>
-        /* Smooth scrolling and clean selection */
         html { scroll-behavior: smooth; }
-        ::selection { background: #3b82f6; color: white; }
+        body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', sans-serif; }
         
-        /* The Canvas stays fixed behind everything */
+        /* The Radar Background */
         #radar-canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            opacity: 0.4;
-            pointer-events: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; opacity: 0.5; pointer-events: none;
         }
-
-        /* Minimalist Card Hover Effects */
-        .project-card {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .project-card:hover {
-            transform: translateY(-2px);
-            border-color: #3f3f46; /* zinc-700 */
-        }
+        
+        /* Card Hover Effects */
+        .project-card { transition: all 0.3s ease; }
+        .project-card:hover { transform: translateY(-3px); border-color: #52525b; }
     </style>
 </head>
-<body class="bg-background text-zinc-300 antialiased min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col">
 
     <canvas id="radar-canvas"></canvas>
 
     <nav class="fixed top-0 w-full z-50 border-b border-white/5 bg-background/80 backdrop-blur-md">
         <div class="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
-            <a href="#" class="font-mono font-bold text-white text-lg tracking-tight hover:text-accent transition">SP_</a>
-            
+            <span class="font-mono font-bold text-white text-lg tracking-tight">SP_</span>
             <div class="flex gap-6 text-sm font-medium text-zinc-400">
                 <a href="#work" class="hover:text-white transition">Work</a>
                 <a href="http://networkautomation.hashnode.dev/" target="_blank" class="hover:text-white transition">Writing</a>
@@ -76,8 +51,8 @@
 
     <header class="max-w-5xl mx-auto px-6 pt-40 pb-20 w-full">
         <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-xs text-zinc-400 mb-6">
-            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            <span>System Online</span>
+            <span id="status-dot" class="w-2 h-2 rounded-full bg-zinc-600"></span>
+            <span id="status-text" class="font-mono">Initializing Radar...</span>
         </div>
         
         <h1 class="text-5xl md:text-7xl font-bold text-white tracking-tight mb-6">
@@ -90,57 +65,49 @@
     </header>
 
     <section id="work" class="max-w-5xl mx-auto px-6 py-12 w-full">
-        <div class="flex items-center justify-between mb-8">
-            <h2 class="text-sm font-mono text-zinc-500 uppercase tracking-wider">Selected Projects</h2>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
+        <h2 class="text-sm font-mono text-zinc-500 uppercase tracking-wider mb-8">Selected Projects</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
             <a href="https://planes.custardlev.uk" target="_blank" class="project-card group bg-surface border border-white/10 rounded-xl p-6 flex flex-col justify-between h-64">
                 <div>
                     <div class="flex justify-between items-start mb-4">
                         <i data-lucide="radar" class="w-8 h-8 text-accent"></i>
-                        <span class="text-xs font-mono text-zinc-500 border border-white/10 px-2 py-1 rounded">LIVE</span>
+                        <span class="text-[10px] font-mono text-green-400 border border-green-900/50 bg-green-900/20 px-2 py-0.5 rounded">LIVE FEED</span>
                     </div>
                     <h3 class="text-xl font-bold text-white mb-2 group-hover:text-accent transition">ADS-B Ground Station</h3>
                     <p class="text-sm text-zinc-400">
                         Distributed aircraft tracking network feeding FlightAware. 
-                        Running on Raspberry Pi + RTL-SDR with custom visualization.
+                        Running on Raspberry Pi + RTL-SDR. The background is live data from this receiver.
                     </p>
                 </div>
-                <div class="text-xs font-mono text-zinc-500 mt-4">
-                    Hardware / Signal Processing
-                </div>
+                <div class="text-xs font-mono text-zinc-500 mt-4">Hardware / Signal Processing</div>
             </a>
 
             <a href="#" class="project-card group bg-surface border border-white/10 rounded-xl p-6 flex flex-col justify-between h-64">
                 <div>
                     <div class="flex justify-between items-start mb-4">
-                        <i data-lucide="shield-check" class="w-8 h-8 text-zinc-400 group-hover:text-white transition"></i>
+                        <i data-lucide="shield-check" class="w-8 h-8 text-zinc-500 group-hover:text-white transition"></i>
                     </div>
                     <h3 class="text-xl font-bold text-white mb-2 group-hover:text-accent transition">Firewall Auto-Pilot</h3>
                     <p class="text-sm text-zinc-400">
-                        Python framework leveraging PAN-OS XML APIs to audit and deploy security policies across 50+ enterprise firewalls.
+                        Python framework using PAN-OS XML APIs to audit and deploy security policies across 50+ enterprise firewalls.
                     </p>
                 </div>
-                <div class="text-xs font-mono text-zinc-500 mt-4">
-                    Python / XML API / Security
-                </div>
+                <div class="text-xs font-mono text-zinc-500 mt-4">Python / XML API</div>
             </a>
 
             <a href="#" class="project-card group bg-surface border border-white/10 rounded-xl p-6 flex flex-col justify-between h-64">
                 <div>
                     <div class="flex justify-between items-start mb-4">
-                        <i data-lucide="server" class="w-8 h-8 text-zinc-400 group-hover:text-white transition"></i>
+                        <i data-lucide="server" class="w-8 h-8 text-zinc-500 group-hover:text-white transition"></i>
                     </div>
                     <h3 class="text-xl font-bold text-white mb-2 group-hover:text-accent transition">Private Cloud Infra</h3>
                     <p class="text-sm text-zinc-400">
-                        Self-hosted Proxmox cluster running Kubernetes (K3s) and Ansible pipelines. Production-grade home automation.
+                        Self-hosted Proxmox cluster running Kubernetes (K3s), n8n pipelines, and Grafana stacks.
                     </p>
                 </div>
-                <div class="text-xs font-mono text-zinc-500 mt-4">
-                    Proxmox / Docker / Ansible
-                </div>
+                <div class="text-xs font-mono text-zinc-500 mt-4">Proxmox / Docker / Ansible</div>
             </a>
 
         </div>
@@ -148,34 +115,30 @@
 
     <footer class="mt-auto border-t border-white/5 bg-background">
         <div class="max-w-5xl mx-auto px-6 py-12 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div class="flex gap-6">
-                <a href="mailto:Sooryahprasath@gmail.com" class="text-zinc-400 hover:text-white transition flex items-center gap-2">
-                    <i data-lucide="mail" class="w-4 h-4"></i> Email
-                </a>
-                <a href="https://linkedin.com" target="_blank" class="text-zinc-400 hover:text-white transition flex items-center gap-2">
-                    <i data-lucide="linkedin" class="w-4 h-4"></i> LinkedIn
-                </a>
-                <a href="https://github.com/sooryahprasath" target="_blank" class="text-zinc-400 hover:text-white transition flex items-center gap-2">
-                    <i data-lucide="github" class="w-4 h-4"></i> GitHub
-                </a>
+            <div class="flex gap-6 text-zinc-400">
+                <a href="mailto:Sooryahprasath@gmail.com" class="hover:text-white flex gap-2"><i data-lucide="mail" class="w-4 h-4"></i> Email</a>
+                <a href="https://linkedin.com" target="_blank" class="hover:text-white flex gap-2"><i data-lucide="linkedin" class="w-4 h-4"></i> LinkedIn</a>
+                <a href="https://github.com/sooryahprasath" target="_blank" class="hover:text-white flex gap-2"><i data-lucide="github" class="w-4 h-4"></i> GitHub</a>
             </div>
-            <p class="text-xs text-zinc-600 font-mono">
-                Running on Docker @ 192.168.0.120
-            </p>
+            <p class="text-xs text-zinc-600 font-mono">Running on Docker @ 192.168.0.120</p>
         </div>
     </footer>
 
     <script>
-        // Initialize Icons
         lucide.createIcons();
-
-        // Canvas Setup
         const canvas = document.getElementById('radar-canvas');
         const ctx = canvas.getContext('2d');
         let width, height;
+        
+        // --- CONFIGURATION ---
+        const API_URL = 'https://api.custardlev.uk/skyaware/data/aircraft.json';
+        const CENTER_LAT = 12.9716; // Bangalore Latitude
+        const CENTER_LON = 77.5946; // Bangalore Longitude
+        const SCALE = 200;          // Zoom factor
+        // ---------------------
+
         let planes = [];
 
-        // Resize handling
         function resize() {
             width = window.innerWidth;
             height = window.innerHeight;
@@ -185,93 +148,91 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Plane Class
-        class Plane {
-            constructor(x, y, speed, heading) {
-                this.x = x || Math.random() * width;
-                this.y = y || Math.random() * height;
-                this.speed = speed || (0.5 + Math.random());
-                this.heading = heading || (Math.random() * Math.PI * 2);
-                this.size = 2;
-                this.history = [];
-            }
-
-            update() {
-                // Move plane
-                this.x += Math.cos(this.heading) * this.speed;
-                this.y += Math.sin(this.heading) * this.speed;
-
-                // Wrap around screen
-                if (this.x < 0) this.x = width;
-                if (this.x > width) this.x = 0;
-                if (this.y < 0) this.y = height;
-                if (this.y > height) this.y = 0;
-
-                // Add trail
-                this.history.push({x: this.x, y: this.y});
-                if (this.history.length > 20) this.history.shift();
-            }
-
-            draw() {
-                // Draw Trail
-                ctx.beginPath();
-                for (let i = 0; i < this.history.length; i++) {
-                    const point = this.history[i];
-                    ctx.lineTo(point.x, point.y);
-                }
-                ctx.strokeStyle = `rgba(59, 130, 246, ${0.1 + (this.history.length/20) * 0.2})`; // Blue trail
-                ctx.lineWidth = 1;
-                ctx.stroke();
-
-                // Draw Plane
-                ctx.fillStyle = '#3b82f6';
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-            }
+        function mapCoords(lat, lon) {
+            // Simple projection: center the map on Bangalore
+            const x = (lon - CENTER_LON) * SCALE + (width / 2);
+            const y = (CENTER_LAT - lat) * SCALE + (height / 2);
+            return { x, y };
         }
 
-        // Initialize Simulation (Fallback)
-        // We create 15 "Ghost" planes to ensure the background is never empty
-        for (let i = 0; i < 15; i++) {
-            planes.push(new Plane());
-        }
-
-        // Animation Loop
-        function animate() {
-            ctx.clearRect(0, 0, width, height);
-            
-            planes.forEach(plane => {
-                plane.update();
-                plane.draw();
-            });
-
-            requestAnimationFrame(animate);
-        }
-        animate();
-
-        // ---------------------------------------------------------
-        // REAL DATA FETCHING LOGIC
-        // ---------------------------------------------------------
-        async function fetchRealPlanes() {
+        async function fetchPlanes() {
             try {
-                // Try to hit your local endpoint
-                // Note: This might fail due to CORS if domains don't match, 
-                // but the simulation above handles the fallback seamlessly.
-                const response = await fetch('https://planes.custardlev.uk/data/aircraft.json');
+                const response = await fetch(API_URL);
                 const data = await response.json();
                 
-                // If we get real data, we could map it here.
-                // For now, let's keep the simulation running as it guarantees aesthetics.
-                console.log("Plane data connection:", data ? "Active" : "Silent");
+                if (data && data.aircraft) {
+                    // Filter out planes without position
+                    const validPlanes = data.aircraft.filter(p => p.lat && p.lon);
+                    planes = validPlanes;
+
+                    // Update UI Status
+                    document.getElementById('status-dot').className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
+                    document.getElementById('status-text').innerText = `Radar Online: ${planes.length} Aircraft`;
+                    document.getElementById('status-text').className = "font-mono text-green-400";
+                }
             } catch (e) {
-                // Silent fail - the simulation continues
+                console.error("Radar Fetch Error:", e);
+                document.getElementById('status-dot').className = "w-2 h-2 rounded-full bg-red-500";
+                document.getElementById('status-text').innerText = "Radar Offline (Simulating)";
+                document.getElementById('status-text').className = "font-mono text-red-400";
+                
+                // Keep simulation running if API fails
+                if (planes.length === 0) simulateTraffic(); 
             }
         }
-        
-        // Try to fetch every 5 seconds
-        setInterval(fetchRealPlanes, 5000);
 
+        function simulateTraffic() {
+             // Create fake planes only if we have 0 real planes
+             if(Math.random() > 0.05) return; 
+             planes.push({
+                 lat: CENTER_LAT + (Math.random() - 0.5),
+                 lon: CENTER_LON + (Math.random() - 0.5),
+                 flight: "SIM" + Math.floor(Math.random()*999),
+                 simulated: true
+             });
+        }
+
+        function draw() {
+            // Fade effect for trails
+            ctx.fillStyle = 'rgba(9, 9, 11, 0.15)'; 
+            ctx.fillRect(0, 0, width, height);
+
+            planes.forEach((plane, index) => {
+                // If simulated, move it slightly
+                if (plane.simulated) {
+                    plane.lat += 0.001; 
+                    plane.lon += 0.001;
+                    if(plane.lat > CENTER_LAT + 2) planes.splice(index, 1); // Remove if far
+                }
+
+                const pos = mapCoords(plane.lat, plane.lon);
+                
+                // Draw Plane
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
+                ctx.fillStyle = '#3b82f6';
+                ctx.fill();
+
+                // Draw Ring
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(59, 130, 246, 0.2)';
+                ctx.stroke();
+
+                // Draw Label
+                if (plane.flight) {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.font = '10px JetBrains Mono';
+                    ctx.fillText(plane.flight.trim(), pos.x + 10, pos.y + 4);
+                }
+            });
+
+            requestAnimationFrame(draw);
+        }
+
+        draw();
+        setInterval(fetchPlanes, 2000); // Update data every 2s
+        fetchPlanes();
     </script>
 </body>
 </html>
