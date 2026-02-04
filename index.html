@@ -160,6 +160,29 @@
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--text-muted); opacity: 0.2; border-radius: 10px; }
+
+        /* PROFILE IMAGE STYLING */
+        .profile-container {
+            position: relative;
+            display: inline-block;
+        }
+        .profile-img {
+            width: 140px; height: 140px;
+            border-radius: 50%; /* Circle */
+            object-fit: cover;
+            border: 3px solid var(--accent); /* Amber Border */
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.4); /* Amber Glow */
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .profile-container:hover .profile-img {
+            transform: scale(1.05);
+            box-shadow: 0 0 40px rgba(245, 158, 11, 0.6);
+        }
+        /* Responsive Sizing */
+        @media (min-width: 768px) {
+            .profile-img { width: 180px; height: 180px; }
+        }
+
     </style>
 </head>
 <body class="min-h-screen">
@@ -212,23 +235,47 @@
 
     <div id="main-ui" class="relative z-10 max-w-6xl mx-auto px-6 pt-32 pb-20 flex flex-col gap-10">
 
-        <header class="glass-panel rounded-2xl p-12 text-center border-t-4 border-t-[var(--accent)]">
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/5 dark:bg-white/5 border border-theme mb-8">
-                <span class="relative flex h-2 w-2">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                <span class="text-[10px] font-mono font-bold tracking-widest text-muted">WELCOME</span>
-            </div>
-            <h1 class="text-6xl md:text-8xl font-bold tracking-tighter mb-6 text-pri">Sooryah Prasath</h1>
-            <p class="text-xl md:text-2xl font-medium text-muted max-w-3xl mx-auto leading-relaxed mb-10">
-                Senior Network Automation Engineer. <br>
-                Bridging hardware connectivity and software-defined agility for enterprise infrastructure.
-            </p>
-            <div class="flex flex-wrap justify-center gap-4">
-                <a href="mailto:sooryahprasath+website@gmail.com" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold transition group"><i data-lucide="mail" class="w-5 h-5"></i> EMAIL ME</a>
-                <a href="https://linkedin.com/in/sooryah" target="_blank" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold transition"><i data-lucide="linkedin" class="w-5 h-5"></i> LINKEDIN</a>
-                <a href="https://github.com/sooryahprasath" target="_blank" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold transition"><i data-lucide="github" class="w-5 h-5"></i> GITHUB</a>
+        <header class="glass-panel rounded-2xl p-8 md:p-12 border-t-4 border-t-[var(--accent)]">
+            
+            <div class="flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-12">
+                
+                <div class="flex-shrink-0">
+                    <div class="profile-container">
+                        <img src="https://github.com/sooryahprasath.png" alt="Sooryah Prasath" class="profile-img">
+                    </div>
+                </div>
+
+                <div class="text-center md:text-left flex-grow">
+                    
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/5 dark:bg-white/5 border border-theme mb-6">
+                        <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        </span>
+                        <span class="text-[10px] font-mono font-bold tracking-widest text-muted">WELCOME</span>
+                    </div>
+
+                    <h1 class="text-5xl md:text-7xl font-bold tracking-tighter mb-4 text-pri leading-tight">
+                        Sooryah Prasath
+                    </h1>
+                    
+                    <p class="text-lg md:text-xl font-medium text-muted leading-relaxed mb-8 max-w-2xl">
+                        <span class="text-accent font-bold">Senior Network Automation Engineer.</span><br>
+                        Bridging hardware connectivity and software-defined agility for enterprise infrastructure.
+                    </p>
+
+                    <div class="flex flex-wrap justify-center md:justify-start gap-4">
+                        <a href="mailto:sooryahprasath+website@gmail.com" class="btn-glass px-6 py-3 rounded-lg flex items-center gap-2 text-xs font-bold transition group hover:bg-accent hover:text-white hover:border-accent">
+                            <i data-lucide="mail" class="w-4 h-4"></i> EMAIL ME
+                        </a>
+                        <a href="https://linkedin.com/in/sooryah" target="_blank" class="btn-glass px-6 py-3 rounded-lg flex items-center gap-2 text-xs font-bold transition hover:border-accent">
+                            <i data-lucide="linkedin" class="w-4 h-4"></i> LINKEDIN
+                        </a>
+                        <a href="https://github.com/sooryahprasath" target="_blank" class="btn-glass px-6 py-3 rounded-lg flex items-center gap-2 text-xs font-bold transition hover:border-accent">
+                            <i data-lucide="github" class="w-4 h-4"></i> GITHUB
+                        </a>
+                    </div>
+                </div>
             </div>
         </header>
 
