@@ -31,12 +31,10 @@
             /* LIGHT MODE */
             --bg-solid: #f4f4f5;
             --glass-bg: rgba(255, 255, 255, 0.9);
-            --glass-border: rgba(0, 0, 0, 0.08);
+            --glass-border: rgba(0, 0, 0, 0.1);
             --text-main: #09090b;
             --text-muted: #52525b;
-            --accent: #f59e0b; /* Signal Amber */
-            
-            /* Map: High Visibility */
+            --accent: #2563eb;
             --map-filter: contrast(1.05) brightness(1); 
             --map-opacity: 1; 
             --map-bg: #e5e5e5;
@@ -50,8 +48,6 @@
             --text-main: #ffffff;
             --text-muted: #a1a1aa;
             --accent: #f59e0b; /* Signal Amber */
-            
-            /* Map: Deep Dark */
             --map-filter: brightness(1.2) contrast(1.1);
             --map-opacity: 0.6;
             --map-bg: #09090b;
@@ -100,16 +96,12 @@
             backdrop-filter: blur(8px);
             transition: all 0.2s;
         }
-        .btn-glass:hover { 
-            border-color: var(--accent); 
-            color: var(--accent);
-            transform: translateY(-1px); 
-        }
+        .btn-glass:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
 
         /* PLANE LABELS */
         .plane-label {
             background: rgba(9, 9, 11, 0.95);
-            border: 1px solid var(--accent); /* Amber border */
+            border: 1px solid var(--accent);
             color: #fff;
             font-family: 'JetBrains Mono', monospace;
             padding: 4px 6px;
@@ -125,6 +117,20 @@
         }
         .pl-flight { font-size: 11px; font-weight: 800; color: var(--accent); margin-bottom: 2px; }
         .pl-data { font-size: 9px; font-weight: 500; color: #a1a1aa; }
+
+        /* SIDEBAR */
+        #flight-sidebar {
+            position: fixed; top: 0; right: 0; height: 100%; width: 320px;
+            z-index: 60;
+            background: var(--glass-bg);
+            border-left: 1px solid var(--glass-border);
+            backdrop-filter: blur(20px);
+            transform: translateX(100%);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            padding: 24px;
+            overflow-y: auto;
+        }
+        #flight-sidebar.open { transform: translateX(0); }
         
         /* SCROLLBAR */
         ::-webkit-scrollbar { width: 6px; }
@@ -135,6 +141,16 @@
 <body class="min-h-screen">
 
     <div id="map-container"></div>
+
+    <aside id="flight-sidebar">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-sm font-mono font-bold tracking-widest text-muted">FLIGHT DATA</h2>
+            <button onclick="closeSidebar()" class="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div id="sidebar-content" class="flex flex-col gap-6">
+            <div class="text-muted text-sm">Select an aircraft to view live telemetry.</div>
+        </div>
+    </aside>
 
     <div class="fixed top-0 left-0 w-full z-50 p-6 flex justify-between items-start pointer-events-none">
         
@@ -155,10 +171,9 @@
             </div>
         </div>
 
-        <div class="flex gap-2 pointer-events-auto">
-            <button onclick="toggleUI()" class="btn-glass px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-bold font-mono text-main group">
-                <i data-lucide="eye" class="w-4 h-4 group-hover:text-accent"></i>
-                <span id="view-btn-text">HIDE UI</span>
+        <div class="flex gap-2 pointer-events-auto pr-12 md:pr-0"> <button onclick="toggleUI()" class="btn-glass px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-bold font-mono text-main group">
+                <i data-lucide="map" class="w-4 h-4 group-hover:text-accent"></i>
+                <span id="view-btn-text">SHOW MAP</span>
             </button>
             <button onclick="toggleTheme()" class="btn-glass p-2 rounded-lg group">
                 <i data-lucide="sun" class="w-4 h-4 dark:hidden group-hover:text-accent"></i>
@@ -224,12 +239,12 @@
                     <div class="text-xs text-muted">Automation & APIs</div>
                 </div>
                 <div class="p-4 bg-black/5 dark:bg-white/5 rounded-lg border border-theme text-center">
-                    <div class="font-bold text-base mb-1">Azure DevOps</div>
-                    <div class="text-xs text-muted">CI/CD Pipelines</div>
+                    <div class="font-bold text-base mb-1">Cloud & Networking</div>
+                    <div class="text-xs text-muted">TCP/IP, BGP, VNets</div>
                 </div>
                 <div class="p-4 bg-black/5 dark:bg-white/5 rounded-lg border border-theme text-center">
-                    <div class="font-bold text-base mb-1">Terraform</div>
-                    <div class="text-xs text-muted">IaC & Config Mgmt</div>
+                    <div class="font-bold text-base mb-1">Azure DevOps</div>
+                    <div class="text-xs text-muted">CI/CD Pipelines</div>
                 </div>
                 <div class="p-4 bg-black/5 dark:bg-white/5 rounded-lg border border-theme text-center">
                     <div class="font-bold text-base mb-1">SD-WAN</div>
@@ -317,12 +332,12 @@
     <script>
         lucide.createIcons();
         
-        // --- CONFIG ---
+        // --- MAP CONFIG ---
         const DEFAULT_CENTER = [12.98, 77.6];
         const DEFAULT_ZOOM = 8.4;
         const SOUTH_INDIA_BOUNDS = L.latLngBounds(L.latLng(8.0, 73.0), L.latLng(18.0, 85.0));
 
-        // --- MAP INITIALIZATION ---
+        // --- INIT MAP ---
         const map = L.map('map-container', {
             zoomControl: false, attributionControl: false,
             zoomSnap: 0.1, boxZoom: false, doubleClickZoom: false,
@@ -330,60 +345,96 @@
             minZoom: 6, maxBounds: SOUTH_INDIA_BOUNDS, maxBoundsViscosity: 1.0
         }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
 
-        // --- THEME ENGINE (FIXED) ---
         const mapLayer = {
             dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
             light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
         };
-        
-        // We track the current layer to remove it properly
         let tileLayer = L.tileLayer(mapLayer.dark, { maxZoom: 19 }).addTo(map);
 
+        // --- THEME & UI LOGIC ---
         function toggleTheme() {
             const html = document.documentElement;
             const isDark = html.classList.toggle('dark');
-            
-            // 1. REMOVE OLD LAYER (The Nuclear Option)
             if (tileLayer) map.removeLayer(tileLayer);
-            
-            // 2. ADD NEW LAYER
             tileLayer = L.tileLayer(isDark ? mapLayer.dark : mapLayer.light, { maxZoom: 19 }).addTo(map);
-            
-            // 3. FORCE REDRAW (Fixes Grey Screen)
             setTimeout(() => { map.invalidateSize(); }, 50);
         }
 
-        // --- UI TOGGLE (STEALTH MODE) ---
         function toggleUI() {
             const body = document.body;
             const btnText = document.getElementById('view-btn-text');
             
             if (body.classList.contains('ui-hidden')) {
-                // RESET MODE
                 body.classList.remove('ui-hidden');
-                btnText.innerText = "HIDE UI";
+                btnText.innerText = "SHOW MAP"; // Logic: Click to Show Map (Hide UI)
                 map.dragging.disable(); map.scrollWheelZoom.disable();
                 map.doubleClickZoom.disable(); map.boxZoom.disable();
                 map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
             } else {
-                // INTERACTIVE MODE
                 body.classList.add('ui-hidden');
-                btnText.innerText = "SHOW UI";
+                btnText.innerText = "HIDE MAP"; // Logic: Click to Hide Map (Show UI)
                 map.dragging.enable(); map.scrollWheelZoom.enable();
                 map.doubleClickZoom.enable(); map.boxZoom.enable();
             }
-            
-            // Force redraw to keep map visible
             setTimeout(() => { map.invalidateSize(); }, 300);
+        }
+
+        // --- SIDEBAR LOGIC ---
+        function openSidebar(data) {
+            const sidebar = document.getElementById('flight-sidebar');
+            const content = document.getElementById('sidebar-content');
+            
+            // Generate Route String
+            let routeStr = data.flight ? `Unknown Route (${data.flight})` : "Global Traffic";
+            // Mock Route Logic (Since raw data lacks it)
+            if(data.lat > 13) routeStr = "Northbound Sector";
+            if(data.lat < 12) routeStr = "Southbound Sector";
+
+            content.innerHTML = `
+                <div class="p-4 rounded-lg bg-black/5 dark:bg-white/5 border border-theme">
+                    <div class="text-xs text-muted mb-1">CALLSIGN</div>
+                    <div class="text-2xl font-bold text-accent font-mono">${data.flight || 'N/A'}</div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <div class="text-xs text-muted mb-1">ALTITUDE</div>
+                        <div class="text-lg font-bold font-mono">${data.alt} <span class="text-xs text-muted">ft</span></div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-muted mb-1">SPEED</div>
+                        <div class="text-lg font-bold font-mono">${data.speed} <span class="text-xs text-muted">kts</span></div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-muted mb-1">HEADING</div>
+                        <div class="text-lg font-bold font-mono">${data.track}°</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-muted mb-1">ICAO HEX</div>
+                        <div class="text-lg font-bold font-mono">${data.hex}</div>
+                    </div>
+                </div>
+
+                <div class="p-4 rounded-lg bg-black/5 dark:bg-white/5 border border-theme mt-4">
+                    <div class="text-xs text-muted mb-1">ESTIMATED SECTOR</div>
+                    <div class="text-sm font-bold">${routeStr}</div>
+                </div>
+            `;
+            sidebar.classList.add('open');
+        }
+
+        function closeSidebar() {
+            document.getElementById('flight-sidebar').classList.remove('open');
         }
 
         // --- RADAR ENGINE ---
         const API_URL = 'https://api.custardlev.uk/skyaware/data/aircraft.json';
         const markers = {};
+        const polylines = {};
+        const trails = {}; // Store coordinate history: { hex: [[lat,lng], [lat,lng]...] }
 
         function getIcon(heading, flight, alt, speed) {
-            const color = '#3b82f6'; // Planes stay Blue for contrast
-            
+            const color = '#3b82f6';
             return L.divIcon({
                 className: 'plane-icon-wrapper',
                 html: `
@@ -394,8 +445,7 @@
                     </div>
                     <div class="plane-label">
                         <div class="pl-flight">${flight || 'N/A'}</div>
-                        <div class="pl-data">FL${Math.round(alt/100)}</div>
-                        <div class="pl-data">${Math.round(speed)} kts</div>
+                        <div class="pl-data">Route: ${flight ? 'Unknown' : 'N/A'}</div>
                     </div>
                 `,
                 iconSize: [30, 30],
@@ -416,28 +466,59 @@
                 document.getElementById('status-dot').className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
 
                 const currentHexes = new Set();
+                
                 validPlanes.forEach(p => {
                     currentHexes.add(p.hex);
+                    const latlng = [p.lat, p.lon];
+                    
+                    // 1. UPDATE TRAILS (120s History)
+                    if (!trails[p.hex]) trails[p.hex] = [];
+                    trails[p.hex].push(latlng);
+                    if (trails[p.hex].length > 60) trails[p.hex].shift(); // Keep last 60 points (120s approx)
+
+                    // Draw/Update Polyline
+                    if (polylines[p.hex]) {
+                        polylines[p.hex].setLatLngs(trails[p.hex]);
+                    } else {
+                        polylines[p.hex] = L.polyline(trails[p.hex], {
+                            color: '#3b82f6', weight: 1, opacity: 0.5
+                        }).addTo(map);
+                    }
+
+                    // 2. UPDATE MARKER
                     if (markers[p.hex]) {
-                        markers[p.hex].setLatLng([p.lat, p.lon]);
+                        markers[p.hex].setLatLng(latlng);
                         markers[p.hex].setIcon(getIcon(p.track, (p.flight || p.hex).trim(), p.alt_baro, p.gs));
                     } else {
-                        markers[p.hex] = L.marker([p.lat, p.lon], {
+                        const marker = L.marker(latlng, {
                             icon: getIcon(p.track, (p.flight || p.hex).trim(), p.alt_baro, p.gs)
                         }).addTo(map);
+                        
+                        // EVENTS
+                        marker.on('click', () => openSidebar({
+                            hex: p.hex, flight: (p.flight||'').trim(),
+                            alt: p.alt_baro, speed: p.gs, track: p.track,
+                            lat: p.lat, lon: p.lon
+                        }));
+                        marker.bindTooltip(`Flight: ${p.flight || p.hex}<br>Alt: ${p.alt_baro}ft`, {
+                            direction: 'top', offset: [0, -10], className: 'glass-panel p-2 text-xs font-mono'
+                        });
+                        
+                        markers[p.hex] = marker;
                     }
                 });
 
+                // CLEANUP OLD PLANES
                 Object.keys(markers).forEach(hex => {
                     if (!currentHexes.has(hex)) {
                         map.removeLayer(markers[hex]);
                         delete markers[hex];
+                        if (polylines[hex]) { map.removeLayer(polylines[hex]); delete polylines[hex]; }
+                        delete trails[hex];
                     }
                 });
 
-            } catch (e) {
-                // Silent Error Handling
-            }
+            } catch (e) { /* Silent fail */ }
         }
 
         setInterval(fetchRadar, 2000);
