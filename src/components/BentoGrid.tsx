@@ -60,7 +60,7 @@ const IdentityTile = () => (
       Sooryah Prasath
     </h1>
     <p className="text-primary font-medium text-lg">
-      Senior Network Engineer | Automation Enthusiast
+      Senior Network Automation Engineer
     </p>
   </div>
 );

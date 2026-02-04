@@ -12,15 +12,18 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Link Environment File
+        run: ln -sf /home/sooryah/sooryah-web/.env .env
+
       - name: Fresh Build & Deploy
         run: |
-          # 1. STOP and REMOVE to clear naming conflicts
+          # 1. STOP and REMOVE old containers
           docker compose -p sooryah-web down --remove-orphans
 
-          # 2. CLEAR local build artifacts physically
+          # 2. CLEAR local build artifacts
           rm -rf dist
 
-          # 3. FORCE a totally fresh build (no cache)
+          # 3. FORCE a totally fresh build
           docker compose -p sooryah-web build --no-cache --pull
 
           # 4. START the new containers
@@ -29,14 +32,5 @@ jobs:
       - name: Verification
         run: |
           sleep 10
-          # Final proof: Grep the live container for your new title
           docker exec web-nginx grep "Senior Network Automation Engineer" /usr/share/nginx/html/index.html
-          echo "✅ Internal Verification Passed: Container is updated."
-
-      - name: Purge Cloudflare Cache
-        run: |
-          curl -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/purge_cache" \
-          -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-          -H "Content-Type: application/json" \
-          --data '{"purge_everything":true}'
-          echo "🚀 Cloudflare Edge Cache Purged."
+          echo "✅ Verification Passed."
