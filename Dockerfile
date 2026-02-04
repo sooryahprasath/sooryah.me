@@ -1,19 +1,16 @@
-# Stage 1: Build
+# Stage 1: Build the React App
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-# Clean install to avoid version conflicts
-RUN npm ci 
+RUN npm ci
 COPY . .
 RUN npm run build
 
-# Stage 2: Serve
+# Stage 2: Serve with Nginx
 FROM nginx:stable-alpine
-# Clear any default Nginx content
+# Explicitly wipe the Nginx directory before copying new files
 RUN rm -rf /usr/share/nginx/html/*
-# Copy fresh dist from build stage
 COPY --from=build /app/dist /usr/share/nginx/html
-# Copy your specific nginx config
 COPY default.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
