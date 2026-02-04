@@ -28,33 +28,33 @@
     <style>
         /* --- THEME ENGINE --- */
         :root {
-            /* LIGHT MODE: High Contrast Engineering Look */
+            /* LIGHT MODE */
             --bg-solid: #f4f4f5;
             --glass-bg: rgba(255, 255, 255, 0.85);
             --glass-border: rgba(0, 0, 0, 0.1);
             --text-main: #09090b;
             --text-muted: #52525b;
-            --accent: #2563eb; /* Blue for visibility */
+            --accent: #2563eb;
             
-            /* Map: Pure Grey/White (Positron) - High Visibility */
+            /* Map: High Visibility */
             --map-filter: contrast(1.05) brightness(1); 
             --map-opacity: 1; 
-            --map-bg: #f2f2f2; /* Matches Positron background */
+            --map-bg: #e5e5e5; /* Matches Light Map Background */
         }
 
         .dark {
-            /* DARK MODE: Cyberpunk Control Room */
+            /* DARK MODE */
             --bg-solid: #050505;
             --glass-bg: rgba(10, 10, 12, 0.8);
             --glass-border: rgba(255, 255, 255, 0.08);
             --text-main: #ffffff;
             --text-muted: #a1a1aa;
-            --accent: #3b82f6; /* Lighter Blue for dark bg */
+            --accent: #3b82f6;
             
-            /* Map: Deep Black/Grey (Dark Matter) */
+            /* Map: Deep Dark */
             --map-filter: brightness(1.2) contrast(1.1);
             --map-opacity: 0.6;
-            --map-bg: #09090b; /* Matches Dark Matter background */
+            --map-bg: #09090b; /* Matches Dark Map Background */
         }
 
         body { 
@@ -69,8 +69,8 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
             filter: var(--map-filter);
             opacity: var(--map-opacity);
-            background-color: var(--map-bg);
-            transition: all 0.5s ease;
+            background-color: var(--map-bg); /* Prevents flash */
+            transition: background-color 0.5s ease, opacity 0.5s ease, filter 0.5s ease;
         }
 
         /* UI CONTAINER */
@@ -313,7 +313,8 @@
     <script>
         lucide.createIcons();
         
-        // --- UI TOGGLE ---
+        // --- MAP ZOOM CONFIG ---
+        // 8.4 = Perfect South India Coverage
         const DEFAULT_CENTER = [12.98, 77.6];
         const DEFAULT_ZOOM = 8.4;
         
@@ -344,11 +345,12 @@
                 map.doubleClickZoom.enable();
                 map.boxZoom.enable();
             }
+            
+            // Force redraw in both cases to ensure clean state
+            setTimeout(() => { map.invalidateSize(); }, 300);
         }
 
         // --- THEME ENGINE ---
-        // Light: Positron (Grey/White)
-        // Dark: Dark Matter (Black/Grey)
         const mapLayer = {
             dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
             light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
@@ -358,7 +360,12 @@
         function toggleTheme() {
             const html = document.documentElement;
             const isDark = html.classList.toggle('dark');
+            
+            // Swap Tiles
             tileLayer.setUrl(isDark ? mapLayer.dark : mapLayer.light);
+            
+            // FORCE REDRAW: This fixes the "Grey Screen" glitch
+            setTimeout(() => { map.invalidateSize(); }, 300);
         }
 
         // --- MAP ENGINE ---
