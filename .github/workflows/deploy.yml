@@ -13,17 +13,31 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Link Environment File
+        # Ensures your Cloudflare tokens and secrets are available to the containers
         run: ln -sf /home/sooryah/sooryah-web/.env .env
 
       - name: Fresh Build & Deploy
         run: |
-          # Force a pull of latest images and a no-cache build
+          # 1. STOP and REMOVE old containers to clear naming conflicts (the "Nuke" step)
+          docker compose -p sooryah-web down --remove-orphans
+
+          # 2. CLEAR local build artifacts to ensure no 'ghost' files are copied
+          rm -rf dist
+
+          # 3. FORCE a totally fresh build from the Dockerfile (no layer cache)
           docker compose -p sooryah-web build --no-cache --pull
-          docker compose -p sooryah-web up -d --force-recreate
+
+          # 4. START the new containers
+          docker compose -p sooryah-web up -d
 
       - name: Verification
         run: |
-          sleep 5
-          # Final proof: Grep the live container for your new title
+          # Wait for Nginx to initialize
+          sleep 10
+          # Verify the content exists inside the LIVE container
           docker exec web-nginx grep "Senior Network Automation Engineer" /usr/share/nginx/html/index.html
-          echo "✅ Site verified as updated on VM."
+          echo "✅ Internal Verification Passed: New Title Found in Container."
+
+      - name: Check Container Status
+        run: |
+          docker ps -a --filter "name=web-"
