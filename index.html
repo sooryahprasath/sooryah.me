@@ -161,26 +161,37 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--text-muted); opacity: 0.2; border-radius: 10px; }
 
-        /* PROFILE IMAGE STYLING */
+      /* PROFILE IMAGE STYLING */
         .profile-container {
             position: relative;
             display: inline-block;
         }
+
         .profile-img {
-            width: 140px; height: 140px;
-            border-radius: 50%; /* Circle */
+            width: 140px; 
+            height: 140px;
+            /* Changed from 50% (Circle) to 16px (Rounded Rectangle) to match the Glass Cards */
+            border-radius: 16px; 
             object-fit: cover;
-            border: 3px solid var(--accent); /* Amber Border */
-            box-shadow: 0 0 25px rgba(245, 158, 11, 0.4); /* Amber Glow */
+            
+            /* Amber Border */
+            border: 2px solid var(--accent); 
+            
+            /* Subtle Amber Shadow behind the rectangle */
+            box-shadow: 0 10px 30px -10px rgba(245, 158, 11, 0.5); 
+            
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
+
         .profile-container:hover .profile-img {
-            transform: scale(1.05);
-            box-shadow: 0 0 40px rgba(245, 158, 11, 0.6);
+            transform: translateY(-2px); /* Slight lift on hover */
+            box-shadow: 0 15px 40px -10px rgba(245, 158, 11, 0.7);
+            border-color: #fff;
         }
-        /* Responsive Sizing */
+
+        /* Desktop Sizing */
         @media (min-width: 768px) {
-            .profile-img { width: 180px; height: 180px; }
+            .profile-img { width: 160px; height: 160px; }
         }
 
     </style>
@@ -237,7 +248,7 @@
 
         <header class="glass-panel rounded-2xl p-8 md:p-12 border-t-4 border-t-[var(--accent)]">
             
-            <div class="flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-12">
+            <div class="flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-10">
                 
                 <div class="flex-shrink-0">
                     <div class="profile-container">
@@ -255,7 +266,7 @@
                         <span class="text-[10px] font-mono font-bold tracking-widest text-muted">WELCOME</span>
                     </div>
 
-                    <h1 class="text-5xl md:text-7xl font-bold tracking-tighter mb-4 text-pri leading-tight">
+                    <h1 class="text-5xl md:text-7xl font-bold tracking-tighter mb-4 text-pri leading-none">
                         Sooryah Prasath
                     </h1>
                     
@@ -264,7 +275,7 @@
                         Bridging hardware connectivity and software-defined agility for enterprise infrastructure.
                     </p>
 
-                    <div class="flex flex-wrap justify-center md:justify-start gap-4">
+                    <div class="flex flex-wrap justify-center md:justify-start gap-3">
                         <a href="mailto:sooryahprasath+website@gmail.com" class="btn-glass px-6 py-3 rounded-lg flex items-center gap-2 text-xs font-bold transition group hover:bg-accent hover:text-white hover:border-accent">
                             <i data-lucide="mail" class="w-4 h-4"></i> EMAIL ME
                         </a>
