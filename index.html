@@ -30,31 +30,31 @@
         :root {
             /* LIGHT MODE */
             --bg-solid: #f4f4f5;
-            --glass-bg: rgba(255, 255, 255, 0.85);
-            --glass-border: rgba(0, 0, 0, 0.1);
+            --glass-bg: rgba(255, 255, 255, 0.9);
+            --glass-border: rgba(0, 0, 0, 0.08);
             --text-main: #09090b;
             --text-muted: #52525b;
-            --accent: #2563eb;
+            --accent: #f59e0b; /* Signal Amber */
             
             /* Map: High Visibility */
             --map-filter: contrast(1.05) brightness(1); 
             --map-opacity: 1; 
-            --map-bg: #e5e5e5; /* Matches Light Map Background */
+            --map-bg: #e5e5e5;
         }
 
         .dark {
             /* DARK MODE */
             --bg-solid: #050505;
-            --glass-bg: rgba(10, 10, 12, 0.8);
+            --glass-bg: rgba(10, 10, 12, 0.85);
             --glass-border: rgba(255, 255, 255, 0.08);
             --text-main: #ffffff;
             --text-muted: #a1a1aa;
-            --accent: #3b82f6;
+            --accent: #f59e0b; /* Signal Amber */
             
             /* Map: Deep Dark */
             --map-filter: brightness(1.2) contrast(1.1);
             --map-opacity: 0.6;
-            --map-bg: #09090b; /* Matches Dark Map Background */
+            --map-bg: #09090b;
         }
 
         body { 
@@ -69,8 +69,8 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
             filter: var(--map-filter);
             opacity: var(--map-opacity);
-            background-color: var(--map-bg); /* Prevents flash */
-            transition: background-color 0.5s ease, opacity 0.5s ease, filter 0.5s ease;
+            background-color: var(--map-bg);
+            transition: background-color 0.3s, opacity 0.3s, filter 0.3s;
         }
 
         /* UI CONTAINER */
@@ -100,12 +100,16 @@
             backdrop-filter: blur(8px);
             transition: all 0.2s;
         }
-        .btn-glass:hover { border-color: var(--text-main); transform: translateY(-1px); }
+        .btn-glass:hover { 
+            border-color: var(--accent); 
+            color: var(--accent);
+            transform: translateY(-1px); 
+        }
 
         /* PLANE LABELS */
         .plane-label {
             background: rgba(9, 9, 11, 0.95);
-            border: 1px solid var(--accent);
+            border: 1px solid var(--accent); /* Amber border */
             color: #fff;
             font-family: 'JetBrains Mono', monospace;
             padding: 4px 6px;
@@ -119,7 +123,7 @@
             line-height: 1.1;
             z-index: 100;
         }
-        .pl-flight { font-size: 11px; font-weight: 800; color: #fff; margin-bottom: 2px; }
+        .pl-flight { font-size: 11px; font-weight: 800; color: var(--accent); margin-bottom: 2px; }
         .pl-data { font-size: 9px; font-weight: 500; color: #a1a1aa; }
         
         /* SCROLLBAR */
@@ -156,16 +160,16 @@
                 <i data-lucide="eye" class="w-4 h-4 group-hover:text-accent"></i>
                 <span id="view-btn-text">HIDE UI</span>
             </button>
-            <button onclick="toggleTheme()" class="btn-glass p-2 rounded-lg">
-                <i data-lucide="sun" class="w-4 h-4 dark:hidden"></i>
-                <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
+            <button onclick="toggleTheme()" class="btn-glass p-2 rounded-lg group">
+                <i data-lucide="sun" class="w-4 h-4 dark:hidden group-hover:text-accent"></i>
+                <i data-lucide="moon" class="w-4 h-4 hidden dark:block group-hover:text-accent"></i>
             </button>
         </div>
     </div>
 
     <div id="main-ui" class="relative z-10 max-w-6xl mx-auto px-6 pt-32 pb-20 flex flex-col gap-10">
 
-        <header class="glass-panel rounded-2xl p-12 text-center border-t-4 border-t-blue-500">
+        <header class="glass-panel rounded-2xl p-12 text-center border-t-4 border-t-[var(--accent)]">
             
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/5 dark:bg-white/5 border border-theme mb-8">
                 <span class="relative flex h-2 w-2">
@@ -185,13 +189,13 @@
             </p>
 
             <div class="flex flex-wrap justify-center gap-4">
-                <a href="mailto:sooryahprasath+website@gmail.com" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold hover:bg-blue-500 hover:text-white hover:border-blue-500 transition group">
+                <a href="mailto:sooryahprasath+website@gmail.com" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold transition group">
                     <i data-lucide="mail" class="w-5 h-5"></i> EMAIL ME
                 </a>
-                <a href="https://linkedin.com/in/sooryah" target="_blank" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold hover:border-accent transition">
+                <a href="https://linkedin.com/in/sooryah" target="_blank" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold transition">
                     <i data-lucide="linkedin" class="w-5 h-5"></i> LINKEDIN
                 </a>
-                <a href="https://github.com/sooryahprasath" target="_blank" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold hover:border-accent transition">
+                <a href="https://github.com/sooryahprasath" target="_blank" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold transition">
                     <i data-lucide="github" class="w-5 h-5"></i> GITHUB
                 </a>
             </div>
@@ -313,16 +317,43 @@
     <script>
         lucide.createIcons();
         
-        // --- MAP ZOOM CONFIG ---
-        // 8.4 = Perfect South India Coverage
+        // --- CONFIG ---
         const DEFAULT_CENTER = [12.98, 77.6];
         const DEFAULT_ZOOM = 8.4;
-        
-        const SOUTH_INDIA_BOUNDS = L.latLngBounds(
-            L.latLng(8.0, 73.0),
-            L.latLng(18.0, 85.0)
-        );
+        const SOUTH_INDIA_BOUNDS = L.latLngBounds(L.latLng(8.0, 73.0), L.latLng(18.0, 85.0));
 
+        // --- MAP INITIALIZATION ---
+        const map = L.map('map-container', {
+            zoomControl: false, attributionControl: false,
+            zoomSnap: 0.1, boxZoom: false, doubleClickZoom: false,
+            dragging: false, scrollWheelZoom: false,
+            minZoom: 6, maxBounds: SOUTH_INDIA_BOUNDS, maxBoundsViscosity: 1.0
+        }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+
+        // --- THEME ENGINE (FIXED) ---
+        const mapLayer = {
+            dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+            light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+        };
+        
+        // We track the current layer to remove it properly
+        let tileLayer = L.tileLayer(mapLayer.dark, { maxZoom: 19 }).addTo(map);
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const isDark = html.classList.toggle('dark');
+            
+            // 1. REMOVE OLD LAYER (The Nuclear Option)
+            if (tileLayer) map.removeLayer(tileLayer);
+            
+            // 2. ADD NEW LAYER
+            tileLayer = L.tileLayer(isDark ? mapLayer.dark : mapLayer.light, { maxZoom: 19 }).addTo(map);
+            
+            // 3. FORCE REDRAW (Fixes Grey Screen)
+            setTimeout(() => { map.invalidateSize(); }, 50);
+        }
+
+        // --- UI TOGGLE (STEALTH MODE) ---
         function toggleUI() {
             const body = document.body;
             const btnText = document.getElementById('view-btn-text');
@@ -331,61 +362,27 @@
                 // RESET MODE
                 body.classList.remove('ui-hidden');
                 btnText.innerText = "HIDE UI";
-                map.dragging.disable();
-                map.scrollWheelZoom.disable();
-                map.doubleClickZoom.disable();
-                map.boxZoom.disable();
+                map.dragging.disable(); map.scrollWheelZoom.disable();
+                map.doubleClickZoom.disable(); map.boxZoom.disable();
                 map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
             } else {
                 // INTERACTIVE MODE
                 body.classList.add('ui-hidden');
                 btnText.innerText = "SHOW UI";
-                map.dragging.enable();
-                map.scrollWheelZoom.enable();
-                map.doubleClickZoom.enable();
-                map.boxZoom.enable();
+                map.dragging.enable(); map.scrollWheelZoom.enable();
+                map.doubleClickZoom.enable(); map.boxZoom.enable();
             }
             
-            // Force redraw in both cases to ensure clean state
+            // Force redraw to keep map visible
             setTimeout(() => { map.invalidateSize(); }, 300);
         }
-
-        // --- THEME ENGINE ---
-        const mapLayer = {
-            dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-            light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
-        };
-        let tileLayer;
-
-        function toggleTheme() {
-            const html = document.documentElement;
-            const isDark = html.classList.toggle('dark');
-            
-            // Swap Tiles
-            tileLayer.setUrl(isDark ? mapLayer.dark : mapLayer.light);
-            
-            // FORCE REDRAW: This fixes the "Grey Screen" glitch
-            setTimeout(() => { map.invalidateSize(); }, 300);
-        }
-
-        // --- MAP ENGINE ---
-        const map = L.map('map-container', {
-            zoomControl: false, attributionControl: false,
-            zoomSnap: 0.1, boxZoom: false, doubleClickZoom: false,
-            dragging: false, scrollWheelZoom: false,
-            minZoom: 6, 
-            maxBounds: SOUTH_INDIA_BOUNDS, 
-            maxBoundsViscosity: 1.0 
-        }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
-
-        tileLayer = L.tileLayer(mapLayer.dark, { maxZoom: 19 }).addTo(map);
 
         // --- RADAR ENGINE ---
         const API_URL = 'https://api.custardlev.uk/skyaware/data/aircraft.json';
         const markers = {};
 
         function getIcon(heading, flight, alt, speed) {
-            const color = '#3b82f6';
+            const color = '#3b82f6'; // Planes stay Blue for contrast
             
             return L.divIcon({
                 className: 'plane-icon-wrapper',
@@ -439,7 +436,7 @@
                 });
 
             } catch (e) {
-                // Keep silent on error
+                // Silent Error Handling
             }
         }
 
