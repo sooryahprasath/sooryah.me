@@ -34,21 +34,21 @@
             --glass-border: rgba(0, 0, 0, 0.08);
             --text-main: #18181b;
             --text-muted: #52525b;
-            --accent: #2563eb;
-            --map-filter: none; 
-            --map-opacity: 1; 
+            --accent: #f59e0b; /* Signal Amber (Personality Color) */
+            --accent-glow: rgba(245, 158, 11, 0.3);
+            --map-filter: grayscale(100%) contrast(1.1) brightness(1.0);
         }
 
         .dark {
             /* DARK MODE */
             --bg-solid: #050505;
-            --glass-bg: rgba(10, 10, 12, 0.85); /* Slightly more opaque for contrast */
+            --glass-bg: rgba(10, 10, 12, 0.85);
             --glass-border: rgba(255, 255, 255, 0.08);
             --text-main: #ffffff;
             --text-muted: #a1a1aa;
-            --accent: #3b82f6;
-            --map-filter: brightness(1.2) contrast(1.1);
-            --map-opacity: 0.6;
+            --accent: #f59e0b; /* Signal Amber */
+            --accent-glow: rgba(245, 158, 11, 0.2);
+            --map-filter: grayscale(100%) brightness(0.6) contrast(1.4);
         }
 
         body { 
@@ -62,12 +62,11 @@
         #map-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
             filter: var(--map-filter);
-            opacity: var(--map-opacity);
             transition: all 0.5s ease;
         }
 
         /* UI CONTAINER */
-        #main-ui { transition: opacity 0.3s ease; }
+        #main-ui { transition: opacity 0.5s ease, filter 0.5s ease; }
         .ui-hidden #main-ui { opacity: 0; pointer-events: none; }
 
         /* GLASS CARD DESIGN */
@@ -76,14 +75,14 @@
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border: 1px solid var(--glass-border);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
             transition: transform 0.2s ease, border-color 0.2s ease;
         }
         
         .project-card:hover {
             border-color: var(--accent);
             transform: translateY(-4px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         }
 
         /* BUTTONS */
@@ -93,12 +92,16 @@
             backdrop-filter: blur(8px);
             transition: all 0.2s;
         }
-        .btn-glass:hover { border-color: var(--text-main); transform: translateY(-1px); }
+        .btn-glass:hover { 
+            border-color: var(--accent); 
+            color: var(--accent);
+            transform: translateY(-1px); 
+        }
 
         /* PLANE LABELS */
         .plane-label {
             background: rgba(9, 9, 11, 0.95);
-            border: 1px solid var(--accent);
+            border: 1px solid var(--accent); /* Amber Border */
             color: #fff;
             font-family: 'JetBrains Mono', monospace;
             padding: 4px 6px;
@@ -112,7 +115,7 @@
             line-height: 1.1;
             z-index: 100;
         }
-        .pl-flight { font-size: 11px; font-weight: 800; color: #fff; margin-bottom: 2px; }
+        .pl-flight { font-size: 11px; font-weight: 800; color: var(--accent); margin-bottom: 2px; }
         .pl-data { font-size: 9px; font-weight: 500; color: #a1a1aa; }
         
         /* SCROLLBAR */
@@ -158,7 +161,7 @@
 
     <div id="main-ui" class="relative z-10 max-w-5xl mx-auto px-6 pt-32 pb-20 flex flex-col gap-10">
 
-        <header class="glass-panel rounded-2xl p-12 text-center border-t-4 border-t-blue-500">
+        <header class="glass-panel rounded-2xl p-12 text-center border-t-4 border-t-[var(--accent)]">
             
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/5 dark:bg-white/5 border border-theme mb-8">
                 <span class="relative flex h-2 w-2">
@@ -178,13 +181,13 @@
             </p>
 
             <div class="flex flex-wrap justify-center gap-4">
-                <a href="mailto:sooryahprasath+website@gmail.com" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold hover:bg-blue-500 hover:text-white hover:border-blue-500 transition group">
+                <a href="mailto:sooryahprasath+website@gmail.com" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold hover:text-accent transition group">
                     <i data-lucide="mail" class="w-5 h-5"></i> EMAIL ME
                 </a>
-                <a href="https://linkedin.com/in/sooryah" target="_blank" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold hover:border-accent transition">
+                <a href="https://linkedin.com/in/sooryah" target="_blank" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold hover:text-accent transition">
                     <i data-lucide="linkedin" class="w-5 h-5"></i> LINKEDIN
                 </a>
-                <a href="https://github.com/sooryahprasath" target="_blank" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold hover:border-accent transition">
+                <a href="https://github.com/sooryahprasath" target="_blank" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold hover:text-accent transition">
                     <i data-lucide="github" class="w-5 h-5"></i> GITHUB
                 </a>
             </div>
@@ -302,27 +305,24 @@
     <script>
         lucide.createIcons();
         
-        // --- UI TOGGLE ---
-        function toggleUI() {
-            const ui = document.getElementById('main-ui');
-            const btnText = document.getElementById('view-btn-text');
-            const body = document.body;
-            
-            if (body.classList.contains('ui-hidden')) {
-                body.classList.remove('ui-hidden');
-                btnText.innerText = "HIDE UI";
-            } else {
-                body.classList.add('ui-hidden');
-                btnText.innerText = "SHOW UI";
-            }
-        }
+        // --- MAP CONFIGURATION ---
+        // Center: Bangalore (12.97, 77.59)
+        // Zoom: 7.2 (Covers Mangaluru to Chennai, Madurai to Bagalkote)
+        const DEFAULT_CENTER = [12.9716, 77.5946];
+        const DEFAULT_ZOOM = 7.2;
+
+        const map = L.map('map-container', {
+            zoomControl: false, attributionControl: false,
+            zoomSnap: 0.1, boxZoom: false, doubleClickZoom: false,
+            dragging: false, scrollWheelZoom: false // Start locked (Background Mode)
+        }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
 
         // --- THEME ENGINE ---
         const mapLayer = {
             dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
             light: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png' 
         };
-        let tileLayer;
+        let tileLayer = L.tileLayer(mapLayer.dark, { maxZoom: 19 }).addTo(map);
 
         function toggleTheme() {
             const html = document.documentElement;
@@ -330,22 +330,44 @@
             tileLayer.setUrl(isDark ? mapLayer.dark : mapLayer.light);
         }
 
-        // --- MAP ENGINE ---
-        // ZOOM CALIBRATION: Changed from 11 to 10.5 (Zoomed out 20% effectively)
-        const map = L.map('map-container', {
-            zoomControl: false, attributionControl: false,
-            zoomSnap: 0.1, boxZoom: false, doubleClickZoom: false,
-            dragging: false, scrollWheelZoom: false
-        }).setView([12.9716, 77.5946], 10.5);
+        // --- UI TOGGLE (STEALTH MODE) ---
+        function toggleUI() {
+            const body = document.body;
+            const btnText = document.getElementById('view-btn-text');
+            
+            if (body.classList.contains('ui-hidden')) {
+                // RESTORE UI (RESET MAP)
+                body.classList.remove('ui-hidden');
+                btnText.innerText = "HIDE UI";
+                
+                // Disable interactions
+                map.dragging.disable();
+                map.scrollWheelZoom.disable();
+                map.doubleClickZoom.disable();
+                map.boxZoom.disable();
+                
+                // Smooth fly back to default
+                map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
 
-        tileLayer = L.tileLayer(mapLayer.dark, { maxZoom: 19 }).addTo(map);
+            } else {
+                // HIDE UI (UNLOCK MAP)
+                body.classList.add('ui-hidden');
+                btnText.innerText = "SHOW UI";
+                
+                // Enable interactions
+                map.dragging.enable();
+                map.scrollWheelZoom.enable();
+                map.doubleClickZoom.enable();
+                map.boxZoom.enable();
+            }
+        }
 
         // --- RADAR ENGINE ---
         const API_URL = 'https://api.custardlev.uk/skyaware/data/aircraft.json';
         const markers = {};
 
         function getIcon(heading, flight, alt, speed) {
-            const color = '#3b82f6';
+            const color = '#f59e0b'; // Amber (Accent)
             
             return L.divIcon({
                 className: 'plane-icon-wrapper',
