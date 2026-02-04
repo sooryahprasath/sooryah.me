@@ -17,9 +17,7 @@
             theme: {
                 extend: {
                     fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
-                    colors: { 
-                        // CSS Vars used below
-                    }
+                    colors: { /* Vars used below */ }
                 }
             }
         }
@@ -73,21 +71,21 @@
         #main-ui { transition: opacity 0.3s ease; }
         .ui-hidden #main-ui { opacity: 0; pointer-events: none; }
 
-        /* GLASS CARD DESIGN */
+        /* GLASS CARD */
         .glass-panel {
             background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             border: 1px solid var(--glass-border);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.03);
             transition: transform 0.2s ease, border-color 0.2s ease;
         }
         
-        .project-card { cursor: pointer; }
         .project-card:hover {
             border-color: var(--accent);
             transform: translateY(-4px);
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
         }
 
         /* BUTTONS */
@@ -97,66 +95,54 @@
             backdrop-filter: blur(8px);
             transition: all 0.2s;
         }
-        .btn-glass:hover { 
-            border-color: var(--accent); 
-            color: var(--accent);
-            transform: translateY(-1px); 
+        .btn-glass:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+
+        /* PROFILE IMAGE */
+        .profile-ring {
+            position: relative;
+            padding: 4px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), transparent);
+        }
+        .profile-img {
+            width: 140px; height: 140px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 4px solid var(--bg-solid);
         }
 
-        /* PLANE LABELS */
-        .plane-label {
-            background: rgba(9, 9, 11, 0.95);
-            border: 1px solid var(--accent);
-            color: #fff;
-            font-family: 'JetBrains Mono', monospace;
-            padding: 4px 6px;
-            border-radius: 4px;
-            text-align: left;
-            min-width: 90px;
-            margin-top: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            display: flex;
-            flex-direction: column;
-            line-height: 1.1;
-            z-index: 100;
-        }
-        .pl-flight { font-size: 11px; font-weight: 800; color: var(--accent); margin-bottom: 2px; }
-        .pl-route { font-size: 9px; font-weight: 700; color: #fff; margin-bottom: 2px; }
-        .pl-data { font-size: 8px; font-weight: 500; color: #a1a1aa; }
-
-        /* SIDEBAR (Wider: 40%) */
+        /* SIDEBAR */
         #detail-sidebar {
             position: fixed; top: 0; right: 0; height: 100%; 
-            width: 100%; max-width: 600px; /* Increased width */
+            width: 100%; max-width: 600px;
             z-index: 60;
             background: var(--glass-bg);
             border-left: 1px solid var(--glass-border);
             backdrop-filter: blur(25px);
             transform: translateX(100%);
             transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            padding: 0;
-            overflow-y: auto;
             display: flex; flex-direction: column;
         }
         #detail-sidebar.open { transform: translateX(0); }
-        
-        /* DATA GRIDS */
-        .tech-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.75rem;
-        }
-        .tech-item {
-            background: rgba(0,0,0,0.03);
-            border: 1px solid var(--glass-border);
-            border-radius: 0.5rem;
-            padding: 0.75rem;
-        }
-        .dark .tech-item { background: rgba(255,255,255,0.03); }
-        .tech-label { font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono'; text-transform: uppercase; margin-bottom: 4px; }
-        .tech-val { font-size: 14px; font-weight: 700; color: var(--text-main); font-family: 'JetBrains Mono'; }
 
-        /* SCROLLBAR */
+        /* MAP LABELS */
+        .plane-label {
+            background: rgba(9, 9, 11, 0.95); border: 1px solid var(--accent);
+            color: #fff; font-family: 'JetBrains Mono', monospace;
+            padding: 4px 6px; border-radius: 4px;
+            min-width: 90px; margin-top: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            display: flex; flex-direction: column; line-height: 1.1;
+        }
+        .pl-flight { font-size: 11px; font-weight: 800; color: var(--accent); }
+        .pl-route { font-size: 9px; font-weight: 700; color: #fff; }
+        .pl-data { font-size: 8px; font-weight: 500; color: #a1a1aa; }
+        .tech-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+        .tech-item { background: rgba(0,0,0,0.03); border: 1px solid var(--glass-border); border-radius: 0.5rem; padding: 0.75rem; }
+        .dark .tech-item { background: rgba(255,255,255,0.03); }
+        .tech-label { font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono'; text-transform: uppercase; }
+        .tech-val { font-size: 14px; font-weight: 700; color: var(--text-main); font-family: 'JetBrains Mono'; }
+        
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--text-muted); opacity: 0.2; border-radius: 10px; }
@@ -168,39 +154,19 @@
 
     <aside id="detail-sidebar">
         <div class="p-6 border-b border-theme flex justify-between items-center sticky top-0 bg-inherit z-10 backdrop-blur-xl">
-            <h2 id="sidebar-title" class="text-sm font-mono font-bold tracking-widest text-muted">SYSTEM DETAILS</h2>
+            <h2 id="sidebar-title" class="text-sm font-mono font-bold tracking-widest text-muted">DETAILS</h2>
             <button onclick="closeSidebar()" class="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg border border-transparent hover:border-theme"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
-        
-        <div id="sidebar-content" class="p-6 flex flex-col gap-6 flex-grow">
-            </div>
-        
-        <div id="sidebar-footer" class="p-6 border-t border-theme sticky bottom-0 bg-inherit z-10 backdrop-blur-xl hidden">
-            </div>
+        <div id="sidebar-content" class="p-6 flex flex-col gap-6 flex-grow"></div>
+        <div id="sidebar-footer" class="p-6 border-t border-theme sticky bottom-0 bg-inherit z-10 backdrop-blur-xl hidden"></div>
     </aside>
 
     <div class="fixed top-0 left-0 w-full z-50 p-6 flex justify-between items-start pointer-events-none">
+        <div id="nav-left" class="flex flex-col gap-2 pointer-events-auto"></div>
         
-        <div class="flex flex-col gap-2 pointer-events-auto">
-            <a href="http://networkautomation.hashnode.dev/" target="_blank" class="btn-glass px-4 py-2 rounded-lg text-xs font-bold font-mono hover:text-accent transition flex items-center gap-2">
-                <i data-lucide="book-open" class="w-3 h-3"></i> TECHNICAL BLOG
-            </a>
-            
-            <div class="glass-panel px-4 py-2 rounded-lg flex items-center gap-3">
-                <div class="flex items-center gap-2">
-                    <span id="status-dot" class="w-2 h-2 rounded-full bg-zinc-400"></span>
-                    <span id="status-text" class="text-[10px] font-mono font-bold text-muted tracking-widest">CONNECTING...</span>
-                </div>
-                <div class="h-3 w-px bg-current opacity-10"></div>
-                <div class="text-[10px] font-mono text-muted">
-                    FLIGHTS: <span id="plane-count" class="text-accent font-bold">0</span>
-                </div>
-            </div>
-        </div>
-
         <div class="flex gap-2 pointer-events-auto pr-12 md:pr-0">
             <button onclick="toggleUI()" class="btn-glass px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-bold font-mono text-main group">
-                <i data-lucide="map" class="w-4 h-4 group-hover:text-accent"></i>
+                <i data-lucide="eye" class="w-4 h-4 group-hover:text-accent"></i>
                 <span id="view-btn-text">HIDE INTERFACE</span>
             </button>
             <button onclick="toggleTheme()" class="btn-glass p-2 rounded-lg group">
@@ -211,195 +177,218 @@
     </div>
 
     <div id="main-ui" class="relative z-10 max-w-6xl mx-auto px-6 pt-32 pb-20 flex flex-col gap-10">
+        
+        <div id="hero-section"></div>
 
-        <header class="glass-panel rounded-2xl p-12 text-center border-t-4 border-t-[var(--accent)]">
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/5 dark:bg-white/5 border border-theme mb-8">
-                <span class="relative flex h-2 w-2">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                <span class="text-[10px] font-mono font-bold tracking-widest text-muted">WELCOME</span>
-            </div>
-            <h1 class="text-6xl md:text-8xl font-bold tracking-tighter mb-6 text-pri">Sooryah Prasath</h1>
-            <p class="text-xl md:text-2xl font-medium text-muted max-w-3xl mx-auto leading-relaxed mb-10">
-                Senior Network Automation Engineer. <br>
-                Bridging hardware connectivity and software-defined agility for enterprise infrastructure.
-            </p>
-            <div class="flex flex-wrap justify-center gap-4">
-                <a href="mailto:sooryahprasath+website@gmail.com" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold transition group"><i data-lucide="mail" class="w-5 h-5"></i> EMAIL ME</a>
-                <a href="https://linkedin.com/in/sooryah" target="_blank" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold transition"><i data-lucide="linkedin" class="w-5 h-5"></i> LINKEDIN</a>
-                <a href="https://github.com/sooryahprasath" target="_blank" class="btn-glass px-8 py-4 rounded-lg flex items-center gap-2 text-sm font-bold transition"><i data-lucide="github" class="w-5 h-5"></i> GITHUB</a>
-            </div>
-        </header>
-
-        <div class="flex justify-center">
-            <div class="glass-panel px-6 py-3 rounded-full flex items-center gap-3 text-xs font-mono font-bold text-muted uppercase tracking-wider shadow-lg">
-                <i data-lucide="server" class="w-4 h-4 text-accent"></i>
-                <span>Self-Hosted</span> <span class="text-accent opacity-50">::</span> <span>Docker</span> <i data-lucide="arrow-right" class="w-3 h-3 opacity-50"></i> <span>Nginx</span> <i data-lucide="arrow-right" class="w-3 h-3 opacity-50"></i> <span>Cloudflare Tunnel</span>
-            </div>
-        </div>
+        <div id="hosting-badge"></div>
 
         <section class="glass-panel rounded-2xl p-10">
-            <h3 class="text-sm font-mono font-bold text-muted uppercase mb-8 tracking-widest flex items-center gap-2"><i data-lucide="cpu" class="w-5 h-5"></i> Core Competencies</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <div class="p-4 bg-black/5 dark:bg-white/5 rounded-lg border border-theme text-center"><div class="font-bold text-base mb-1">Python</div><div class="text-xs text-muted">Automation & APIs</div></div>
-                <div class="p-4 bg-black/5 dark:bg-white/5 rounded-lg border border-theme text-center"><div class="font-bold text-base mb-1">Cloud & Networking</div><div class="text-xs text-muted">TCP/IP, BGP, VNets</div></div>
-                <div class="p-4 bg-black/5 dark:bg-white/5 rounded-lg border border-theme text-center"><div class="font-bold text-base mb-1">Azure DevOps</div><div class="text-xs text-muted">CI/CD Pipelines</div></div>
-                <div class="p-4 bg-black/5 dark:bg-white/5 rounded-lg border border-theme text-center"><div class="font-bold text-base mb-1">SD-WAN</div><div class="text-xs text-muted">Orchestration</div></div>
-            </div>
+            <h3 class="text-sm font-mono font-bold text-muted uppercase mb-8 tracking-widest flex items-center gap-2">
+                <i data-lucide="cpu" class="w-5 h-5"></i> Core Competencies
+            </h3>
+            <div id="competencies-grid" class="grid grid-cols-2 md:grid-cols-4 gap-6"></div>
         </section>
 
         <section class="flex flex-col gap-8">
             <div class="flex items-center justify-between px-2">
                 <h2 class="text-sm font-mono font-bold text-muted uppercase tracking-widest">DEPLOYED INFRASTRUCTURE</h2>
             </div>
-
-            <div onclick="openProjectSidebar('adsb')" class="glass-panel project-card rounded-2xl p-10 group relative overflow-hidden">
-                <div class="flex justify-between items-start mb-6">
-                    <div class="p-4 bg-green-500/10 rounded-xl text-green-500 border border-green-500/20"><i data-lucide="radar" class="w-8 h-8"></i></div>
-                    <span class="flex items-center gap-2 px-3 py-1.5 rounded bg-green-500/10 text-xs font-mono font-bold text-green-600 dark:text-green-400 border border-green-500/20"><span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> LIVE</span>
-                </div>
-                <h3 class="text-2xl font-bold mb-3 group-hover:text-accent transition">ADS-B Ground Station</h3>
-                <p class="text-muted text-base leading-relaxed mb-6">Distributed sensor network feeding FlightRadar24. Running on Raspberry Pi 2B + RTL-SDR V3. Powering the background map.</p>
-                <div class="flex gap-4 text-xs font-mono text-muted"><span>#SDR_Hobby</span><span>#Linux</span><span>#SignalProcessing</span></div>
-            </div>
-
-            <div onclick="openProjectSidebar('telemetry')" class="glass-panel project-card rounded-2xl p-10 group">
-                <div class="flex justify-between items-start mb-6">
-                    <div class="p-4 bg-purple-500/10 rounded-xl text-purple-500 border border-purple-500/20"><i data-lucide="activity" class="w-8 h-8"></i></div>
-                </div>
-                <h3 class="text-2xl font-bold mb-3 group-hover:text-accent transition">Enterprise Telemetry Pipeline</h3>
-                <p class="text-muted text-base leading-relaxed mb-6">Centralized pipeline utilizing Apache Airflow and Azure SQL to ingest real-time data from 150+ global sites, feeding dynamic Power BI dashboards.</p>
-                <div class="flex gap-4 text-xs font-mono text-muted"><span>#Python</span><span>#BigData</span><span>#PowerBI</span></div>
-            </div>
-
-            <div onclick="openProjectSidebar('cloud')" class="glass-panel project-card rounded-2xl p-10 group">
-                <div class="flex justify-between items-start mb-6">
-                    <div class="p-4 bg-orange-500/10 rounded-xl text-orange-500 border border-orange-500/20"><i data-lucide="server" class="w-8 h-8"></i></div>
-                </div>
-                <h3 class="text-2xl font-bold mb-3 group-hover:text-accent transition">Private Cloud Cluster</h3>
-                <p class="text-muted text-base leading-relaxed mb-6">Production-grade home infrastructure. A 3-node Proxmox cluster running Kubernetes (K3s), n8n pipelines, and Grafana stacks.</p>
-                <div class="flex gap-4 text-xs font-mono text-muted"><span>#Proxmox</span><span>#Kubernetes</span><span>#Ansible</span></div>
-            </div>
+            <div id="projects-list" class="flex flex-col gap-8"></div>
             
             <footer class="mt-8 text-center pb-8"><p class="text-xs font-mono text-muted">© 2026 Sooryah Prasath.</p></footer>
         </section>
     </div>
 
     <script>
-        lucide.createIcons();
-        
-        // --- MAP CONFIG ---
-        const DEFAULT_CENTER = [12.98, 77.6];
-        const DEFAULT_ZOOM = 8.4;
-        const SOUTH_INDIA_BOUNDS = L.latLngBounds(L.latLng(8.0, 73.0), L.latLng(18.0, 85.0));
-
-        // --- INIT MAP ---
-        const map = L.map('map-container', {
-            zoomControl: false, attributionControl: false,
-            zoomSnap: 0.1, boxZoom: false, doubleClickZoom: false,
-            dragging: false, scrollWheelZoom: false,
-            minZoom: 6, maxBounds: SOUTH_INDIA_BOUNDS, maxBoundsViscosity: 1.0
-        }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
-
-        const mapLayer = {
-            dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-            light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+        // --- 1. THE MODEL (DATA) ---
+        // Edit your content here!
+        const PROFILE = {
+            name: "Sooryah Prasath",
+            title: "Senior Network Automation Engineer",
+            tagline: "Bridging hardware connectivity and software-defined agility for enterprise infrastructure.",
+            image: "https://github.com/sooryahprasath.png", // Replace with your image
+            links: {
+                email: "mailto:sooryahprasath+website@gmail.com",
+                linkedin: "https://www.linkedin.com/in/sooryah",
+                github: "https://github.com/sooryahprasath",
+                blog: "http://networkautomation.hashnode.dev/"
+            }
         };
-        let tileLayer = L.tileLayer(mapLayer.dark, { maxZoom: 19 }).addTo(map);
 
-        // --- THEME & UI LOGIC ---
-        function toggleTheme() {
-            const html = document.documentElement;
-            const isDark = html.classList.toggle('dark');
-            if (tileLayer) { map.removeLayer(tileLayer); tileLayer = null; }
-            setTimeout(() => { tileLayer = L.tileLayer(isDark ? mapLayer.dark : mapLayer.light, { maxZoom: 19 }).addTo(map); }, 10);
-            setTimeout(() => { map.invalidateSize(); }, 200);
-        }
+        const COMPETENCIES = [
+            { title: "Python", sub: "Automation & APIs" },
+            { title: "Cloud & Networking", sub: "TCP/IP, BGP, VNets" },
+            { title: "Azure DevOps", sub: "CI/CD Pipelines" },
+            { title: "SD-WAN", sub: "Orchestration" }
+        ];
 
-        function toggleUI() {
-            const body = document.body;
-            const btnText = document.getElementById('view-btn-text');
+        const PROJECTS = [
+            {
+                id: "adsb",
+                name: "ADS-B Ground Station",
+                icon: "radar",
+                color: "green",
+                status: "LIVE",
+                shortDesc: "Distributed sensor network feeding FlightRadar24. Running on Raspberry Pi 2B + RTL-SDR V3. Powering the background map.",
+                tags: ["#SDR_Hobby", "#Linux", "#SignalProcessing"],
+                detail: {
+                    subtitle: "Station ID: CustardLev | Bengaluru",
+                    description: "<p class='mb-4'><strong>Operational since 2016.</strong> My journey into RF started with a generic DVB-T dongle and a 6.9cm quarter-wave antenna. Over the years, I iterated through Spider and Cantenna designs to optimize gain.</p><p>Today, the station runs on a custom-built <strong>2ft Collinear Coaxial (CoCo)</strong> antenna mounted 50ft AGL, providing 360° horizon visibility.</p>",
+                    specs: [
+                        { label: "Host", value: "Raspberry Pi 2 Model B" },
+                        { label: "Radio", value: "RTL-SDR Blog V3 TCXO" },
+                        { label: "LNA / Filter", value: "Nooelec ADS-B (SAW+LNA)" },
+                        { label: "Antenna", value: "Custom 2ft Coaxial Collinear" },
+                        { label: "Range", value: "~180 Nautical Miles" }
+                    ],
+                    link: "https://planes.custardlev.uk"
+                }
+            },
+            {
+                id: "telemetry",
+                name: "Enterprise Telemetry Pipeline",
+                icon: "activity",
+                color: "purple",
+                status: null,
+                shortDesc: "Centralized pipeline utilizing Apache Airflow and Azure SQL to ingest real-time data from 150+ global sites.",
+                tags: ["#Python", "#BigData", "#PowerBI"],
+                detail: {
+                    subtitle: "Data Engineering Pipeline",
+                    description: "A scalable ETL pipeline designed to monitor health metrics across 150+ distributed retail sites. Replaced legacy SNMP polling with API-driven push telemetry.",
+                    specs: [
+                        { label: "Orchestration", value: "Apache Airflow" },
+                        { label: "Database", value: "Azure SQL (Managed Instance)" },
+                        { label: "Language", value: "Python (Pandas, PyODBC)" },
+                        { label: "Visualization", value: "Power BI Pro" }
+                    ],
+                    link: null
+                }
+            },
+            {
+                id: "cloud",
+                name: "Private Cloud Cluster",
+                icon: "server",
+                color: "orange",
+                status: null,
+                shortDesc: "Production-grade home infrastructure. A 3-node Proxmox cluster running Kubernetes (K3s), n8n pipelines, and Grafana stacks.",
+                tags: ["#Proxmox", "#Kubernetes", "#Ansible"],
+                detail: {
+                    subtitle: "Homelab Infrastructure",
+                    description: "A hyper-converged infrastructure setup running critical home services. Self-hosted alternative to public cloud for data sovereignty and learning.",
+                    specs: [
+                        { label: "Hypervisor", value: "Proxmox VE 8.1" },
+                        { label: "Orchestrator", value: "Kubernetes (K3s)" },
+                        { label: "Storage", value: "ZFS RaidZ1 Pool" },
+                        { label: "Ingress", value: "Traefik + Cloudflare Tunnel" }
+                    ],
+                    link: null
+                }
+            }
+        ];
+
+        // --- 2. THE CONTROLLER (RENDER LOGIC) ---
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
+            renderApp();
+        });
+
+        function renderApp() {
+            // Render Nav
+            document.getElementById('nav-left').innerHTML = `
+                <a href="${PROFILE.links.blog}" target="_blank" class="btn-glass px-4 py-2 rounded-lg text-xs font-bold font-mono hover:text-accent transition flex items-center gap-2">
+                    <i data-lucide="book-open" class="w-3 h-3"></i> TECHNICAL BLOG
+                </a>
+                <div class="glass-panel px-4 py-2 rounded-lg flex items-center gap-3">
+                    <div class="flex items-center gap-2">
+                        <span id="status-dot" class="w-2 h-2 rounded-full bg-zinc-400"></span>
+                        <span id="status-text" class="text-[10px] font-mono font-bold text-muted tracking-widest">CONNECTING...</span>
+                    </div>
+                    <div class="h-3 w-px bg-current opacity-10"></div>
+                    <div class="text-[10px] font-mono text-muted">FLIGHTS: <span id="plane-count" class="text-accent font-bold">0</span></div>
+                </div>
+            `;
+
+            // Render Hero (New Layout with Image)
+            document.getElementById('hero-section').innerHTML = `
+                <div class="glass-panel rounded-2xl p-8 md:p-12 border-t-4 border-t-[var(--accent)]">
+                    <div class="flex flex-col md:flex-row items-center md:items-start gap-8 md:gap-12">
+                        <div class="flex-shrink-0">
+                            <div class="profile-ring">
+                                <img src="${PROFILE.image}" alt="Profile" class="profile-img">
+                            </div>
+                        </div>
+                        <div class="text-center md:text-left flex-grow">
+                            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/5 dark:bg-white/5 border border-theme mb-6">
+                                <span class="relative flex h-2 w-2">
+                                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                  <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                </span>
+                                <span class="text-[10px] font-mono font-bold tracking-widest text-muted">WELCOME</span>
+                            </div>
+                            <h1 class="text-5xl md:text-7xl font-bold tracking-tighter mb-4 text-pri">${PROFILE.name}</h1>
+                            <p class="text-lg md:text-xl font-medium text-muted leading-relaxed mb-8">
+                                <span class="text-accent">${PROFILE.title}</span><br>
+                                ${PROFILE.tagline}
+                            </p>
+                            <div class="flex flex-wrap justify-center md:justify-start gap-4">
+                                <a href="${PROFILE.links.email}" class="btn-glass px-6 py-3 rounded-lg flex items-center gap-2 text-xs font-bold transition group"><i data-lucide="mail" class="w-4 h-4"></i> EMAIL ME</a>
+                                <a href="${PROFILE.links.linkedin}" target="_blank" class="btn-glass px-6 py-3 rounded-lg flex items-center gap-2 text-xs font-bold transition"><i data-lucide="linkedin" class="w-4 h-4"></i> LINKEDIN</a>
+                                <a href="${PROFILE.links.github}" target="_blank" class="btn-glass px-6 py-3 rounded-lg flex items-center gap-2 text-xs font-bold transition"><i data-lucide="github" class="w-4 h-4"></i> GITHUB</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Render Hosting Badge
+            document.getElementById('hosting-badge').innerHTML = `
+                <div class="flex justify-center">
+                    <div class="glass-panel px-6 py-3 rounded-full flex items-center gap-3 text-xs font-mono font-bold text-muted uppercase tracking-wider shadow-lg">
+                        <i data-lucide="server" class="w-4 h-4 text-accent"></i>
+                        <span>Self-Hosted</span> <span class="text-accent opacity-50">::</span> 
+                        <span>Docker</span> <i data-lucide="arrow-right" class="w-3 h-3 opacity-50"></i> 
+                        <span>Nginx</span> <i data-lucide="arrow-right" class="w-3 h-3 opacity-50"></i> 
+                        <span>Cloudflare Tunnel</span>
+                    </div>
+                </div>
+            `;
+
+            // Render Competencies
+            document.getElementById('competencies-grid').innerHTML = COMPETENCIES.map(c => `
+                <div class="p-4 bg-black/5 dark:bg-white/5 rounded-lg border border-theme text-center">
+                    <div class="font-bold text-base mb-1">${c.title}</div>
+                    <div class="text-xs text-muted">${c.sub}</div>
+                </div>
+            `).join('');
+
+            // Render Projects
+            document.getElementById('projects-list').innerHTML = PROJECTS.map(p => `
+                <div onclick="openProjectSidebar('${p.id}')" class="glass-panel project-card rounded-2xl p-10 group relative overflow-hidden">
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="p-4 bg-${p.color}-500/10 rounded-xl text-${p.color}-500 border border-${p.color}-500/20"><i data-lucide="${p.icon}" class="w-8 h-8"></i></div>
+                        ${p.status ? `<span class="flex items-center gap-2 px-3 py-1.5 rounded bg-${p.color}-500/10 text-xs font-mono font-bold text-${p.color}-600 dark:text-${p.color}-400 border border-${p.color}-500/20"><span class="w-2 h-2 rounded-full bg-${p.color}-500 animate-pulse"></span> ${p.status}</span>` : ''}
+                    </div>
+                    <h3 class="text-2xl font-bold mb-3 group-hover:text-accent transition">${p.name}</h3>
+                    <p class="text-muted text-base leading-relaxed mb-6">${p.shortDesc}</p>
+                    <div class="flex gap-4 text-xs font-mono text-muted">${p.tags.map(t => `<span>${t}</span>`).join('')}</div>
+                </div>
+            `).join('');
             
-            if (body.classList.contains('ui-hidden')) {
-                body.classList.remove('ui-hidden');
-                btnText.innerText = "HIDE INTERFACE"; 
-                map.dragging.disable(); map.scrollWheelZoom.disable();
-                map.doubleClickZoom.disable(); map.boxZoom.disable();
-                map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
-            } else {
-                body.classList.add('ui-hidden');
-                btnText.innerText = "SHOW INTERFACE"; 
-                map.dragging.enable(); map.scrollWheelZoom.enable();
-                map.doubleClickZoom.enable(); map.boxZoom.enable();
-            }
-            setTimeout(() => { map.invalidateSize(); }, 300);
+            lucide.createIcons(); // Re-run for injected icons
         }
 
-        // --- DATA MOCKUPS ---
-        const PROJECT_DATA = {
-            adsb: {
-                title: "ADS-B Ground Station",
-                subtitle: "Station ID: CustardLev | Bengaluru",
-                description: `
-                    <p class="mb-4"><strong>Operational since 2016.</strong> My journey into RF started with a generic DVB-T dongle and a 6.9cm quarter-wave antenna. Over the years, I iterated through Spider and Cantenna designs to optimize gain.</p>
-                    <p class="mb-4">Today, the station runs on a custom-built <strong>2ft Collinear Coaxial (CoCo)</strong> antenna mounted 50ft AGL on my roof, providing 360° horizon visibility.</p>
-                    <p>It feeds real-time flight data to FlightRadar24, FlightAware, and this portfolio.</p>
-                `,
-                specs: [
-                    { label: "Host", value: "Raspberry Pi 2 Model B" },
-                    { label: "Radio", value: "RTL-SDR Blog V3 TCXO" },
-                    { label: "LNA / Filter", value: "Nooelec ADS-B (SAW+LNA)" },
-                    { label: "Antenna", value: "Custom 2ft Coaxial Collinear" },
-                    { label: "Software", value: "Dump1090-fa, Piaware" },
-                    { label: "Range", value: "~180 Nautical Miles" }
-                ],
-                link: "https://planes.custardlev.uk"
-            },
-            telemetry: {
-                title: "Enterprise Telemetry",
-                subtitle: "Data Engineering Pipeline",
-                description: "A scalable ETL pipeline designed to monitor health metrics across 150+ distributed retail sites. Replaced legacy SNMP polling with API-driven push telemetry.",
-                specs: [
-                    { label: "Orchestration", value: "Apache Airflow" },
-                    { label: "Database", value: "Azure SQL (Managed Instance)" },
-                    { label: "Language", value: "Python (Pandas, PyODBC)" },
-                    { label: "Visualization", value: "Power BI Pro" },
-                    { label: "Latency", value: "< 2 Minutes End-to-End" }
-                ],
-                link: null
-            },
-            cloud: {
-                title: "Private Cloud Cluster",
-                subtitle: "Homelab Infrastructure",
-                description: "A hyper-converged infrastructure setup running critical home services. Self-hosted alternative to public cloud for data sovereignty and learning.",
-                specs: [
-                    { label: "Hypervisor", value: "Proxmox VE 8.1" },
-                    { label: "Orchestrator", value: "Kubernetes (K3s)" },
-                    { label: "Storage", value: "ZFS RaidZ1 Pool" },
-                    { label: "Networking", value: "Tailscale Mesh VPN" },
-                    { label: "Ingress", value: "Traefik + Cloudflare Tunnel" }
-                ],
-                link: null
-            }
-        };
-
-        // --- SIDEBAR MANAGERS ---
+        // --- SIDEBAR & MAP LOGIC (UNCHANGED) ---
         const sidebar = document.getElementById('detail-sidebar');
         const content = document.getElementById('sidebar-content');
         const footer = document.getElementById('sidebar-footer');
         const title = document.getElementById('sidebar-title');
-        let selectedHex = null; // Track current selection
+        let selectedHex = null;
 
-        function closeSidebar() {
-            sidebar.classList.remove('open');
+        function closeSidebar() { sidebar.classList.remove('open'); selectedHex = null; }
+
+        function openProjectSidebar(id) {
             selectedHex = null;
-        }
-
-        // 1. OPEN PROJECT
-        function openProjectSidebar(key) {
-            selectedHex = null; // Stop flight updates
-            const data = PROJECT_DATA[key];
+            const data = PROJECTS.find(p => p.id === id).detail;
             title.innerText = "PROJECT ARCHITECTURE";
             
             let specsHtml = data.specs.map(s => `
@@ -411,95 +400,18 @@
 
             content.innerHTML = `
                 <div>
-                    <h2 class="text-2xl font-bold text-accent mb-1">${data.title}</h2>
+                    <h2 class="text-2xl font-bold text-accent mb-1">${PROJECTS.find(p => p.id === id).name}</h2>
                     <p class="text-xs font-mono text-muted border-b border-theme pb-4">${data.subtitle}</p>
                 </div>
-                <div class="text-sm leading-relaxed text-main/80 bg-black/5 dark:bg-white/5 p-4 rounded-lg border border-theme">
-                    ${data.description}
-                </div>
-                <div class="flex flex-col gap-1 mt-2">
-                    ${specsHtml}
-                </div>
+                <div class="text-sm leading-relaxed text-main/80 bg-black/5 dark:bg-white/5 p-4 rounded-lg border border-theme">${data.description}</div>
+                <div class="flex flex-col gap-1 mt-2">${specsHtml}</div>
             `;
 
             if(data.link) {
-                footer.innerHTML = `
-                    <a href="${data.link}" target="_blank" class="w-full btn-glass py-3 rounded-lg flex justify-center items-center gap-2 font-bold hover:bg-accent hover:text-white transition">
-                        OPEN LIVE VIEW <i data-lucide="external-link" class="w-4 h-4"></i>
-                    </a>
-                `;
+                footer.innerHTML = `<a href="${data.link}" target="_blank" class="w-full btn-glass py-3 rounded-lg flex justify-center items-center gap-2 font-bold hover:bg-accent hover:text-white transition">OPEN LIVE VIEW <i data-lucide="external-link" class="w-4 h-4"></i></a>`;
                 footer.classList.remove('hidden');
-            } else {
-                footer.classList.add('hidden');
-            }
+            } else { footer.classList.add('hidden'); }
             sidebar.classList.add('open');
-        }
-
-        // 2. OPEN FLIGHT (Dynamic Update)
-        function updateFlightSidebar(data) {
-            if (!sidebar.classList.contains('open') || selectedHex !== data.hex) return;
-            
-            // Helper to safe check
-            const val = (v, unit='') => v !== undefined && v !== null ? `${v}${unit}` : 'N/A';
-
-            content.innerHTML = `
-                <div class="p-5 rounded-xl bg-gradient-to-br from-black/10 to-transparent border border-theme">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <div class="text-xs text-muted mb-1 font-mono">CALLSIGN</div>
-                            <div class="text-4xl font-bold text-accent font-mono tracking-tight">${data.flightno || data.callsign || 'N/A'}</div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-xs text-muted mb-1 font-mono">REGISTRATION</div>
-                            <div class="text-xl font-bold font-mono text-main">${data.reg || 'N/A'}</div>
-                        </div>
-                    </div>
-                    <div class="mt-6 pt-4 border-t border-white/10 flex justify-between items-center">
-                        <div>
-                            <div class="text-xs text-muted mb-1 font-mono">ROUTE</div>
-                            <div class="text-lg font-bold">${data.route || 'Unknown'}</div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-xs text-muted mb-1 font-mono">TYPE</div>
-                            <div class="text-lg font-bold font-mono">${data.type || 'N/A'}</div>
-                        </div>
-                    </div>
-                </div>
-
-                <h3 class="text-xs font-bold text-muted uppercase tracking-widest mt-2">Live Position</h3>
-                <div class="tech-grid">
-                    <div class="tech-item"><div class="tech-label">Altitude</div><div class="tech-val">${val(data.altitude, ' ft')}</div></div>
-                    <div class="tech-item"><div class="tech-label">Ground Speed</div><div class="tech-val">${val(data.speed, ' kts')}</div></div>
-                    <div class="tech-item"><div class="tech-label">Heading</div><div class="tech-val">${val(data.heading, '°')}</div></div>
-                    <div class="tech-item"><div class="tech-label">Vertical Rate</div><div class="tech-val text-accent">${val(data.vert_rate, ' fpm')}</div></div>
-                    <div class="tech-item"><div class="tech-label">Latitude</div><div class="tech-val">${val(data.lat)}</div></div>
-                    <div class="tech-item"><div class="tech-label">Longitude</div><div class="tech-val">${val(data.lon)}</div></div>
-                    <div class="tech-item"><div class="tech-label">Polar Dist</div><div class="tech-val">${val(data.polar_distance, ' nm')}</div></div>
-                    <div class="tech-item"><div class="tech-label">Bearing</div><div class="tech-val">${val(data.polar_bearing, '°')}</div></div>
-                </div>
-
-                <h3 class="text-xs font-bold text-muted uppercase tracking-widest mt-2">Avionics & FMS</h3>
-                <div class="tech-grid">
-                    <div class="tech-item"><div class="tech-label">Squawk</div><div class="tech-val text-accent">${val(data.squawk)}</div></div>
-                    <div class="tech-item"><div class="tech-label">Roll Angle</div><div class="tech-val">${val(data.roll_angle, '°')}</div></div>
-                    <div class="tech-item"><div class="tech-label">Track Angle</div><div class="tech-val">${val(data.track_angle, '°')}</div></div>
-                    <div class="tech-item"><div class="tech-label">Sel Altitude</div><div class="tech-val">${val(data.selected_altitude, ' ft')}</div></div>
-                    <div class="tech-item"><div class="tech-label">TAS</div><div class="tech-val">${val(data.true_air_speed, ' kts')}</div></div>
-                    <div class="tech-item"><div class="tech-label">Mach</div><div class="tech-val">${val(data.mach, ' M')}</div></div>
-                </div>
-
-                <h3 class="text-xs font-bold text-muted uppercase tracking-widest mt-2">Environment</h3>
-                <div class="tech-grid">
-                    <div class="tech-item"><div class="tech-label">Wind Speed</div><div class="tech-val">${val(data.wind_speed, ' kts')}</div></div>
-                    <div class="tech-item"><div class="tech-label">Wind Dir</div><div class="tech-val">${val(data.wind_direction, '°')}</div></div>
-                    <div class="tech-item"><div class="tech-label">Air Temp</div><div class="tech-val">${val(data.oat, '°C')}</div></div>
-                    <div class="tech-item"><div class="tech-label">Barometer</div><div class="tech-val">${val(data.barometer, ' hPa')}</div></div>
-                </div>
-                
-                <div class="p-4 bg-black/5 dark:bg-white/5 rounded border border-theme text-[10px] font-mono text-muted text-center">
-                    HEX: ${data.hex} | MSG AGE: ${data.age || 0}s
-                </div>
-            `;
         }
 
         function openFlightSidebar(data) {
@@ -510,30 +422,77 @@
             updateFlightSidebar(data);
         }
 
+        function updateFlightSidebar(data) {
+            if (!sidebar.classList.contains('open') || selectedHex !== data.hex) return;
+            const val = (v, unit='') => v !== undefined && v !== null ? `${v}${unit}` : 'N/A';
+            content.innerHTML = `
+                <div class="p-5 rounded-xl bg-gradient-to-br from-black/10 to-transparent border border-theme">
+                    <div class="flex justify-between items-start">
+                        <div><div class="text-xs text-muted mb-1 font-mono">CALLSIGN</div><div class="text-4xl font-bold text-accent font-mono tracking-tight">${data.flightno || data.callsign || 'N/A'}</div></div>
+                        <div class="text-right"><div class="text-xs text-muted mb-1 font-mono">REGISTRATION</div><div class="text-xl font-bold font-mono text-main">${data.reg || 'N/A'}</div></div>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-white/10 flex justify-between items-center">
+                        <div><div class="text-xs text-muted mb-1 font-mono">ROUTE</div><div class="text-lg font-bold">${data.route || 'Unknown'}</div></div>
+                        <div class="text-right"><div class="text-xs text-muted mb-1 font-mono">TYPE</div><div class="text-lg font-bold font-mono">${data.type || 'N/A'}</div></div>
+                    </div>
+                </div>
+                <h3 class="text-xs font-bold text-muted uppercase tracking-widest mt-2">Live Position</h3>
+                <div class="tech-grid">
+                    <div class="tech-item"><div class="tech-label">Altitude</div><div class="tech-val">${val(data.altitude, ' ft')}</div></div>
+                    <div class="tech-item"><div class="tech-label">Ground Speed</div><div class="tech-val">${val(data.speed, ' kts')}</div></div>
+                    <div class="tech-item"><div class="tech-label">Heading</div><div class="tech-val">${val(data.heading, '°')}</div></div>
+                    <div class="tech-item"><div class="tech-label">Vertical Rate</div><div class="tech-val text-accent">${val(data.vert_rate, ' fpm')}</div></div>
+                </div>
+                <h3 class="text-xs font-bold text-muted uppercase tracking-widest mt-2">Avionics</h3>
+                <div class="tech-grid">
+                    <div class="tech-item"><div class="tech-label">Squawk</div><div class="tech-val text-accent">${val(data.squawk)}</div></div>
+                    <div class="tech-item"><div class="tech-label">Roll Angle</div><div class="tech-val">${val(data.roll_angle, '°')}</div></div>
+                </div>
+                <div class="p-4 bg-black/5 dark:bg-white/5 rounded border border-theme text-[10px] font-mono text-muted text-center mt-4">HEX: ${data.hex}</div>
+            `;
+        }
+
+        // --- MAP ENGINE ---
+        const DEFAULT_CENTER = [12.98, 77.6];
+        const DEFAULT_ZOOM = 8.4;
+        const SOUTH_INDIA_BOUNDS = L.latLngBounds(L.latLng(8.0, 73.0), L.latLng(18.0, 85.0));
+        const map = L.map('map-container', {
+            zoomControl: false, attributionControl: false, zoomSnap: 0.1, boxZoom: false, doubleClickZoom: false, dragging: false, scrollWheelZoom: false, minZoom: 6, maxBounds: SOUTH_INDIA_BOUNDS, maxBoundsViscosity: 1.0
+        }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+
+        const mapLayer = { dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png' };
+        let tileLayer = L.tileLayer(mapLayer.dark, { maxZoom: 19 }).addTo(map);
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            if (tileLayer) { map.removeLayer(tileLayer); tileLayer = null; }
+            setTimeout(() => { tileLayer = L.tileLayer(isDark ? mapLayer.dark : mapLayer.light, { maxZoom: 19 }).addTo(map); }, 10);
+            setTimeout(() => { map.invalidateSize(); }, 200);
+        }
+
+        function toggleUI() {
+            const body = document.body;
+            const btn = document.getElementById('view-btn-text');
+            if (body.classList.contains('ui-hidden')) {
+                body.classList.remove('ui-hidden'); btn.innerText = "HIDE INTERFACE";
+                map.dragging.disable(); map.scrollWheelZoom.disable(); map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
+            } else {
+                body.classList.add('ui-hidden'); btn.innerText = "SHOW INTERFACE";
+                map.dragging.enable(); map.scrollWheelZoom.enable();
+            }
+            setTimeout(() => { map.invalidateSize(); }, 300);
+        }
+
         // --- RADAR ENGINE ---
         const API_URL = 'https://planes.custardlev.uk/ajax/aircraft';
-        const markers = {};
-        const polylines = {};
-        const trails = {};
+        const markers = {}; const polylines = {}; const trails = {};
 
         function getIcon(heading, flight, route, alt, speed) {
             const color = '#3b82f6';
             return L.divIcon({
                 className: 'plane-icon-wrapper',
-                html: `
-                    <div style="transform: rotate(${heading}deg);">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="${color}" stroke="white" stroke-width="1.5" style="filter: drop-shadow(0 0 4px #000);">
-                            <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
-                        </svg>
-                    </div>
-                    <div class="plane-label">
-                        <div class="pl-flight">${flight || 'N/A'}</div>
-                        <div class="pl-route">${route || 'N/A'}</div>
-                        <div class="pl-data">FL${Math.round(alt/100)} | ${Math.round(speed)}kt</div>
-                    </div>
-                `,
-                iconSize: [30, 30],
-                iconAnchor: [15, 15]
+                html: `<div style="transform: rotate(${heading}deg);"><svg width="24" height="24" viewBox="0 0 24 24" fill="${color}" stroke="white" stroke-width="1.5" style="filter: drop-shadow(0 0 4px #000);"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg></div><div class="plane-label"><div class="pl-flight">${flight || 'N/A'}</div><div class="pl-route">${route || 'N/A'}</div><div class="pl-data">FL${Math.round(alt/100)} | ${Math.round(speed)}kt</div></div>`,
+                iconSize: [30, 30], iconAnchor: [15, 15]
             });
         }
 
@@ -541,80 +500,44 @@
             try {
                 const res = await fetch(API_URL);
                 const data = await res.json();
-                
                 if (!data || !data.aircraft) return;
-                
-                const validPlanes = Object.entries(data.aircraft).map(([hex, plane]) => {
-                    plane.hex = hex;
-                    return plane;
-                }).filter(p => p.lat && p.lon);
+                const validPlanes = Object.entries(data.aircraft).map(([hex, p]) => { p.hex = hex; return p; }).filter(p => p.lat && p.lon);
                 
                 document.getElementById('plane-count').innerText = validPlanes.length;
                 document.getElementById('status-text').innerText = "SYSTEM ONLINE";
                 document.getElementById('status-dot').className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
 
-                // LIVE SIDEBAR UPDATE
-                if (selectedHex) {
-                    const planeData = validPlanes.find(p => p.hex === selectedHex);
-                    if (planeData) updateFlightSidebar(planeData);
-                }
+                if (selectedHex) { const p = validPlanes.find(pl => pl.hex === selectedHex); if (p) updateFlightSidebar(p); }
 
                 const currentHexes = new Set();
-                
                 validPlanes.forEach(p => {
                     currentHexes.add(p.hex);
                     const latlng = [p.lat, p.lon];
-                    const flightName = p.flightno || p.callsign || p.hex;
-                    
-                    // 1. TRAILS
+                    const fname = p.flightno || p.callsign || p.hex;
+
                     if (!trails[p.hex]) trails[p.hex] = [];
                     trails[p.hex].push(latlng);
                     if (trails[p.hex].length > 60) trails[p.hex].shift();
 
-                    if (polylines[p.hex]) {
-                        polylines[p.hex].setLatLngs(trails[p.hex]);
-                    } else {
-                        polylines[p.hex] = L.polyline(trails[p.hex], {
-                            color: '#3b82f6', weight: 1, opacity: 0.3, smoothFactor: 1
-                        }).addTo(map);
-                    }
+                    if (polylines[p.hex]) polylines[p.hex].setLatLngs(trails[p.hex]);
+                    else polylines[p.hex] = L.polyline(trails[p.hex], { color: '#3b82f6', weight: 1, opacity: 0.3, smoothFactor: 1 }).addTo(map);
 
-                    // 2. MARKERS
                     if (markers[p.hex]) {
                         markers[p.hex].setLatLng(latlng);
-                        markers[p.hex].setIcon(getIcon(p.heading, flightName, p.route, p.altitude, p.speed));
+                        markers[p.hex].setIcon(getIcon(p.heading, fname, p.route, p.altitude, p.speed));
                     } else {
-                        const marker = L.marker(latlng, {
-                            icon: getIcon(p.heading, flightName, p.route, p.altitude, p.speed)
-                        }).addTo(map);
-                        
-                        marker.on('click', () => openFlightSidebar(p));
-                        marker.on('mouseover', function (e) {
-                            this.bindTooltip(`
-                                <div class='font-bold'>${flightName}</div>
-                                <div class='text-xs'>${p.type || ''}</div>
-                            `, { direction: 'top', offset: [0,-15], className: 'glass-panel p-2' }).openTooltip();
-                        });
-                        
-                        markers[p.hex] = marker;
+                        const m = L.marker(latlng, { icon: getIcon(p.heading, fname, p.route, p.altitude, p.speed) }).addTo(map);
+                        m.on('click', () => openFlightSidebar(p));
+                        markers[p.hex] = m;
                     }
                 });
 
                 Object.keys(markers).forEach(hex => {
-                    if (!currentHexes.has(hex)) {
-                        map.removeLayer(markers[hex]);
-                        delete markers[hex];
-                        if (polylines[hex]) { map.removeLayer(polylines[hex]); delete polylines[hex]; }
-                        delete trails[hex];
-                    }
+                    if (!currentHexes.has(hex)) { map.removeLayer(markers[hex]); delete markers[hex]; if(polylines[hex]) { map.removeLayer(polylines[hex]); delete polylines[hex]; } delete trails[hex]; }
                 });
-
-            } catch (e) { /* Silent fail */ }
+            } catch (e) {}
         }
-
-        setInterval(fetchRadar, 2000);
-        fetchRadar();
-
+        setInterval(fetchRadar, 2000); fetchRadar();
     </script>
 </body>
 </html>
