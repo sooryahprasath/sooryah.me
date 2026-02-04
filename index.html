@@ -6,8 +6,14 @@
     <title>Sooryah Prasath | Network Engineer</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <script src="https://unpkg.com/lucide@latest"></script>
     
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -19,220 +25,268 @@
             }
         }
     </script>
+
     <style>
-        html { scroll-behavior: smooth; }
-        body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', sans-serif; }
-        
-        /* The Radar Background */
-        #radar-canvas {
+        /* Map Background Layer */
+        #map-background {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: -1; opacity: 0.5; pointer-events: none;
+            z-index: 0; filter: grayscale(100%) brightness(0.4) contrast(1.2);
+            pointer-events: none; /* Let clicks pass through to content? No, let's allow panning */
+            pointer-events: auto;
         }
-        
-        /* Card Hover Effects */
-        .project-card { transition: all 0.3s ease; }
-        .project-card:hover { transform: translateY(-3px); border-color: #52525b; }
+
+        /* Overlay content must sit above map */
+        .content-layer { position: relative; z-index: 10; pointer-events: none; }
+        .interactive { pointer-events: auto; }
+
+        /* Custom Plane Icon Styling */
+        .plane-icon { transition: all 1s linear; }
+        .plane-label {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3b82f6;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            white-space: nowrap;
+            margin-top: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        .plane-info-row { display: flex; gap: 6px; color: #a1a1aa; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="bg-background text-zinc-300 antialiased min-h-screen flex flex-col overflow-x-hidden">
 
-    <canvas id="radar-canvas"></canvas>
+    <div id="map-background"></div>
 
-    <nav class="fixed top-0 w-full z-50 border-b border-white/5 bg-background/80 backdrop-blur-md">
-        <div class="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
+    <nav class="fixed top-0 w-full z-50 border-b border-white/5 bg-black/40 backdrop-blur-md content-layer interactive">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
             <span class="font-mono font-bold text-white text-lg tracking-tight">SP_</span>
             <div class="flex gap-6 text-sm font-medium text-zinc-400">
                 <a href="#work" class="hover:text-white transition">Work</a>
                 <a href="http://networkautomation.hashnode.dev/" target="_blank" class="hover:text-white transition">Writing</a>
-                <a href="mailto:Sooryahprasath@gmail.com" class="hover:text-white transition">Contact</a>
+                <a href="#contact" class="hover:text-white transition">Contact</a>
             </div>
         </div>
     </nav>
 
-    <header class="max-w-5xl mx-auto px-6 pt-40 pb-20 w-full">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-xs text-zinc-400 mb-6">
-            <span id="status-dot" class="w-2 h-2 rounded-full bg-zinc-600"></span>
-            <span id="status-text" class="font-mono">Initializing Radar...</span>
-        </div>
+    <div class="content-layer w-full">
         
-        <h1 class="text-5xl md:text-7xl font-bold text-white tracking-tight mb-6">
-            Sooryah Prasath
-        </h1>
-        <p class="text-xl md:text-2xl text-zinc-400 max-w-2xl leading-relaxed">
-            Senior Network Automation Engineer. <br>
-            I build <span class="text-white">autonomous networks</span>, track planes, and engineer private clouds.
-        </p>
-    </header>
-
-    <section id="work" class="max-w-5xl mx-auto px-6 py-12 w-full">
-        <h2 class="text-sm font-mono text-zinc-500 uppercase tracking-wider mb-8">Selected Projects</h2>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            <a href="https://planes.custardlev.uk" target="_blank" class="project-card group bg-surface border border-white/10 rounded-xl p-6 flex flex-col justify-between h-64">
-                <div>
-                    <div class="flex justify-between items-start mb-4">
-                        <i data-lucide="radar" class="w-8 h-8 text-accent"></i>
-                        <span class="text-[10px] font-mono text-green-400 border border-green-900/50 bg-green-900/20 px-2 py-0.5 rounded">LIVE FEED</span>
-                    </div>
-                    <h3 class="text-xl font-bold text-white mb-2 group-hover:text-accent transition">ADS-B Ground Station</h3>
-                    <p class="text-sm text-zinc-400">
-                        Distributed aircraft tracking network feeding FlightAware. 
-                        Running on Raspberry Pi + RTL-SDR. The background is live data from this receiver.
-                    </p>
-                </div>
-                <div class="text-xs font-mono text-zinc-500 mt-4">Hardware / Signal Processing</div>
-            </a>
-
-            <a href="#" class="project-card group bg-surface border border-white/10 rounded-xl p-6 flex flex-col justify-between h-64">
-                <div>
-                    <div class="flex justify-between items-start mb-4">
-                        <i data-lucide="shield-check" class="w-8 h-8 text-zinc-500 group-hover:text-white transition"></i>
-                    </div>
-                    <h3 class="text-xl font-bold text-white mb-2 group-hover:text-accent transition">Firewall Auto-Pilot</h3>
-                    <p class="text-sm text-zinc-400">
-                        Python framework using PAN-OS XML APIs to audit and deploy security policies across 50+ enterprise firewalls.
-                    </p>
-                </div>
-                <div class="text-xs font-mono text-zinc-500 mt-4">Python / XML API</div>
-            </a>
-
-            <a href="#" class="project-card group bg-surface border border-white/10 rounded-xl p-6 flex flex-col justify-between h-64">
-                <div>
-                    <div class="flex justify-between items-start mb-4">
-                        <i data-lucide="server" class="w-8 h-8 text-zinc-500 group-hover:text-white transition"></i>
-                    </div>
-                    <h3 class="text-xl font-bold text-white mb-2 group-hover:text-accent transition">Private Cloud Infra</h3>
-                    <p class="text-sm text-zinc-400">
-                        Self-hosted Proxmox cluster running Kubernetes (K3s), n8n pipelines, and Grafana stacks.
-                    </p>
-                </div>
-                <div class="text-xs font-mono text-zinc-500 mt-4">Proxmox / Docker / Ansible</div>
-            </a>
-
-        </div>
-    </section>
-
-    <footer class="mt-auto border-t border-white/5 bg-background">
-        <div class="max-w-5xl mx-auto px-6 py-12 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div class="flex gap-6 text-zinc-400">
-                <a href="mailto:Sooryahprasath@gmail.com" class="hover:text-white flex gap-2"><i data-lucide="mail" class="w-4 h-4"></i> Email</a>
-                <a href="https://linkedin.com" target="_blank" class="hover:text-white flex gap-2"><i data-lucide="linkedin" class="w-4 h-4"></i> LinkedIn</a>
-                <a href="https://github.com/sooryahprasath" target="_blank" class="hover:text-white flex gap-2"><i data-lucide="github" class="w-4 h-4"></i> GitHub</a>
+        <header class="max-w-6xl mx-auto px-6 pt-40 pb-20 w-full interactive">
+            <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-zinc-800 bg-black/80 backdrop-blur text-xs text-zinc-400 mb-8 shadow-xl">
+                <span id="status-dot" class="w-2 h-2 rounded-full bg-zinc-600"></span>
+                <span id="status-text" class="font-mono text-zinc-300">INITIALIZING SYSTEM...</span>
+                <span class="border-l border-zinc-700 pl-3 text-zinc-500 font-mono" id="tech-stats">0 PACKETS/SEC</span>
             </div>
-            <p class="text-xs text-zinc-600 font-mono">Running on Docker @ 192.168.0.120</p>
-        </div>
-    </footer>
+            
+            <h1 class="text-6xl md:text-8xl font-bold text-white tracking-tight mb-8 drop-shadow-2xl">
+                Sooryah Prasath
+            </h1>
+            
+            <div class="max-w-2xl bg-black/60 backdrop-blur-sm p-6 rounded-2xl border border-white/5">
+                <p class="text-xl md:text-2xl text-zinc-300 leading-relaxed font-light">
+                    Senior Network Automation Engineer. <br>
+                    <span class="text-sm font-mono text-blue-400 mt-2 block">
+                        > Automating Packets | Tracking Aircraft | Engineering Clouds
+                    </span>
+                </p>
+            </div>
+        </header>
+
+        <section id="work" class="max-w-6xl mx-auto px-6 py-20 w-full interactive">
+            <h2 class="text-sm font-mono text-blue-400 uppercase tracking-wider mb-8 flex items-center gap-2">
+                <i data-lucide="cpu" class="w-4 h-4"></i> Active Systems
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                <a href="https://planes.custardlev.uk" target="_blank" class="group bg-black/80 backdrop-blur border border-zinc-800 rounded-xl p-6 hover:border-blue-500/50 transition-all duration-300">
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                            <i data-lucide="radar" class="w-6 h-6 text-blue-400"></i>
+                        </div>
+                        <span class="text-[10px] font-mono text-green-400 bg-green-900/30 px-2 py-1 rounded border border-green-900/50">ONLINE</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2">ADS-B Ground Station</h3>
+                    <p class="text-sm text-zinc-400 leading-relaxed mb-4">
+                        Distributed sensor network feeding FlightAware. Live visualization of Bangalore airspace using Raspberry Pi + RTL-SDR hardware.
+                    </p>
+                    <div class="flex gap-2 text-[10px] font-mono text-zinc-500 uppercase">
+                        <span>#SignalProcessing</span>
+                        <span>#Hardware</span>
+                    </div>
+                </a>
+
+                <a href="#" class="group bg-black/80 backdrop-blur border border-zinc-800 rounded-xl p-6 hover:border-blue-500/50 transition-all duration-300">
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                            <i data-lucide="shield-check" class="w-6 h-6 text-purple-400"></i>
+                        </div>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2">Palo Alto Auto-Pilot</h3>
+                    <p class="text-sm text-zinc-400 leading-relaxed mb-4">
+                        Enterprise framework leveraging PAN-OS XML APIs to audit and deploy security policies across 50+ firewalls automatically.
+                    </p>
+                    <div class="flex gap-2 text-[10px] font-mono text-zinc-500 uppercase">
+                        <span>#Python</span>
+                        <span>#NetDevOps</span>
+                    </div>
+                </a>
+
+                <a href="#" class="group bg-black/80 backdrop-blur border border-zinc-800 rounded-xl p-6 hover:border-blue-500/50 transition-all duration-300">
+                    <div class="flex justify-between items-start mb-6">
+                        <div class="p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                            <i data-lucide="server" class="w-6 h-6 text-orange-400"></i>
+                        </div>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2">Private Cloud Cluster</h3>
+                    <p class="text-sm text-zinc-400 leading-relaxed mb-4">
+                        Self-hosted Proxmox infrastructure running Kubernetes (K3s), n8n workflow pipelines, and Prometheus/Grafana stacks.
+                    </p>
+                    <div class="flex gap-2 text-[10px] font-mono text-zinc-500 uppercase">
+                        <span>#Proxmox</span>
+                        <span>#Kubernetes</span>
+                    </div>
+                </a>
+
+            </div>
+        </section>
+
+        <footer id="contact" class="mt-20 border-t border-white/10 bg-black/90 backdrop-blur interactive">
+            <div class="max-w-6xl mx-auto px-6 py-12 flex flex-col md:flex-row justify-between items-center gap-6">
+                <div class="flex gap-8">
+                    <a href="mailto:sooryahprasath@gmail.com" class="text-zinc-400 hover:text-white flex items-center gap-2 transition group">
+                        <i data-lucide="mail" class="w-4 h-4 group-hover:text-blue-400"></i> sooryahprasath@gmail.com
+                    </a>
+                    <a href="https://www.linkedin.com/in/sooryah/" target="_blank" class="text-zinc-400 hover:text-white flex items-center gap-2 transition group">
+                        <i data-lucide="linkedin" class="w-4 h-4 group-hover:text-blue-400"></i> LinkedIn
+                    </a>
+                    <a href="https://github.com/sooryahprasath" target="_blank" class="text-zinc-400 hover:text-white flex items-center gap-2 transition group">
+                        <i data-lucide="github" class="w-4 h-4 group-hover:text-blue-400"></i> GitHub
+                    </a>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs text-zinc-600 font-mono">© 2026 Sooryah Prasath</p>
+                    <p class="text-[10px] text-zinc-700 font-mono mt-1">NODE: 192.168.0.120 | UPTIME: 99.9%</p>
+                </div>
+            </div>
+        </footer>
+    </div>
 
     <script>
         lucide.createIcons();
-        const canvas = document.getElementById('radar-canvas');
-        const ctx = canvas.getContext('2d');
-        let width, height;
-        
-        // --- CONFIGURATION ---
+
+        // ----------------------------------------------------
+        // 1. MAP INITIALIZATION (Leaflet)
+        // ----------------------------------------------------
+        // Center on Bangalore
+        const map = L.map('map-background', {
+            zoomControl: false,
+            attributionControl: false,
+            scrollWheelZoom: false, // Prevent scrolling map when scrolling page
+            dragging: false,       // Keep it static background
+            doubleClickZoom: false
+        }).setView([12.9716, 77.5946], 10);
+
+        // Dark Matter Tiles (The Hacker Look)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19,
+            subdomains: 'abcd'
+        }).addTo(map);
+
+        // ----------------------------------------------------
+        // 2. LIVE RADAR LOGIC
+        // ----------------------------------------------------
         const API_URL = 'https://api.custardlev.uk/skyaware/data/aircraft.json';
-        const CENTER_LAT = 12.9716; // Bangalore Latitude
-        const CENTER_LON = 77.5946; // Bangalore Longitude
-        const SCALE = 200;          // Zoom factor
-        // ---------------------
+        let planeMarkers = {}; // Store markers by Hex ID
 
-        let planes = [];
-
-        function resize() {
-            width = window.innerWidth;
-            height = window.innerHeight;
-            canvas.width = width;
-            canvas.height = height;
+        // Custom Plane Icon Generator
+        function createPlaneIcon(heading, flight, alt, speed) {
+            return L.divIcon({
+                className: 'plane-icon',
+                html: `
+                    <div style="transform: rotate(${heading}deg); width: 24px; height: 24px;">
+                        <svg viewBox="0 0 24 24" fill="#3b82f6" stroke="none" filter="drop-shadow(0 0 4px #3b82f6)">
+                            <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+                        </svg>
+                    </div>
+                    <div class="plane-label">
+                        <div class="font-bold text-white">${flight || 'N/A'}</div>
+                        <div class="plane-info-row">
+                            <span>ALT:${Math.round(alt/100)*100}</span>
+                        </div>
+                        <div class="plane-info-row">
+                            <span>SPD:${Math.round(speed)}</span>
+                        </div>
+                    </div>
+                `,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
         }
-        window.addEventListener('resize', resize);
-        resize();
 
-        function mapCoords(lat, lon) {
-            // Simple projection: center the map on Bangalore
-            const x = (lon - CENTER_LON) * SCALE + (width / 2);
-            const y = (CENTER_LAT - lat) * SCALE + (height / 2);
-            return { x, y };
-        }
-
-        async function fetchPlanes() {
+        async function updateRadar() {
             try {
                 const response = await fetch(API_URL);
                 const data = await response.json();
                 
-                if (data && data.aircraft) {
-                    // Filter out planes without position
-                    const validPlanes = data.aircraft.filter(p => p.lat && p.lon);
-                    planes = validPlanes;
+                if (!data || !data.aircraft) return;
 
-                    // Update UI Status
-                    document.getElementById('status-dot').className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
-                    document.getElementById('status-text').innerText = `Radar Online: ${planes.length} Aircraft`;
-                    document.getElementById('status-text').className = "font-mono text-green-400";
-                }
-            } catch (e) {
-                console.error("Radar Fetch Error:", e);
-                document.getElementById('status-dot').className = "w-2 h-2 rounded-full bg-red-500";
-                document.getElementById('status-text').innerText = "Radar Offline (Simulating)";
-                document.getElementById('status-text').className = "font-mono text-red-400";
+                const validPlanes = data.aircraft.filter(p => p.lat && p.lon);
                 
-                // Keep simulation running if API fails
-                if (planes.length === 0) simulateTraffic(); 
+                // Update Stats
+                document.getElementById('status-dot').className = "w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]";
+                document.getElementById('status-text').innerText = `RADAR LIVE: ${validPlanes.length} AIRCRAFT`;
+                document.getElementById('status-text').className = "font-mono text-green-400";
+                document.getElementById('tech-stats').innerText = `${data.messages} MSGS RECEIVED`;
+
+                // Update Map Markers
+                const currentHexes = new Set();
+
+                validPlanes.forEach(plane => {
+                    currentHexes.add(plane.hex);
+                    
+                    const heading = plane.track || 0;
+                    const flight = (plane.flight || plane.hex).trim();
+                    const alt = plane.alt_baro || 0;
+                    const speed = plane.gs || 0;
+
+                    if (planeMarkers[plane.hex]) {
+                        // Move existing marker
+                        const marker = planeMarkers[plane.hex];
+                        marker.setLatLng([plane.lat, plane.lon]);
+                        marker.setIcon(createPlaneIcon(heading, flight, alt, speed));
+                    } else {
+                        // Create new marker
+                        const marker = L.marker([plane.lat, plane.lon], {
+                            icon: createPlaneIcon(heading, flight, alt, speed),
+                            zIndexOffset: 1000 // Keep planes above everything
+                        }).addTo(map);
+                        planeMarkers[plane.hex] = marker;
+                    }
+                });
+
+                // Remove old planes
+                Object.keys(planeMarkers).forEach(hex => {
+                    if (!currentHexes.has(hex)) {
+                        map.removeLayer(planeMarkers[hex]);
+                        delete planeMarkers[hex];
+                    }
+                });
+
+            } catch (e) {
+                console.log("Radar Fetch Failed", e);
+                document.getElementById('status-dot').className = "w-2 h-2 rounded-full bg-red-500";
+                document.getElementById('status-text').innerText = "RADAR LINK OFFLINE";
+                document.getElementById('status-text').className = "font-mono text-red-400";
             }
         }
 
-        function simulateTraffic() {
-             // Create fake planes only if we have 0 real planes
-             if(Math.random() > 0.05) return; 
-             planes.push({
-                 lat: CENTER_LAT + (Math.random() - 0.5),
-                 lon: CENTER_LON + (Math.random() - 0.5),
-                 flight: "SIM" + Math.floor(Math.random()*999),
-                 simulated: true
-             });
-        }
+        // Start Loop
+        updateRadar();
+        setInterval(updateRadar, 2000);
 
-        function draw() {
-            // Fade effect for trails
-            ctx.fillStyle = 'rgba(9, 9, 11, 0.15)'; 
-            ctx.fillRect(0, 0, width, height);
-
-            planes.forEach((plane, index) => {
-                // If simulated, move it slightly
-                if (plane.simulated) {
-                    plane.lat += 0.001; 
-                    plane.lon += 0.001;
-                    if(plane.lat > CENTER_LAT + 2) planes.splice(index, 1); // Remove if far
-                }
-
-                const pos = mapCoords(plane.lat, plane.lon);
-                
-                // Draw Plane
-                ctx.beginPath();
-                ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
-                ctx.fillStyle = '#3b82f6';
-                ctx.fill();
-
-                // Draw Ring
-                ctx.beginPath();
-                ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
-                ctx.strokeStyle = 'rgba(59, 130, 246, 0.2)';
-                ctx.stroke();
-
-                // Draw Label
-                if (plane.flight) {
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-                    ctx.font = '10px JetBrains Mono';
-                    ctx.fillText(plane.flight.trim(), pos.x + 10, pos.y + 4);
-                }
-            });
-
-            requestAnimationFrame(draw);
-        }
-
-        draw();
-        setInterval(fetchPlanes, 2000); // Update data every 2s
-        fetchPlanes();
     </script>
 </body>
 </html>
