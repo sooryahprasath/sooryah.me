@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sooryah Prasath | Network Engineer</title>
+    <title>Sooryah Prasath | Senior Network Automation Engineer</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -29,24 +29,24 @@
         /* --- THEME ENGINE --- */
         :root {
             /* LIGHT MODE */
-            --bg-solid: #f4f4f5;
-            --glass-bg: rgba(255, 255, 255, 0.65); /* More transparency */
-            --glass-border: rgba(0, 0, 0, 0.08);
-            --text-main: #09090b;
+            --bg-solid: #f0f2f5;
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(0, 0, 0, 0.06);
+            --text-main: #18181b;
             --text-muted: #52525b;
             --accent: #2563eb;
-            --map-filter: grayscale(100%) contrast(1) brightness(1.1);
+            --map-filter: grayscale(100%) contrast(1.1) brightness(1.0); /* Sharp grey map */
         }
 
         .dark {
             /* DARK MODE */
-            --bg-solid: #000000;
-            --glass-bg: rgba(5, 5, 5, 0.6); /* High transparency for map visibility */
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --bg-solid: #050505;
+            --glass-bg: rgba(10, 10, 12, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.08);
             --text-main: #ffffff;
             --text-muted: #a1a1aa;
             --accent: #3b82f6;
-            --map-filter: grayscale(100%) brightness(0.6) contrast(1.4); 
+            --map-filter: grayscale(100%) brightness(0.6) contrast(1.4); /* Deep dark map */
         }
 
         body { 
@@ -56,35 +56,35 @@
             overflow-x: hidden;
         }
 
-        /* MAP LAYER (Always visible now) */
+        /* MAP LAYER */
         #map-container {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
             filter: var(--map-filter);
         }
 
-        /* UI CONTAINER (Fadeable) */
+        /* UI CONTAINER */
         #main-ui {
-            transition: opacity 0.5s ease, filter 0.5s ease;
+            transition: opacity 0.3s ease;
         }
         .ui-hidden #main-ui {
             opacity: 0;
             pointer-events: none;
         }
 
-        /* DASHBOARD COMPONENTS */
-        .dashboard-card {
+        /* GLASS CARD DESIGN */
+        .glass-panel {
             background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             border: 1px solid var(--glass-border);
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
             transition: transform 0.2s ease, border-color 0.2s ease;
         }
         
         .project-card:hover {
             border-color: var(--accent);
-            transform: translateY(-2px);
-            background: rgba(20, 20, 20, 0.8); /* Darker on hover for readability */
+            transform: translateY(-4px);
+            background: var(--glass-bg); /* Ensure visibility on hover */
         }
 
         /* BUTTONS */
@@ -94,157 +94,166 @@
             backdrop-filter: blur(8px);
             transition: all 0.2s;
         }
-        .btn-glass:hover { border-color: var(--text-main); }
+        .btn-glass:hover { border-color: var(--text-main); transform: translateY(-1px); }
 
         /* SCROLLBAR */
-        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--text-muted); opacity: 0.2; border-radius: 10px; }
 
-        /* PLANE LABELS */
+        /* PLANE LABELS (Fixed Layout) */
         .plane-label {
-            background: rgba(0,0,0,0.8);
+            background: rgba(9, 9, 11, 0.9);
             border: 1px solid var(--accent);
             color: #fff;
             font-family: 'JetBrains Mono', monospace;
             font-size: 10px;
             font-weight: 700;
-            padding: 2px 5px;
-            border-radius: 3px;
+            padding: 4px 8px; /* More padding */
+            border-radius: 4px;
             white-space: nowrap;
-            margin-top: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            min-width: 80px; /* Prevent text overflow */
+            margin-top: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
+        .plane-sub { font-size: 9px; opacity: 0.8; font-weight: 400; }
     </style>
 </head>
 <body class="min-h-screen">
 
     <div id="map-container"></div>
 
-    <div class="fixed top-6 right-6 z-50 flex gap-2">
+    <div class="fixed top-6 right-6 z-50 flex gap-3">
         <button onclick="toggleUI()" class="btn-glass px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-bold font-mono text-main group">
             <i data-lucide="eye" class="w-4 h-4 group-hover:text-accent"></i>
             <span id="view-btn-text">HIDE UI</span>
         </button>
-        
         <button onclick="toggleTheme()" class="btn-glass p-2 rounded-lg">
             <i data-lucide="sun" class="w-4 h-4 dark:hidden"></i>
             <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
         </button>
     </div>
 
-    <div id="main-ui" class="relative z-10 max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div id="main-ui" class="relative z-10 max-w-4xl mx-auto px-4 py-12 md:py-20 flex flex-col gap-12">
 
-        <header class="lg:col-span-12 flex justify-between items-center mb-2">
-            <div class="dashboard-card px-4 py-2 rounded-lg flex items-center gap-4">
-                <div class="flex items-center gap-2">
-                    <span id="status-dot" class="w-2 h-2 rounded-full bg-zinc-400"></span>
-                    <span id="status-text" class="text-xs font-mono font-bold text-muted tracking-widest">CONNECTING...</span>
-                </div>
-                <div class="h-4 w-px bg-current opacity-10"></div>
-                <div class="text-xs font-mono text-muted">
-                    FLIGHTS TRACKED: <span id="plane-count" class="text-accent font-bold">0</span>
-                </div>
+        <header class="glass-panel rounded-2xl p-8 md:p-12 text-center border-l-4 border-l-blue-500">
+            
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/5 dark:bg-white/5 border border-theme mb-6">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                <span class="text-xs font-mono font-bold tracking-widest text-muted">WELCOME</span>
             </div>
 
-            <a href="http://networkautomation.hashnode.dev/" target="_blank" class="dashboard-card px-4 py-2 rounded-lg text-xs font-bold font-mono hover:text-accent transition flex items-center gap-2">
-                <i data-lucide="book-open" class="w-3 h-3"></i> TECHNICAL BLOG
-            </a>
+            <h1 class="text-5xl md:text-7xl font-bold tracking-tighter mb-4 text-pri">
+                Sooryah Prasath
+            </h1>
+            
+            <p class="text-lg md:text-xl font-medium text-muted max-w-2xl mx-auto leading-relaxed mb-8">
+                Senior Network Automation Engineer. <br>
+                Building cloud-leveraged automation frameworks and real-time telemetry pipelines for enterprise infrastructure.
+            </p>
+
+            <div class="flex justify-center gap-4">
+                <a href="mailto:sooryahprasath+website@gmail.com" class="btn-glass px-6 py-3 rounded-lg flex items-center gap-2 text-xs font-bold hover:bg-blue-500 hover:text-white hover:border-blue-500 transition group">
+                    <i data-lucide="mail" class="w-4 h-4"></i> EMAIL ME
+                </a>
+                <a href="https://linkedin.com/in/sooryah" target="_blank" class="btn-glass px-6 py-3 rounded-lg flex items-center gap-2 text-xs font-bold hover:border-accent transition">
+                    <i data-lucide="linkedin" class="w-4 h-4"></i> LINKEDIN
+                </a>
+                <a href="https://github.com/sooryahprasath" target="_blank" class="btn-glass px-6 py-3 rounded-lg flex items-center gap-2 text-xs font-bold hover:border-accent transition">
+                    <i data-lucide="github" class="w-4 h-4"></i> GITHUB
+                </a>
+            </div>
         </header>
 
-        <aside class="lg:col-span-4 lg:sticky lg:top-8 h-fit space-y-6">
-            
-            <div class="dashboard-card rounded-2xl p-8 flex flex-col gap-6">
-                <div>
-                    <h1 class="text-5xl font-bold tracking-tighter mb-2">Sooryah<br>Prasath</h1>
-                    <div class="text-sm font-mono text-accent mb-4">
-                        > Network_Automation_Engineer
-                    </div>
-                    <p class="text-sm leading-relaxed text-muted font-medium">
-                        Based in Bengaluru. <br>
-                        Bridging hardware connectivity and software-defined agility for enterprise infrastructure.
-                    </p>
-                </div>
+        <div class="flex justify-center">
+            <div class="glass-panel px-4 py-2 rounded-full flex items-center gap-3 text-[10px] font-mono font-bold text-muted uppercase tracking-wider">
+                <i data-lucide="server" class="w-3 h-3"></i>
+                <span>Hosted Locally</span>
+                <span class="text-accent">•</span>
+                <span>Tunneled via Cloudflare</span>
+            </div>
+        </div>
 
-                <div class="grid grid-cols-3 gap-3">
-                    <a href="mailto:sooryahprasath+website@gmail.com" class="btn-glass p-3 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-accent group transition">
-                        <i data-lucide="mail" class="w-4 h-4 text-muted group-hover:text-accent"></i>
-                        <span class="text-[10px] font-bold text-muted group-hover:text-main">EMAIL</span>
-                    </a>
-                    <a href="https://linkedin.com/in/sooryah" target="_blank" class="btn-glass p-3 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-accent group transition">
-                        <i data-lucide="linkedin" class="w-4 h-4 text-muted group-hover:text-accent"></i>
-                        <span class="text-[10px] font-bold text-muted group-hover:text-main">LINKEDIN</span>
-                    </a>
-                    <a href="https://github.com/sooryahprasath" target="_blank" class="btn-glass p-3 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-accent group transition">
-                        <i data-lucide="github" class="w-4 h-4 text-muted group-hover:text-accent"></i>
-                        <span class="text-[10px] font-bold text-muted group-hover:text-main">GITHUB</span>
-                    </a>
+        <section class="glass-panel rounded-2xl p-8">
+            <h3 class="text-xs font-mono font-bold text-muted uppercase mb-6 tracking-widest flex items-center gap-2">
+                <i data-lucide="cpu" class="w-4 h-4"></i> Core Competencies
+            </h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme text-center">
+                    <div class="font-bold text-sm">Python Automation</div>
+                    <div class="text-[10px] text-muted">REST APIs / Django</div>
+                </div>
+                <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme text-center">
+                    <div class="font-bold text-sm">Azure DevOps</div>
+                    <div class="text-[10px] text-muted">CI/CD Pipelines</div>
+                </div>
+                <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme text-center">
+                    <div class="font-bold text-sm">Infrastructure</div>
+                    <div class="text-[10px] text-muted">Terraform / Docker</div>
+                </div>
+                <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme text-center">
+                    <div class="font-bold text-sm">SD-WAN</div>
+                    <div class="text-[10px] text-muted">Orchestration</div>
                 </div>
             </div>
+        </section>
 
-            <div class="dashboard-card rounded-2xl p-6">
-                <h3 class="text-xs font-mono font-bold text-muted uppercase mb-4">Core Competencies</h3>
-                <div class="flex flex-wrap gap-2">
-                    <span class="px-2 py-1 rounded bg-black/5 dark:bg-white/5 text-[10px] font-bold border border-theme">Python</span>
-                    <span class="px-2 py-1 rounded bg-black/5 dark:bg-white/5 text-[10px] font-bold border border-theme">Networking</span>
-                    <span class="px-2 py-1 rounded bg-black/5 dark:bg-white/5 text-[10px] font-bold border border-theme">Network Automation</span>
-                    <span class="px-2 py-1 rounded bg-black/5 dark:bg-white/5 text-[10px] font-bold border border-theme">Docker</span>
-                </div>
-            </div>
-        </aside>
-
-        <main class="lg:col-span-8 flex flex-col gap-6">
-            
-            <div class="flex items-center justify-between">
+        <section class="flex flex-col gap-6">
+            <div class="flex items-center justify-between px-2">
                 <h2 class="text-sm font-mono font-bold text-muted uppercase tracking-widest">Active Systems</h2>
                 <div class="h-px flex-1 bg-current opacity-10 ml-4"></div>
             </div>
 
-            <a href="https://planes.custardlev.uk" target="_blank" class="dashboard-card project-card rounded-2xl p-8 group cursor-pointer block">
-                <div class="flex justify-between items-start mb-6">
+            <a href="https://planes.custardlev.uk" target="_blank" class="glass-panel project-card rounded-2xl p-8 group block relative overflow-hidden">
+                <div class="flex justify-between items-start mb-6 relative z-10">
                     <div class="p-3 bg-green-500/10 rounded-xl text-green-500 border border-green-500/20">
                         <i data-lucide="radar" class="w-6 h-6"></i>
                     </div>
                     <span class="flex items-center gap-2 px-2 py-1 rounded bg-green-500/10 text-[10px] font-mono font-bold text-green-600 dark:text-green-400 border border-green-500/20">
                         <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                        LIVE FEED
+                        FLIGHTS TRACKED: <span id="plane-count">0</span>
                     </span>
                 </div>
                 
-                <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition">ADS-B Ground Station</h3>
-                <p class="text-muted text-sm leading-relaxed mb-6">
+                <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition relative z-10">ADS-B Ground Station</h3>
+                <p class="text-muted text-sm leading-relaxed mb-6 relative z-10">
                     A distributed sensor network feeding <strong>FlightRadar24</strong>. 
-                    Running on Raspberry Pi 4 + RTL-SDR V3. Decodes 1090MHz Mode-S signals via Dump1090-fa to visualize live airspace over Bangalore.
+                    Running on Raspberry Pi 4 + RTL-SDR V3 (1090MHz). The live map background on this site is powered by this exact receiver.
                 </p>
 
-                <div class="flex gap-4 text-xs font-mono text-muted">
-                    <span>#SDR</span>
-                    <span>#Linux_Service</span>
+                <div class="flex gap-4 text-xs font-mono text-muted relative z-10">
+                    <span>#SDR_Hobby</span>
+                    <span>#Linux</span>
                     <span>#SignalProcessing</span>
                 </div>
             </a>
 
-            <div class="dashboard-card project-card rounded-2xl p-8 group">
+            <div class="glass-panel project-card rounded-2xl p-8 group">
                 <div class="flex justify-between items-start mb-6">
                     <div class="p-3 bg-purple-500/10 rounded-xl text-purple-500 border border-purple-500/20">
-                        <i data-lucide="shield-check" class="w-6 h-6"></i>
+                        <i data-lucide="activity" class="w-6 h-6"></i>
                     </div>
                 </div>
                 
-                <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition">Firewall Auto-Pilot</h3>
+                <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition">Enterprise Telemetry Pipeline</h3>
                 <p class="text-muted text-sm leading-relaxed mb-6">
-                    Custom framework leveraging PAN-OS XML APIs to audit and deploy security policies across 50+ enterprise firewalls.
-                    Eliminates manual config drift.
+                    Engineered a centralized pipeline utilizing <strong>Apache Airflow</strong> and <strong>Azure SQL</strong> to ingest real-time data from 150+ global sites, feeding dynamic Power BI dashboards.
                 </p>
 
                 <div class="flex gap-4 text-xs font-mono text-muted">
                     <span>#Python</span>
-                    <span>#NetDevOps</span>
-                    <span>#REST_API</span>
+                    <span>#BigData</span>
+                    <span>#PowerBI</span>
                 </div>
             </div>
 
-            <div class="dashboard-card project-card rounded-2xl p-8 group">
+            <div class="glass-panel project-card rounded-2xl p-8 group">
                 <div class="flex justify-between items-start mb-6">
                     <div class="p-3 bg-orange-500/10 rounded-xl text-orange-500 border border-orange-500/20">
                         <i data-lucide="server" class="w-6 h-6"></i>
@@ -259,12 +268,21 @@
                 <div class="flex gap-4 text-xs font-mono text-muted">
                     <span>#Proxmox</span>
                     <span>#Kubernetes</span>
+                    <span>#Ansible</span>
                 </div>
             </div>
+            
+            <a href="http://networkautomation.hashnode.dev/" target="_blank" class="glass-panel rounded-2xl p-6 flex items-center justify-between hover:border-accent transition group border-dashed border-2 bg-transparent">
+                <div>
+                    <h3 class="font-bold text-sm">Read Technical Blog</h3>
+                    <p class="text-xs text-muted">Deep dives into network automation challenges.</p>
+                </div>
+                <i data-lucide="arrow-right" class="w-5 h-5 text-muted group-hover:text-accent transition"></i>
+            </a>
 
-            <footer class="mt-8 text-center lg:text-left">
+            <footer class="mt-8 text-center">
                 <p class="text-xs font-mono text-muted">
-                    © 2026 Sooryah Prasath. System running on Docker @ 192.168.0.120
+                    © 2026 Sooryah Prasath.
                 </p>
             </footer>
 
@@ -274,7 +292,7 @@
     <script>
         lucide.createIcons();
         
-        // --- UI TOGGLE (STEALTH MODE) ---
+        // --- UI TOGGLE ---
         function toggleUI() {
             const ui = document.getElementById('main-ui');
             const btnText = document.getElementById('view-btn-text');
@@ -290,9 +308,10 @@
         }
 
         // --- THEME ENGINE ---
+        // Changed Light map to "Voyager" for better contrast (roads are visible)
         const mapLayer = {
             dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-            light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+            light: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png' 
         };
         let tileLayer;
 
@@ -307,7 +326,7 @@
             zoomControl: false, attributionControl: false,
             zoomSnap: 0.1, boxZoom: false, doubleClickZoom: false,
             dragging: false, scrollWheelZoom: false
-        }).setView([12.9716, 77.5946], 10.2);
+        }).setView([12.9716, 77.5946], 10.5);
 
         tileLayer = L.tileLayer(mapLayer.dark, { maxZoom: 19 }).addTo(map);
 
@@ -328,7 +347,9 @@
                     </div>
                     <div class="plane-label">
                         <div>${flight || 'N/A'}</div>
-                        <div style="font-size: 8px; font-weight: normal; opacity: 0.8;">FL${Math.round(alt/100)}</div>
+                        <div class="plane-sub">
+                            ALT:${Math.round(alt/100)*100} <span style="opacity:0.5">|</span> SPD:${Math.round(speed)}
+                        </div>
                     </div>
                 `,
                 iconSize: [30, 30],
@@ -344,10 +365,8 @@
                 if (!data || !data.aircraft) return;
                 const validPlanes = data.aircraft.filter(p => p.lat && p.lon);
                 
-                // Update Stats
+                // Update Count
                 document.getElementById('plane-count').innerText = validPlanes.length;
-                document.getElementById('status-text').innerText = "SYSTEM ONLINE";
-                document.getElementById('status-dot').className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
 
                 const currentHexes = new Set();
                 validPlanes.forEach(p => {
@@ -370,8 +389,7 @@
                 });
 
             } catch (e) {
-                document.getElementById('status-text').innerText = "OFFLINE";
-                document.getElementById('status-dot').className = "w-2 h-2 rounded-full bg-red-500";
+                // Keep silent on error
             }
         }
 
