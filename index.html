@@ -35,6 +35,8 @@
             --text-main: #09090b;
             --text-muted: #52525b;
             --accent: #2563eb;
+            
+            /* Map: High Visibility */
             --map-filter: contrast(1.05) brightness(1); 
             --map-opacity: 1; 
             --map-bg: #e5e5e5;
@@ -48,6 +50,8 @@
             --text-main: #ffffff;
             --text-muted: #a1a1aa;
             --accent: #f59e0b; /* Signal Amber */
+            
+            /* Map: Deep Dark */
             --map-filter: brightness(1.2) contrast(1.1);
             --map-opacity: 0.6;
             --map-bg: #09090b;
@@ -96,18 +100,22 @@
             backdrop-filter: blur(8px);
             transition: all 0.2s;
         }
-        .btn-glass:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+        .btn-glass:hover { 
+            border-color: var(--accent); 
+            color: var(--accent);
+            transform: translateY(-1px); 
+        }
 
         /* PLANE LABELS */
         .plane-label {
             background: rgba(9, 9, 11, 0.95);
-            border: 1px solid var(--accent);
+            border: 1px solid var(--accent); /* Amber border */
             color: #fff;
             font-family: 'JetBrains Mono', monospace;
             padding: 4px 6px;
             border-radius: 4px;
             text-align: left;
-            min-width: 80px;
+            min-width: 90px;
             margin-top: 10px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
             display: flex;
@@ -116,7 +124,8 @@
             z-index: 100;
         }
         .pl-flight { font-size: 11px; font-weight: 800; color: var(--accent); margin-bottom: 2px; }
-        .pl-data { font-size: 9px; font-weight: 500; color: #a1a1aa; }
+        .pl-route { font-size: 9px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+        .pl-data { font-size: 8px; font-weight: 500; color: #a1a1aa; }
 
         /* SIDEBAR */
         #flight-sidebar {
@@ -144,7 +153,7 @@
 
     <aside id="flight-sidebar">
         <div class="flex justify-between items-center mb-8">
-            <h2 class="text-sm font-mono font-bold tracking-widest text-muted">FLIGHT DATA</h2>
+            <h2 class="text-sm font-mono font-bold tracking-widest text-muted">FLIGHT TELEMETRY</h2>
             <button onclick="closeSidebar()" class="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
         <div id="sidebar-content" class="flex flex-col gap-6">
@@ -171,7 +180,8 @@
             </div>
         </div>
 
-        <div class="flex gap-2 pointer-events-auto pr-12 md:pr-0"> <button onclick="toggleUI()" class="btn-glass px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-bold font-mono text-main group">
+        <div class="flex gap-2 pointer-events-auto pr-12 md:pr-0">
+            <button onclick="toggleUI()" class="btn-glass px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-bold font-mono text-main group">
                 <i data-lucide="map" class="w-4 h-4 group-hover:text-accent"></i>
                 <span id="view-btn-text">SHOW MAP</span>
             </button>
@@ -351,31 +361,43 @@
         };
         let tileLayer = L.tileLayer(mapLayer.dark, { maxZoom: 19 }).addTo(map);
 
-        // --- THEME & UI LOGIC ---
+        // --- THEME ENGINE ---
         function toggleTheme() {
             const html = document.documentElement;
             const isDark = html.classList.toggle('dark');
-            if (tileLayer) map.removeLayer(tileLayer);
-            tileLayer = L.tileLayer(isDark ? mapLayer.dark : mapLayer.light, { maxZoom: 19 }).addTo(map);
-            setTimeout(() => { map.invalidateSize(); }, 50);
+            
+            if (tileLayer) {
+                map.removeLayer(tileLayer);
+                tileLayer = null;
+            }
+            
+            setTimeout(() => {
+                tileLayer = L.tileLayer(isDark ? mapLayer.dark : mapLayer.light, { maxZoom: 19 }).addTo(map);
+            }, 10);
+            
+            setTimeout(() => { map.invalidateSize(); }, 200);
         }
 
+        // --- UI TOGGLE ---
         function toggleUI() {
             const body = document.body;
             const btnText = document.getElementById('view-btn-text');
             
             if (body.classList.contains('ui-hidden')) {
+                // RESET MODE
                 body.classList.remove('ui-hidden');
-                btnText.innerText = "SHOW MAP"; // Logic: Click to Show Map (Hide UI)
+                btnText.innerText = "SHOW MAP"; 
                 map.dragging.disable(); map.scrollWheelZoom.disable();
                 map.doubleClickZoom.disable(); map.boxZoom.disable();
                 map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
             } else {
+                // INTERACTIVE MODE
                 body.classList.add('ui-hidden');
-                btnText.innerText = "HIDE MAP"; // Logic: Click to Hide Map (Show UI)
+                btnText.innerText = "HIDE MAP"; 
                 map.dragging.enable(); map.scrollWheelZoom.enable();
                 map.doubleClickZoom.enable(); map.boxZoom.enable();
             }
+            
             setTimeout(() => { map.invalidateSize(); }, 300);
         }
 
@@ -384,40 +406,41 @@
             const sidebar = document.getElementById('flight-sidebar');
             const content = document.getElementById('sidebar-content');
             
-            // Generate Route String
-            let routeStr = data.flight ? `Unknown Route (${data.flight})` : "Global Traffic";
-            // Mock Route Logic (Since raw data lacks it)
-            if(data.lat > 13) routeStr = "Northbound Sector";
-            if(data.lat < 12) routeStr = "Southbound Sector";
-
             content.innerHTML = `
                 <div class="p-4 rounded-lg bg-black/5 dark:bg-white/5 border border-theme">
-                    <div class="text-xs text-muted mb-1">CALLSIGN</div>
-                    <div class="text-2xl font-bold text-accent font-mono">${data.flight || 'N/A'}</div>
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="text-xs text-muted mb-1">CALLSIGN</div>
+                            <div class="text-3xl font-bold text-accent font-mono tracking-tight">${data.flightno || data.callsign || 'N/A'}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs text-muted mb-1">REGISTRATION</div>
+                            <div class="text-xl font-bold font-mono">${data.reg || 'N/A'}</div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-theme">
+                        <div class="text-xs text-muted mb-1">ROUTE</div>
+                        <div class="text-lg font-bold">${data.route || 'Unknown Route'}</div>
+                    </div>
                 </div>
                 
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
+                    <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme">
                         <div class="text-xs text-muted mb-1">ALTITUDE</div>
-                        <div class="text-lg font-bold font-mono">${data.alt} <span class="text-xs text-muted">ft</span></div>
+                        <div class="text-lg font-bold font-mono">${data.altitude} <span class="text-xs text-muted">ft</span></div>
                     </div>
-                    <div>
+                    <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme">
                         <div class="text-xs text-muted mb-1">SPEED</div>
                         <div class="text-lg font-bold font-mono">${data.speed} <span class="text-xs text-muted">kts</span></div>
                     </div>
-                    <div>
-                        <div class="text-xs text-muted mb-1">HEADING</div>
-                        <div class="text-lg font-bold font-mono">${data.track}°</div>
+                    <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme">
+                        <div class="text-xs text-muted mb-1">TYPE</div>
+                        <div class="text-lg font-bold font-mono">${data.type || 'N/A'}</div>
                     </div>
-                    <div>
-                        <div class="text-xs text-muted mb-1">ICAO HEX</div>
-                        <div class="text-lg font-bold font-mono">${data.hex}</div>
+                    <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme">
+                        <div class="text-xs text-muted mb-1">SQUAWK</div>
+                        <div class="text-lg font-bold font-mono">${data.squawk || 'N/A'}</div>
                     </div>
-                </div>
-
-                <div class="p-4 rounded-lg bg-black/5 dark:bg-white/5 border border-theme mt-4">
-                    <div class="text-xs text-muted mb-1">ESTIMATED SECTOR</div>
-                    <div class="text-sm font-bold">${routeStr}</div>
                 </div>
             `;
             sidebar.classList.add('open');
@@ -427,13 +450,13 @@
             document.getElementById('flight-sidebar').classList.remove('open');
         }
 
-        // --- RADAR ENGINE ---
-        const API_URL = 'https://api.custardlev.uk/skyaware/data/aircraft.json';
+        // --- RADAR ENGINE (PF DATA) ---
+        const API_URL = 'https://planes.custardlev.uk/ajax/aircraft';
         const markers = {};
         const polylines = {};
-        const trails = {}; // Store coordinate history: { hex: [[lat,lng], [lat,lng]...] }
+        const trails = {};
 
-        function getIcon(heading, flight, alt, speed) {
+        function getIcon(heading, flight, route, alt, speed) {
             const color = '#3b82f6';
             return L.divIcon({
                 className: 'plane-icon-wrapper',
@@ -445,7 +468,8 @@
                     </div>
                     <div class="plane-label">
                         <div class="pl-flight">${flight || 'N/A'}</div>
-                        <div class="pl-data">Route: ${flight ? 'Unknown' : 'N/A'}</div>
+                        <div class="pl-route">${route || 'N/A'}</div>
+                        <div class="pl-data">FL${Math.round(alt/100)} | ${Math.round(speed)}kt</div>
                     </div>
                 `,
                 iconSize: [30, 30],
@@ -458,8 +482,13 @@
                 const res = await fetch(API_URL);
                 const data = await res.json();
                 
+                // Handle Dictionary Format from PF
                 if (!data || !data.aircraft) return;
-                const validPlanes = data.aircraft.filter(p => p.lat && p.lon);
+                
+                const validPlanes = Object.entries(data.aircraft).map(([hex, plane]) => {
+                    plane.hex = hex;
+                    return plane;
+                }).filter(p => p.lat && p.lon);
                 
                 document.getElementById('plane-count').innerText = validPlanes.length;
                 document.getElementById('status-text').innerText = "SYSTEM ONLINE";
@@ -470,13 +499,13 @@
                 validPlanes.forEach(p => {
                     currentHexes.add(p.hex);
                     const latlng = [p.lat, p.lon];
+                    const flightName = p.flightno || p.callsign || p.hex;
                     
-                    // 1. UPDATE TRAILS (120s History)
+                    // 1. UPDATE TRAILS
                     if (!trails[p.hex]) trails[p.hex] = [];
                     trails[p.hex].push(latlng);
-                    if (trails[p.hex].length > 60) trails[p.hex].shift(); // Keep last 60 points (120s approx)
+                    if (trails[p.hex].length > 60) trails[p.hex].shift();
 
-                    // Draw/Update Polyline
                     if (polylines[p.hex]) {
                         polylines[p.hex].setLatLngs(trails[p.hex]);
                     } else {
@@ -488,27 +517,20 @@
                     // 2. UPDATE MARKER
                     if (markers[p.hex]) {
                         markers[p.hex].setLatLng(latlng);
-                        markers[p.hex].setIcon(getIcon(p.track, (p.flight || p.hex).trim(), p.alt_baro, p.gs));
+                        markers[p.hex].setIcon(getIcon(p.heading, flightName, p.route, p.altitude, p.speed));
                     } else {
                         const marker = L.marker(latlng, {
-                            icon: getIcon(p.track, (p.flight || p.hex).trim(), p.alt_baro, p.gs)
+                            icon: getIcon(p.heading, flightName, p.route, p.altitude, p.speed)
                         }).addTo(map);
                         
-                        // EVENTS
-                        marker.on('click', () => openSidebar({
-                            hex: p.hex, flight: (p.flight||'').trim(),
-                            alt: p.alt_baro, speed: p.gs, track: p.track,
-                            lat: p.lat, lon: p.lon
-                        }));
-                        marker.bindTooltip(`Flight: ${p.flight || p.hex}<br>Alt: ${p.alt_baro}ft`, {
-                            direction: 'top', offset: [0, -10], className: 'glass-panel p-2 text-xs font-mono'
-                        });
+                        // Interaction
+                        marker.on('click', () => openSidebar(p));
                         
                         markers[p.hex] = marker;
                     }
                 });
 
-                // CLEANUP OLD PLANES
+                // CLEANUP
                 Object.keys(markers).forEach(hex => {
                     if (!currentHexes.has(hex)) {
                         map.removeLayer(markers[hex]);
