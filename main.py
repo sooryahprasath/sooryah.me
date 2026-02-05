@@ -137,33 +137,23 @@ def get_scatter():
         client = get_influx_client()
         query_api = client.query_api()
         
-        # We need points where both Altitude and Temp exist.
-        # Since they might come in slightly different seconds, we aggregate to 2m windows.
+        # FIX: Removed 'sample()' which caused the crash. 
+        # Using 'limit()' at the end is safer for pivoted data.
         query = f'''
         from(bucket: "{INFLUX_BUCKET}")
           |> range(start: -24h)
           |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot")
           |> filter(fn: (r) => r["_field"] == "altitude" or r["_field"] == "temp_c")
-          |> aggregateWindow(every: 2m, fn: mean, createEmpty: false)
-          |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+          |> pivot(rowKey:["_time", "icao_hex"], columnKey: ["_field"], valueColumn: "_value")
           |> filter(fn: (r) => exists r.altitude and exists r.temp_c)
-          |> sample(n: 500) 
+          |> limit(n: 500)
           |> keep(columns: ["altitude", "temp_c"])
         '''
         result = query_api.query(org=INFLUX_ORG, query=query)
-        
-        data = []
-        for t in result:
-            for r in t.records:
-                alt = r["altitude"]
-                temp = r["temp_c"]
-                # Valid physics check (Temp > -100C, Alt > 0)
-                if alt is not None and temp is not None and temp > -100:
-                    data.append({"x": temp, "y": alt})
-                    
+        data = [{"x": r["temp_c"], "y": r["altitude"]} for t in result for r in t.records]
         return data
     except Exception as e:
-        print(f"Scatter Error: {e}")
+        print(f"Scatter Error: {e}") # This will print to docker logs if it fails again
         return []
 
 # --- 5. DAILY BAR CHART ---

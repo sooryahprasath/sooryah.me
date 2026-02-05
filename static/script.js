@@ -8,26 +8,23 @@ const ui = {
     },
     
     // --- LIVE TELEMETRY VIEW (LEFT) ---
-    toggleTacticalMode: () => {
-        // We do NOT close the right sidebar. We allow both.
-        
-        const body = document.body;
-        const btn = document.getElementById('view-btn-text');
-        
-        if (body.classList.contains('tactical-active')) {
-            // DEACTIVATE
-            body.classList.remove('tactical-active', 'ui-hidden'); 
-            btn.innerText = "LIVE TELEMETRY VIEW";
-            map.dragging.disable();
-            map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
-        } else {
-            // ACTIVATE
-            body.classList.add('tactical-active', 'ui-hidden'); 
-            btn.innerText = "EXIT TELEMETRY VIEW";
-            map.dragging.enable(); 
-            map.invalidateSize(); 
-        }
-    },
+        toggleTacticalMode: () => {
+                ui.closeSidebar(); 
+                const body = document.body;
+                const btn = document.getElementById('view-btn-text');
+                
+                if (body.classList.contains('tactical-active')) {
+                    body.classList.remove('tactical-active', 'ui-hidden'); 
+                    btn.innerText = "LIVE TELEMETRY VIEW";
+                    // REMOVED: map.dragging.disable(); 
+                    // Optional: map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM);
+                } else {
+                    body.classList.add('tactical-active', 'ui-hidden'); 
+                    btn.innerText = "EXIT TELEMETRY VIEW";
+                    // REMOVED: map.dragging.enable(); 
+                    map.invalidateSize(); 
+                }
+            },
 
     // --- FLIGHT DETAILS (RIGHT) ---
     openFlightSidebar: (data) => {
@@ -148,7 +145,19 @@ const ui = {
 // --- MAP & DATA LOGIC ---
 const DEFAULT_CENTER = [12.98, 77.6];
 const DEFAULT_ZOOM = 8.4;
-const map = L.map('map-container', { zoomControl: false, attributionControl: false, zoomSnap: 0.1, boxZoom: false, doubleClickZoom: false, dragging: false, scrollWheelZoom: false }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+// CHANGE THIS LINE IN static/script.js
+const map = L.map('map-container', { 
+    zoomControl: false, 
+    attributionControl: false, 
+    zoomSnap: 0.1, 
+    boxZoom: false, 
+    
+    // ENABLE THESE:
+    doubleClickZoom: true, 
+    dragging: true, 
+    scrollWheelZoom: true 
+}).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+
 const mapLayer = { dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', active: null };
 mapLayer.active = L.tileLayer(mapLayer.dark, { maxZoom: 19 }).addTo(map);
 
