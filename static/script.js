@@ -44,7 +44,7 @@ const ui = {
         
         const val = (v, unit='') => v !== undefined && v !== null ? `${v}${unit}` : 'N/A';
         
-        // INCREASED FONT SIZES BY ~10-15%
+        // COMPACT HTML LAYOUT
         document.getElementById('sidebar-content').innerHTML = `
             <div class="p-5 rounded-xl bg-gradient-to-br from-black/10 to-transparent border border-theme">
                 <div class="flex justify-between items-start mb-3">

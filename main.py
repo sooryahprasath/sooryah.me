@@ -37,15 +37,13 @@ async def get_live_radar():
         except:
             return {"aircraft": {}}
 
-# --- 2. KPI ENDPOINT (FIXED) ---
+# --- 2. KPI ENDPOINT ---
 @app.get("/api/kpi")
 def get_kpi():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        
-        # FIX: The previous query was counting tables, not rows. 
-        # We group by nothing to merge all tables, then count unique.
+        # Count unique hex codes in last 24h
         q1 = f'''
         from(bucket:"{INFLUX_BUCKET}") 
         |> range(start: -24h) 
@@ -82,50 +80,65 @@ def get_kpi():
         print(f"KPI Error: {e}")
         return {"unique": 0, "speed": "0 kts", "alt": "0 ft"}
 
-# --- 3. TRAFFIC HISTORY ---
+# --- 3. TRAFFIC HISTORY (Dynamic Ranges) ---
 @app.get("/api/history")
-def get_history(offset: int = 0, bucket: str = "30m"):
+def get_history(range_type: str = "24h"):
     try:
         client = get_influx_client()
         query_api = client.query_api()
         
-        start = f"-{24 * (offset + 1)}h"
-        stop = f"-{24 * offset}h"
-        if offset == 0: stop = "now()"
-        if bucket not in ["5m", "15m", "1h", "3h"]: bucket = "30m"
+        # Configuration Map: Range -> (Influx Start Time, Granularity Window)
+        config = {
+            "5m":   ("-5m", "10s"),
+            "15m":  ("-15m", "30s"),
+            "3h":   ("-3h",  "5m"),
+            "24h":  ("-24h", "30m"),
+            "7d":   ("-7d",  "3h"),
+            "14d":  ("-14d", "6h"),
+            "30d":  ("-30d", "12h")
+        }
+        
+        # Default to 24h if invalid key
+        start, window = config.get(range_type, ("-24h", "30m"))
 
         query = f'''
         from(bucket: "{INFLUX_BUCKET}")
-          |> range(start: {start}, stop: {stop})
+          |> range(start: {start})
           |> filter(fn: (r) => r["_measurement"] == "airspace_metrics")
           |> filter(fn: (r) => r["_field"] == "aircraft_count")
-          |> aggregateWindow(every: {bucket}, fn: mean, createEmpty: false)
+          |> aggregateWindow(every: {window}, fn: mean, createEmpty: false)
           |> yield(name: "mean")
         '''
         result = query_api.query(org=INFLUX_ORG, query=query)
         labels, data = [], []
+        
+        # IST Offset: +5 hours 30 mins
         ist_delta = timedelta(hours=5, minutes=30)
 
         for t in result:
             for r in t.records:
+                # Convert UTC to IST
                 local_time = r.get_time() + ist_delta
-                labels.append(local_time.strftime("%H:%M"))
+                # Use Day/Month format for long ranges, Time for short
+                if range_type in ["7d", "14d", "30d"]:
+                    labels.append(local_time.strftime("%d/%m %Hh"))
+                else:
+                    labels.append(local_time.strftime("%H:%M"))
                 data.append(round(r.get_value(), 1))
         return {"labels": labels, "data": data}
-    except:
+    except Exception as e:
+        print(f"History Error: {e}")
         return {"labels": [], "data": []}
 
-# --- 4. PHYSICS SCATTER (FIXED) ---
+# --- 4. PHYSICS SCATTER (The Missing Endpoint) ---
 @app.get("/api/scatter")
 def get_scatter():
     try:
         client = get_influx_client()
         query_api = client.query_api()
         
-        # FIX: Simplified query. We grab the last 24h of snapshots.
-        # We manually zip altitude and temp in python if pivot fails or is slow.
-        # But proper pivot requires exact timestamps.
-        # Strategy: Use aggregateWindow to snap timestamps to nearest 10s to ensure alignment.
+        # We need points where both Altitude and Temp exist.
+        # Since they might come in slightly different seconds, we aggregate to 2m windows.
         query = f'''
         from(bucket: "{INFLUX_BUCKET}")
           |> range(start: -24h)
@@ -134,7 +147,7 @@ def get_scatter():
           |> aggregateWindow(every: 2m, fn: mean, createEmpty: false)
           |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
           |> filter(fn: (r) => exists r.altitude and exists r.temp_c)
-          |> sample(n: 300)
+          |> sample(n: 500) 
           |> keep(columns: ["altitude", "temp_c"])
         '''
         result = query_api.query(org=INFLUX_ORG, query=query)
@@ -142,10 +155,10 @@ def get_scatter():
         data = []
         for t in result:
             for r in t.records:
-                # Ensure we have valid numbers
                 alt = r["altitude"]
                 temp = r["temp_c"]
-                if alt is not None and temp is not None:
+                # Valid physics check (Temp > -100C, Alt > 0)
+                if alt is not None and temp is not None and temp > -100:
                     data.append({"x": temp, "y": alt})
                     
         return data
@@ -153,7 +166,7 @@ def get_scatter():
         print(f"Scatter Error: {e}")
         return []
 
-# --- 5. DAILY BAR ---
+# --- 5. DAILY BAR CHART ---
 @app.get("/api/daily")
 def get_daily():
     try:
