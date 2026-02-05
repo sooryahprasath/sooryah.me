@@ -42,10 +42,7 @@ def get_kpi():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        
-        # Unique Planes (Rolling 24h)
-        q1 = f'from(bucket:"{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn:(r)=>r._measurement=="aircraft_snapshot") |> filter(fn:(r)=>r._field=="speed") |> group(columns:["icao_hex"]) |> count() |> group() |> count()'
-        # Max Stats (Today)
+        q1 = f'from(bucket:"{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn:(r)=>r._measurement=="aircraft_snapshot" and r._field=="speed") |> group(columns:["icao_hex"]) |> count() |> group() |> count()'
         q2 = f'from(bucket:"{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn:(r)=>r._measurement=="aircraft_snapshot" and (r._field=="speed" or r._field=="altitude")) |> max()'
         
         res1 = query_api.query(org=INFLUX_ORG, query=q1)
@@ -58,39 +55,13 @@ def get_kpi():
                 if r.get_field() == "speed": max_s = r.get_value()
                 if r.get_field() == "altitude": max_a = r.get_value()
 
-        return {"unique_planes_24h": unique, "max_speed_24h": f"{max_s} kts", "max_alt_24h": f"{max_a} ft"}
+        return {"unique": unique, "speed": f"{max_s} kts", "alt": f"{max_a} ft"}
     except:
-        return {"unique_planes_24h": 0, "max_speed_24h": "0", "max_alt_24h": "0"}
+        return {"unique": 0, "speed": "0", "alt": "0"}
 
-# --- 3. DAILY HISTORY (7 DAYS) ---
-@app.get("/api/daily")
-def get_daily_flights():
-    try:
-        client = get_influx_client()
-        query_api = client.query_api()
-        # Get Max Simultaneous Flights per day as a proxy for busyness
-        query = f'''
-        from(bucket: "{INFLUX_BUCKET}")
-          |> range(start: -7d)
-          |> filter(fn: (r) => r["_measurement"] == "airspace_metrics")
-          |> filter(fn: (r) => r["_field"] == "aircraft_count")
-          |> aggregateWindow(every: 1d, fn: max, createEmpty: false)
-          |> yield(name: "max")
-        '''
-        result = query_api.query(org=INFLUX_ORG, query=query)
-        labels, data = [], []
-        for t in result:
-            for r in t.records:
-                labels.append(r.get_time().strftime("%a %d")) # e.g. "Mon 05"
-                data.append(r.get_value())
-        return {"labels": labels, "data": data}
-    except:
-        return {"labels": [], "data": []}
-
-# --- 4. TRAFFIC VOLUME (SLICEABLE) ---
+# --- 3. TRAFFIC HISTORY (Dynamic Buckets) ---
 @app.get("/api/history")
-def get_history(offset: int = 0):
-    # offset=0 is Today, offset=1 is Yesterday...
+def get_history(offset: int = 0, bucket: str = "30m"):
     try:
         client = get_influx_client()
         query_api = client.query_api()
@@ -99,12 +70,15 @@ def get_history(offset: int = 0):
         stop = f"-{24 * offset}h"
         if offset == 0: stop = "now()"
         
+        # Security check on bucket
+        if bucket not in ["1m", "5m", "15m", "30m", "1h", "3h"]: bucket = "30m"
+
         query = f'''
         from(bucket: "{INFLUX_BUCKET}")
           |> range(start: {start}, stop: {stop})
           |> filter(fn: (r) => r["_measurement"] == "airspace_metrics")
           |> filter(fn: (r) => r["_field"] == "aircraft_count")
-          |> aggregateWindow(every: 30m, fn: mean, createEmpty: false)
+          |> aggregateWindow(every: {bucket}, fn: mean, createEmpty: false)
           |> yield(name: "mean")
         '''
         result = query_api.query(org=INFLUX_ORG, query=query)
@@ -117,13 +91,13 @@ def get_history(offset: int = 0):
     except:
         return {"labels": [], "data": []}
 
-# --- 5. PHYSICS SCATTER (Temp vs Alt) ---
+# --- 4. PHYSICS SCATTER ---
 @app.get("/api/scatter")
 def get_scatter():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # Sampled scatter data
+        # Increased sample size for better charts
         query = f'''
         from(bucket: "{INFLUX_BUCKET}")
           |> range(start: -24h)
@@ -131,7 +105,7 @@ def get_scatter():
           |> filter(fn: (r) => r["_field"] == "altitude" or r["_field"] == "temp_c")
           |> pivot(rowKey:["_time", "icao_hex"], columnKey: ["_field"], valueColumn: "_value")
           |> filter(fn: (r) => exists r.altitude and exists r.temp_c)
-          |> sample(n: 50) 
+          |> sample(n: 200) 
           |> keep(columns: ["altitude", "temp_c"])
         '''
         result = query_api.query(org=INFLUX_ORG, query=query)
@@ -140,50 +114,38 @@ def get_scatter():
     except:
         return []
 
-# --- 6. DIRECTION (POLAR) ---
-@app.get("/api/direction")
-def get_direction():
+# --- 5. DAILY BAR CHART ---
+@app.get("/api/daily")
+def get_daily():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # Count planes coming from each sector
         query = f'''
         from(bucket: "{INFLUX_BUCKET}")
-          |> range(start: -24h)
-          |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot")
-          |> filter(fn: (r) => r["_field"] == "bearing")
-          |> sample(n: 200)
+          |> range(start: -7d)
+          |> filter(fn: (r) => r["_measurement"] == "airspace_metrics")
+          |> filter(fn: (r) => r["_field"] == "aircraft_count")
+          |> aggregateWindow(every: 1d, fn: max, createEmpty: false)
         '''
         result = query_api.query(org=INFLUX_ORG, query=query)
-        counts = [0]*8 # N, NE, E, SE, S, SW, W, NW
+        labels, data = [], []
         for t in result:
             for r in t.records:
-                b = r.get_value()
-                if b is not None:
-                    idx = int((b + 22.5) // 45) % 8
-                    counts[idx] += 1
-        return {"data": counts}
+                labels.append(r.get_time().strftime("%a %d"))
+                data.append(r.get_value())
+        return {"labels": labels, "data": data}
     except:
-        return {"data": [0]*8}
+        return {"labels": [], "data": []}
 
-# --- 7. ALTITUDE DISTRIBUTION (30 DAYS) ---
+# --- 6. ALTITUDE & POLAR ---
 @app.get("/api/altitude")
 def get_altitude():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # 30 Days of data, heavily sampled to be fast
-        query = f'''
-        from(bucket: "{INFLUX_BUCKET}")
-          |> range(start: -30d)
-          |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot")
-          |> filter(fn: (r) => r["_field"] == "altitude")
-          |> sample(n: 1000)
-          |> keep(columns: ["_value"])
-        '''
+        query = f'''from(bucket: "{INFLUX_BUCKET}") |> range(start: -30d) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "altitude") |> sample(n: 1000)'''
         result = query_api.query(org=INFLUX_ORG, query=query)
         alts = [r.get_value() for t in result for r in t.records]
-        
         buckets = {"0-5k": 0, "5k-15k": 0, "15k-25k": 0, "25k-35k": 0, "35k+": 0}
         for a in alts:
             if a < 5000: buckets["0-5k"] += 1
@@ -192,19 +154,19 @@ def get_altitude():
             elif a < 35000: buckets["25k-35k"] += 1
             else: buckets["35k+"] += 1
         return {"labels": list(buckets.keys()), "data": list(buckets.values())}
-    except:
-        return {"labels": [], "data": []}
+    except: return {"labels": [], "data": []}
 
-# --- 8. OPERATORS ---
-@app.get("/api/operators")
-def get_operators():
+@app.get("/api/direction")
+def get_direction():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        query = f'''from(bucket: "{INFLUX_BUCKET}") |> range(start: -1h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot") |> filter(fn: (r) => r["_field"] == "altitude") |> keep(columns: ["airline"])'''
+        query = f'''from(bucket: "{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "bearing") |> sample(n: 200)'''
         result = query_api.query(org=INFLUX_ORG, query=query)
-        airlines = [r.values.get("airline", "Unknown") for t in result for r in t.records]
-        counts = Counter(airlines).most_common(5)
-        return {"labels": [x[0] for x in counts], "data": [x[1] for x in counts]}
-    except:
-        return {"labels": [], "data": []}
+        counts = [0]*8
+        for t in result:
+            for r in t.records:
+                b = r.get_value()
+                if b is not None: counts[int((b + 22.5) // 45) % 8] += 1
+        return {"data": counts}
+    except: return {"data": [0]*8}
