@@ -37,13 +37,28 @@ body { background-color: var(--bg-solid); color: var(--text-main); transition: 0
 }
 .tactical-active #tactical-sidebar { transform: translateX(0); }
 
+/* --- MOBILE RESPONSIVENESS (FIX) --- */
+@media (max-width: 768px) {
+    #detail-sidebar, #tactical-sidebar {
+        width: 100% !important;
+        max-width: 100% !important;
+        left: 0 !important;
+        right: 0 !important;
+        background: var(--glass-bg) !important; /* Ensure readable background */
+    }
+    #tactical-sidebar {
+        top: 80px; 
+        bottom: 0;
+        backdrop-filter: blur(20px);
+    }
+}
+
 /* --- SCROLL UTILS --- */
 .overflow-hidden { overflow: hidden !important; }
-/* Hide Scrollbars but keep functionality */
 #sidebar-content, #tactical-sidebar { -ms-overflow-style: none; scrollbar-width: none; }
 #sidebar-content::-webkit-scrollbar, #tactical-sidebar::-webkit-scrollbar { display: none; }
 
-/* --- TOAST NOTIFICATION --- */
+/* --- TOAST --- */
 #hint-toast { 
     position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); 
     z-index: 70; opacity: 0; transition: 0.5s cubic-bezier(0.16, 1, 0.3, 1); 

@@ -5,8 +5,7 @@ from fastapi.templating import Jinja2Templates
 from influxdb_client import InfluxDBClient
 import httpx
 import os
-from collections import Counter
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 app = FastAPI()
 
@@ -27,67 +26,43 @@ def get_influx_client():
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-# --- 1. LIVE PROXY ---
 @app.get("/api/live")
 async def get_live_radar():
     async with httpx.AsyncClient() as client:
         try:
             resp = await client.get(f"http://{RADAR_IP}:30053/ajax/aircraft", timeout=2.0)
             return resp.json()
-        except:
-            return {"aircraft": {}}
+        except: return {"aircraft": {}}
 
-# --- 2. KPI ENDPOINT ---
 @app.get("/api/kpi")
 def get_kpi():
     try:
         client = get_influx_client()
         query_api = client.query_api()
         # Count unique hex codes in last 24h
-        q1 = f'''
-        from(bucket:"{INFLUX_BUCKET}") 
-        |> range(start: -24h) 
-        |> filter(fn:(r)=>r._measurement=="aircraft_snapshot" and r._field=="speed") 
-        |> group(columns: ["icao_hex"]) 
-        |> distinct(column: "icao_hex")
-        |> group()
-        |> count()
-        '''
-        
-        # Max Speed/Alt (Today)
-        q2 = f'''
-        from(bucket:"{INFLUX_BUCKET}") 
-        |> range(start: -24h) 
-        |> filter(fn:(r)=>r._measurement=="aircraft_snapshot" and (r._field=="speed" or r._field=="altitude")) 
-        |> max()
-        '''
+        q1 = f'from(bucket:"{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn:(r)=>r._measurement=="aircraft_snapshot" and r._field=="speed") |> group(columns: ["icao_hex"]) |> distinct(column: "icao_hex") |> group() |> count()'
+        # Max Speed/Alt
+        q2 = f'from(bucket:"{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn:(r)=>r._measurement=="aircraft_snapshot" and (r._field=="speed" or r._field=="altitude")) |> max()'
         
         res1 = query_api.query(org=INFLUX_ORG, query=q1)
         res2 = query_api.query(org=INFLUX_ORG, query=q2)
         
-        unique = 0
-        if res1 and len(res1) > 0 and len(res1[0].records) > 0:
-            unique = res1[0].records[0].get_value()
-            
+        unique = res1[0].records[0].get_value() if res1 and res1[0].records else 0
         max_s, max_a = 0, 0
         for t in res2:
             for r in t.records:
                 if r.get_field() == "speed": max_s = r.get_value()
                 if r.get_field() == "altitude": max_a = r.get_value()
-
         return {"unique": unique, "speed": f"{max_s} kts", "alt": f"{max_a} ft"}
-    except Exception as e:
-        print(f"KPI Error: {e}")
-        return {"unique": 0, "speed": "0 kts", "alt": "0 ft"}
+    except: return {"unique": 0, "speed": "0 kts", "alt": "0 ft"}
 
-# --- 3. TRAFFIC HISTORY (Dynamic Ranges) ---
+# --- TRAFFIC HISTORY (RANGE LOGIC) ---
 @app.get("/api/history")
 def get_history(range_type: str = "24h"):
     try:
         client = get_influx_client()
         query_api = client.query_api()
         
-        # Configuration Map: Range -> (Influx Start Time, Granularity Window)
         config = {
             "5m":   ("-5m", "10s"),
             "15m":  ("-15m", "30s"),
@@ -97,8 +72,6 @@ def get_history(range_type: str = "24h"):
             "14d":  ("-14d", "6h"),
             "30d":  ("-30d", "12h")
         }
-        
-        # Default to 24h if invalid key
         start, window = config.get(range_type, ("-24h", "30m"))
 
         query = f'''
@@ -111,64 +84,50 @@ def get_history(range_type: str = "24h"):
         '''
         result = query_api.query(org=INFLUX_ORG, query=query)
         labels, data = [], []
-        
-        # IST Offset: +5 hours 30 mins
         ist_delta = timedelta(hours=5, minutes=30)
 
         for t in result:
             for r in t.records:
-                # Convert UTC to IST
                 local_time = r.get_time() + ist_delta
-                # Use Day/Month format for long ranges, Time for short
-                if range_type in ["7d", "14d", "30d"]:
-                    labels.append(local_time.strftime("%d/%m %Hh"))
-                else:
-                    labels.append(local_time.strftime("%H:%M"))
+                # Format: Time for short ranges, Date for long ranges
+                fmt = "%d/%m %Hh" if range_type in ["7d", "14d", "30d"] else "%H:%M"
+                labels.append(local_time.strftime(fmt))
                 data.append(round(r.get_value(), 1))
         return {"labels": labels, "data": data}
-    except Exception as e:
-        print(f"History Error: {e}")
-        return {"labels": [], "data": []}
+    except: return {"labels": [], "data": []}
 
-# --- 4. PHYSICS SCATTER (The Missing Endpoint) ---
+# --- PHYSICS SCATTER (CRASH FIX) ---
 @app.get("/api/scatter")
 def get_scatter():
     try:
         client = get_influx_client()
         query_api = client.query_api()
         
-        # FIX: Removed 'sample()' which caused the crash. 
-        # Using 'limit()' at the end is safer for pivoted data.
+        # USE LIMIT() INSTEAD OF SAMPLE() to prevent "no column _value" error
         query = f'''
         from(bucket: "{INFLUX_BUCKET}")
           |> range(start: -24h)
           |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot")
           |> filter(fn: (r) => r["_field"] == "altitude" or r["_field"] == "temp_c")
-          |> pivot(rowKey:["_time", "icao_hex"], columnKey: ["_field"], valueColumn: "_value")
+          |> aggregateWindow(every: 2m, fn: mean, createEmpty: false)
+          |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
           |> filter(fn: (r) => exists r.altitude and exists r.temp_c)
-          |> limit(n: 500)
+          |> limit(n: 500) 
           |> keep(columns: ["altitude", "temp_c"])
         '''
         result = query_api.query(org=INFLUX_ORG, query=query)
         data = [{"x": r["temp_c"], "y": r["altitude"]} for t in result for r in t.records]
         return data
     except Exception as e:
-        print(f"Scatter Error: {e}") # This will print to docker logs if it fails again
+        print(f"Scatter Error: {e}")
         return []
 
-# --- 5. DAILY BAR CHART ---
 @app.get("/api/daily")
 def get_daily():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        query = f'''
-        from(bucket: "{INFLUX_BUCKET}")
-          |> range(start: -7d)
-          |> filter(fn: (r) => r["_measurement"] == "airspace_metrics")
-          |> filter(fn: (r) => r["_field"] == "aircraft_count")
-          |> aggregateWindow(every: 1d, fn: max, createEmpty: false)
-        '''
+        query = f'''from(bucket: "{INFLUX_BUCKET}") |> range(start: -7d) |> filter(fn: (r) => r["_measurement"] == "airspace_metrics") |> filter(fn: (r) => r["_field"] == "aircraft_count") |> aggregateWindow(every: 1d, fn: max, createEmpty: false)'''
         result = query_api.query(org=INFLUX_ORG, query=query)
         labels, data = [], []
         ist_delta = timedelta(hours=5, minutes=30)
@@ -177,10 +136,8 @@ def get_daily():
                 labels.append((r.get_time() + ist_delta).strftime("%a %d"))
                 data.append(r.get_value())
         return {"labels": labels, "data": data}
-    except:
-        return {"labels": [], "data": []}
+    except: return {"labels": [], "data": []}
 
-# --- 6. ALTITUDE & POLAR ---
 @app.get("/api/altitude")
 def get_altitude():
     try:

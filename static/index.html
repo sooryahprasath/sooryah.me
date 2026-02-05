@@ -26,9 +26,7 @@
 
     <aside id="tactical-sidebar">
         <div class="glass-panel p-4 rounded-xl border-l-4 border-l-green-500">
-            <div class="flex items-center gap-2 mb-3 text-green-500 font-bold text-xs font-mono">
-                <i data-lucide="network" class="w-4 h-4"></i> NETWORK STATS
-            </div>
+            <div class="flex items-center gap-2 mb-3 text-green-500 font-bold text-xs font-mono"><i data-lucide="network" class="w-4 h-4"></i> NETWORK STATS</div>
             <div class="space-y-3">
                 <div><div class="text-[10px] text-muted uppercase font-mono">Ingest Rate</div><div class="text-lg font-mono font-bold" id="net-rate">0.0 msg/s</div></div>
                 <div><div class="text-[10px] text-muted uppercase font-mono">Payload Bandwidth</div><div class="text-lg font-mono font-bold" id="net-bw">0.0 KB/s</div></div>
@@ -36,11 +34,8 @@
                 <div><div class="text-[10px] text-muted uppercase font-mono">Buffer Health</div><div class="w-full bg-black/20 rounded-full h-1.5 mt-1"><div class="bg-green-500 h-1.5 rounded-full animate-pulse" style="width: 98%"></div></div></div>
             </div>
         </div>
-
-        <div class="glass-panel p-4 rounded-xl border-l-4 border-l-blue-500">
-            <div class="flex items-center gap-2 mb-3 text-blue-500 font-bold text-xs font-mono">
-                <i data-lucide="zap" class="w-4 h-4"></i> AIRSPACE METRICS
-            </div>
+        <div class="glass-panel p-4 rounded-xl border-l-4 border-l-blue-500 mt-4">
+            <div class="flex items-center gap-2 mb-3 text-blue-500 font-bold text-xs font-mono"><i data-lucide="zap" class="w-4 h-4"></i> AIRSPACE METRICS</div>
             <div class="space-y-3">
                 <div><div class="text-[10px] text-muted uppercase font-mono">Dominant Carrier</div><div class="text-lg font-mono font-bold text-accent" id="insight-carrier">SCANNING...</div></div>
                 <div><div class="text-[10px] text-muted uppercase font-mono">Avg Airspace Speed</div><div class="text-lg font-mono font-bold" id="insight-speed">0 kts</div></div>
@@ -65,9 +60,7 @@
 
     <div class="fixed top-0 left-0 w-full z-50 p-6 flex justify-between items-start pointer-events-none">
         <div class="flex flex-col gap-2 pointer-events-auto">
-            <a href="http://networkautomation.hashnode.dev/" target="_blank" class="btn-glass px-4 py-2 rounded-lg text-xs font-bold font-mono hover:text-accent transition flex items-center gap-2">
-                <i data-lucide="book-open" class="w-3 h-3"></i> TECHNICAL BLOG
-            </a>
+            <a href="http://networkautomation.hashnode.dev/" target="_blank" class="btn-glass px-4 py-2 rounded-lg text-xs font-bold font-mono hover:text-accent transition flex items-center gap-2"><i data-lucide="book-open" class="w-3 h-3"></i> TECHNICAL BLOG</a>
             <div class="glass-panel px-4 py-2 rounded-lg flex items-center gap-3">
                 <div class="flex items-center gap-2"><span id="status-dot" class="w-2 h-2 rounded-full bg-zinc-400"></span><span id="status-text" class="text-[10px] font-mono font-bold text-muted tracking-widest">CONNECTING...</span></div>
                 <div class="h-3 w-px bg-current opacity-10"></div>
@@ -75,12 +68,8 @@
             </div>
         </div>
         <div class="flex gap-2 pointer-events-auto pr-12 md:pr-0">
-            <button onclick="ui.toggleTacticalMode()" class="btn-glass px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-bold font-mono text-main group">
-                <i data-lucide="activity" class="w-4 h-4 group-hover:text-accent"></i> <span id="view-btn-text">LIVE TELEMETRY VIEW</span>
-            </button>
-            <button onclick="ui.toggleTheme()" class="btn-glass p-2 rounded-lg group">
-                <i data-lucide="sun" class="w-4 h-4 dark:hidden group-hover:text-accent"></i><i data-lucide="moon" class="w-4 h-4 hidden dark:block group-hover:text-accent"></i>
-            </button>
+            <button onclick="ui.toggleTacticalMode()" class="btn-glass px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-bold font-mono text-main group"><i data-lucide="activity" class="w-4 h-4 group-hover:text-accent"></i> <span id="view-btn-text">LIVE TELEMETRY VIEW</span></button>
+            <button onclick="ui.toggleTheme()" class="btn-glass p-2 rounded-lg group"><i data-lucide="sun" class="w-4 h-4 dark:hidden group-hover:text-accent"></i><i data-lucide="moon" class="w-4 h-4 hidden dark:block group-hover:text-accent"></i></button>
         </div>
     </div>
 
@@ -93,9 +82,7 @@
                         <span class="text-[10px] font-mono font-bold tracking-widest text-muted">WELCOME</span>
                     </div>
                     <div><h1 class="text-5xl md:text-7xl font-bold tracking-tighter text-pri leading-none mb-2">Sooryah Prasath</h1><div class="text-lg md:text-xl font-mono text-accent">> Senior_Network_Automation_Engineer</div></div>
-                    <p class="text-base md:text-lg font-medium text-muted leading-relaxed max-w-xl">
-                        Bridging hardware connectivity and software-defined agility for enterprise infrastructure.
-                    </p>
+                    <p class="text-base md:text-lg font-medium text-muted leading-relaxed max-w-xl">Bridging hardware connectivity and software-defined agility for enterprise infrastructure.</p>
                     <div class="flex flex-wrap gap-3 pt-2">
                         <a href="mailto:sooryahprasath+website@gmail.com" class="btn-glass px-6 py-3 rounded-lg flex items-center gap-2 text-xs font-bold transition group hover:bg-accent hover:text-white hover:border-accent"><i data-lucide="mail" class="w-4 h-4"></i> EMAIL ME</a>
                         <a href="https://linkedin.com/in/sooryah" target="_blank" class="btn-glass px-6 py-3 rounded-lg flex items-center gap-2 text-xs font-bold transition hover:border-accent"><i data-lucide="linkedin" class="w-4 h-4"></i> LINKEDIN</a>
@@ -108,8 +95,7 @@
 
         <div class="flex justify-center">
             <div class="glass-panel px-6 py-3 rounded-full flex items-center gap-3 text-xs font-mono font-bold text-muted uppercase tracking-wider shadow-lg">
-                <i data-lucide="server" class="w-4 h-4 text-accent"></i>
-                <span>Self-Hosted</span> <span class="text-accent opacity-50">::</span> <span>Docker</span> <i data-lucide="arrow-right" class="w-3 h-3 opacity-50"></i> <span>FastAPI</span> <i data-lucide="arrow-right" class="w-3 h-3 opacity-50"></i> <span>Cloudflare Tunnel</span>
+                <i data-lucide="server" class="w-4 h-4 text-accent"></i> <span>Self-Hosted</span> <span class="text-accent opacity-50">::</span> <span>Docker</span> <i data-lucide="arrow-right" class="w-3 h-3 opacity-50"></i> <span>FastAPI</span> <i data-lucide="arrow-right" class="w-3 h-3 opacity-50"></i> <span>Cloudflare Tunnel</span>
             </div>
         </div>
 
@@ -126,7 +112,6 @@
         <section class="flex flex-col gap-6">
             <div class="flex items-center justify-between px-2"><h2 class="text-sm font-mono font-bold text-muted uppercase tracking-widest">DEPLOYED INFRASTRUCTURE</h2></div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
                 <div onclick="ui.openProjectSidebar('adsb')" class="glass-panel project-card rounded-2xl p-8 group flex flex-col justify-between">
                     <div>
                         <div class="flex justify-between items-start mb-6"><div class="p-3 bg-green-500/10 rounded-xl text-green-500 border border-green-500/20"><i data-lucide="radio" class="w-6 h-6"></i></div><span class="flex items-center gap-2 px-2 py-1 rounded bg-green-500/10 text-[10px] font-mono font-bold text-green-600 dark:text-green-400 border border-green-500/20"><span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> LIVE</span></div>
@@ -135,7 +120,6 @@
                     </div>
                     <div class="flex gap-3 text-[10px] font-mono text-muted mt-6"><span>#SDR</span><span>#Linux</span></div>
                 </div>
-
                 <div onclick="ui.openAnalyticsModal()" class="glass-panel project-card rounded-2xl p-8 group flex flex-col justify-between">
                     <div>
                         <div class="flex justify-between items-start mb-6"><div class="p-3 bg-blue-500/10 rounded-xl text-blue-500 border border-blue-500/20"><i data-lucide="bar-chart-2" class="w-6 h-6"></i></div><span class="flex items-center gap-2 px-2 py-1 rounded bg-blue-500/10 text-[10px] font-mono font-bold text-blue-600 dark:text-blue-400 border border-blue-500/20">BIG DATA</span></div>
@@ -145,7 +129,7 @@
                     <div class="flex gap-3 text-[10px] font-mono text-muted mt-6"><span>#InfluxDB</span><span>#ChartJS</span></div>
                 </div>
             </div>
-
+            
             <div onclick="ui.openProjectSidebar('telemetry')" class="glass-panel project-card rounded-2xl p-10 group">
                 <div class="flex justify-between items-start mb-6"><div class="p-4 bg-purple-500/10 rounded-xl text-purple-500 border border-purple-500/20"><i data-lucide="activity" class="w-8 h-8"></i></div></div>
                 <h3 class="text-2xl font-bold mb-3 group-hover:text-accent transition">Enterprise Telemetry Pipeline</h3>
@@ -183,8 +167,7 @@
                     <div class="glass-panel p-4 rounded-xl border border-blue-500/30 bg-blue-500/5"><div class="text-[10px] font-mono text-blue-400 uppercase">Station Status</div><div class="text-sm font-bold text-blue-500 mt-1 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> RECORDING</div></div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
-                    <div class="glass-panel p-6 rounded-xl flex flex-col md:col-span-1"><h4 class="text-xs font-mono font-bold text-muted uppercase mb-4">Traffic (Last 7 Days)</h4><div class="flex-grow min-h-[200px]"><canvas id="chart-daily"></canvas></div><div class="text-[10px] text-muted text-center mt-2">Click bar to slice</div></div>
-                    
+                    <div class="glass-panel p-6 rounded-xl flex flex-col md:col-span-1"><h4 class="text-xs font-mono font-bold text-muted uppercase mb-4">Traffic (Last 7 Days)</h4><div class="flex-grow min-h-[200px]"><canvas id="chart-daily"></canvas></div></div>
                     <div class="glass-panel p-6 rounded-xl flex flex-col md:col-span-2">
                         <div class="flex justify-between items-center mb-4">
                             <h4 class="text-xs font-mono font-bold text-muted uppercase" id="volume-title">Traffic Volume (Today)</h4>
@@ -200,7 +183,6 @@
                         </div>
                         <div class="flex-grow min-h-[250px]"><canvas id="chart-volume"></canvas></div>
                     </div>
-
                     <div class="glass-panel p-6 rounded-xl flex flex-col"><h4 class="text-xs font-mono font-bold text-muted uppercase mb-4">Altitude Distribution (30 Days)</h4><div class="flex-grow min-h-[200px]"><canvas id="chart-altitude"></canvas></div></div>
                     <div class="glass-panel p-6 rounded-xl flex flex-col md:col-span-1"><h4 class="text-xs font-mono font-bold text-muted uppercase mb-4">Physics: Temp vs Altitude</h4><div class="flex-grow min-h-[200px]"><canvas id="chart-scatter"></canvas></div></div>
                     <div class="glass-panel p-6 rounded-xl flex flex-col md:col-span-1"><h4 class="text-xs font-mono font-bold text-muted uppercase mb-4">Approach Direction</h4><div class="flex-grow min-h-[200px]"><canvas id="chart-polar"></canvas></div></div>
