@@ -12,7 +12,26 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # --- NEW STEP: Create .env file from Secrets ---
+      # --- NEW STEP: Database Health Check ---
+      - name: Pre-flight Check (InfluxDB)
+        run: |
+          echo "🔍 Checking InfluxDB status..."
+          if [ "$(docker inspect -f '{{.State.Running}}' influxdb)" = "true" ]; then
+              echo "✅ InfluxDB is running."
+          else
+              echo "⚠️ InfluxDB is DOWN. Attempting to auto-start..."
+              docker start influxdb
+              sleep 5
+              
+              # Double check
+              if [ "$(docker inspect -f '{{.State.Running}}' influxdb)" = "true" ]; then
+                  echo "✅ InfluxDB restarted successfully."
+              else
+                  echo "❌ CRITICAL: Could not start InfluxDB. Deployment aborted."
+                  exit 1
+              fi
+          fi
+
       - name: Create .env file
         run: |
           echo "INFLUX_URL=${{ secrets.INFLUX_URL }}" >> .env
