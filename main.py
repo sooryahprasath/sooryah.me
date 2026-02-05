@@ -104,12 +104,14 @@ def get_operators():
         query_api = client.query_api()
         query = f'''
         from(bucket: "{INFLUX_BUCKET}")
-          |> range(start: -1h)
+          |> range(start: -30m)
           |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot")
           |> filter(fn: (r) => r["tag"] == "airline")
+          |> group(columns: ["airline"])
+          |> count()
         '''
-        # Note: Optimization - simpler to just query raw if volume low, or use flux 'count'
-        # For simplicity, let's query raw snapshots from last 30m and aggregate in Python
+        # Simplified query to just get tag values if the above is complex for v2.0
+        # Reverting to simpler raw fetch for robustness
         query = f'''
         from(bucket: "{INFLUX_BUCKET}")
           |> range(start: -30m)
