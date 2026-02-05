@@ -1,9 +1,27 @@
+version: '3.8'
+
 services:
-  web-nginx:
-    image: nginx:alpine
-    container_name: web-nginx
+  portfolio-web:
+    build: .
+    container_name: portfolio-web
+    network_mode: "host"
+    environment:
+      - INFLUX_URL=${INFLUX_URL}
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
+      - INFLUX_ORG=${INFLUX_ORG}
+      - INFLUX_BUCKET=${INFLUX_BUCKET}
+      - RADAR_IP=${RADAR_IP}
     restart: always
-    ports:
-      - "8081:80"
-    volumes:
-      - ./index.html:/usr/share/nginx/html/index.html:ro
+
+  radar-ingest:
+    build: .
+    container_name: radar-ingest
+    command: python ingest.py
+    network_mode: "host"
+    environment:
+      - INFLUX_URL=${INFLUX_URL}
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
+      - INFLUX_ORG=${INFLUX_ORG}
+      - INFLUX_BUCKET=${INFLUX_BUCKET}
+      - RADAR_IP=${RADAR_IP}
+    restart: always

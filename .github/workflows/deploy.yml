@@ -14,16 +14,18 @@ jobs:
 
       - name: Deploy Updates
         run: |
-          # 1. Pull the latest Docker Image (fast and simple)
-          docker compose -p sooryah-web pull
+          # 1. Build the image locally
+          # We use build because the code is right here on the server
+          docker compose build
 
-          # 2. Restart containers to load new HTML content
-          # We use --force-recreate to ensure Nginx sees the new file
-          docker compose -p sooryah-web up -d --force-recreate
+          # 2. Restart containers to load new Python logic & HTML
+          # This automatically picks up your local .env file for secrets
+          docker compose up -d --force-recreate
 
       - name: Verification
         run: |
           sleep 5
-          # Verify the new title exists inside the live container
-          docker exec web-nginx grep "Senior Network Automation Engineer" /usr/share/nginx/html/index.html
-          echo "✅ Verification Passed: Site is live with correct title."
+          # 3. Verify against the new FastAPI container (portfolio-web)
+          # The path inside the container is now /app/static/
+          docker exec portfolio-web grep "Senior Network Automation Engineer" /app/static/index.html
+          echo "✅ Verification Passed: FastAPI is serving the correct content."
