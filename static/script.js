@@ -4,45 +4,53 @@ const ui = {
     toggleTheme: () => {
         const isDark = document.documentElement.classList.toggle('dark');
         if (mapLayer.active) map.removeLayer(mapLayer.active);
-        setTimeout(() => { mapLayer.active = L.tileLayer(isDark ? mapLayer.dark : mapLayer.light, { maxZoom: 19 }).addTo(map); }, 10);
+        setTimeout(() => { 
+            mapLayer.active = L.tileLayer(isDark ? mapLayer.dark : mapLayer.light, { maxZoom: 19 }).addTo(map); 
+        }, 10);
     },
     
-    // LEFT SIDEBAR (Live View)
+    // --- LEFT SIDEBAR (Live Telemetry View) ---
     toggleTacticalMode: () => {
-        ui.closeSidebar(); // Close Right Sidebar
+        // 1. Force Close Right Sidebar if open
+        ui.closeSidebar(); 
         
         const body = document.body;
         const btn = document.getElementById('view-btn-text');
         
         if (body.classList.contains('tactical-active')) {
+            // DEACTIVATE
             body.classList.remove('tactical-active', 'ui-hidden'); 
             btn.innerText = "LIVE TELEMETRY VIEW";
             map.dragging.disable();
             map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
         } else {
+            // ACTIVATE
             body.classList.add('tactical-active', 'ui-hidden'); 
             btn.innerText = "EXIT TELEMETRY VIEW";
-            map.dragging.enable(); map.invalidateSize();
+            map.dragging.enable(); 
+            map.invalidateSize(); // Fix map rendering glitch
         }
     },
 
-    // RIGHT SIDEBAR (Plane Details)
+    // --- RIGHT SIDEBAR (Flight Details) ---
     openFlightSidebar: (data) => {
-        // Force Close Left Sidebar and Exit "Tactical Mode" visual
+        // 1. Force Close Left Sidebar Logic
         const body = document.body;
         if (body.classList.contains('tactical-active')) {
-            body.classList.remove('tactical-active'); 
+            body.classList.remove('tactical-active'); // Keep ui-hidden if you want to stay focused
             document.getElementById('view-btn-text').innerText = "LIVE TELEMETRY VIEW";
         }
 
-        // SCROLL LOCK
+        // 2. LOCK SCROLLING
         document.body.classList.add('overflow-hidden');
         
+        // 3. Open Sidebar
         document.getElementById('sidebar-title').innerText = "LIVE FLIGHT TELEMETRY";
         document.getElementById('detail-sidebar').classList.add('open');
         selectedHex = data.hex;
         
         const val = (v, unit='') => v !== undefined && v !== null ? `${v}${unit}` : 'N/A';
+        
         document.getElementById('sidebar-content').innerHTML = `
             <div class="p-5 rounded-xl bg-gradient-to-br from-black/10 to-transparent border border-theme">
                 <div class="flex justify-between items-start">
@@ -54,37 +62,52 @@ const ui = {
                     <div class="text-right"><div class="text-xs text-muted mb-1 font-mono">TYPE</div><div class="text-lg font-bold font-mono">${data.type || 'N/A'}</div></div>
                 </div>
             </div>
-            <h3 class="text-xs font-bold text-muted uppercase tracking-widest mt-2">Live Position</h3>
+            
+            <h3 class="text-xs font-bold text-muted uppercase tracking-widest mt-2">Flight Dynamics</h3>
             <div class="tech-grid">
-                <div class="tech-item"><div class="tech-label">Altitude</div><div class="tech-val">${val(data.altitude, ' ft')}</div></div>
+                <div class="tech-item"><div class="tech-label">Altitude</div><div class="tech-val text-accent">${val(data.altitude, ' ft')}</div></div>
+                <div class="tech-item"><div class="tech-label">Vert Rate</div><div class="tech-val">${val(data.vert_rate, ' fpm')}</div></div>
                 <div class="tech-item"><div class="tech-label">Ground Speed</div><div class="tech-val">${val(data.speed, ' kts')}</div></div>
+                <div class="tech-item"><div class="tech-label">Track</div><div class="tech-val">${val(data.track_angle, '°')}</div></div>
                 <div class="tech-item"><div class="tech-label">Heading</div><div class="tech-val">${val(data.heading, '°')}</div></div>
+                <div class="tech-item"><div class="tech-label">Distance</div><div class="tech-val">${val(data.polar_distance, ' nm')}</div></div>
                 <div class="tech-item"><div class="tech-label">Latitude</div><div class="tech-val">${val(data.lat)}</div></div>
+                <div class="tech-item"><div class="tech-label">Longitude</div><div class="tech-val">${val(data.lon)}</div></div>
             </div>
-            <h3 class="text-xs font-bold text-muted uppercase tracking-widest mt-2">Avionics</h3>
+
+            <h3 class="text-xs font-bold text-muted uppercase tracking-widest mt-2">Avionics & Environment</h3>
             <div class="tech-grid">
                 <div class="tech-item"><div class="tech-label">Squawk</div><div class="tech-val text-accent">${val(data.squawk)}</div></div>
+                <div class="tech-item"><div class="tech-label">Category</div><div class="tech-val">${val(data.category)}</div></div>
                 <div class="tech-item"><div class="tech-label">Air Temp</div><div class="tech-val">${val(data.oat, '°C')}</div></div>
+                <div class="tech-item"><div class="tech-label">Wind Speed</div><div class="tech-val">${val(data.wind_speed, ' kts')}</div></div>
             </div>
-            <div class="p-4 bg-black/5 dark:bg-white/5 rounded border border-theme text-[10px] font-mono text-muted text-center mt-4">HEX: ${data.hex}</div>
+            
+            <div class="p-4 bg-black/5 dark:bg-white/5 rounded border border-theme text-[10px] font-mono text-muted text-center mt-4">
+                HEX: ${data.hex} | MSG AGE: ${data.age || 0}s
+            </div>
         `;
     },
     
     // GENERIC CLOSE
     closeSidebar: () => {
-        document.body.classList.remove('overflow-hidden'); // UNLOCK SCROLL
+        // UNLOCK SCROLLING
+        document.body.classList.remove('overflow-hidden');
         document.getElementById('detail-sidebar').classList.remove('open');
         selectedHex = null;
     },
     
-    // MODALS
+    // MODALS (Big Data)
     openProjectSidebar: (key) => { 
         const data = PROJECT_DATA[key];
         document.getElementById('sidebar-title').innerText = "PROJECT ARCHITECTURE";
         const specs = data.specs.map(s => `<div class="flex justify-between items-center py-2 border-b border-white/5"><span class="text-xs text-muted font-mono uppercase">${s.label}</span><span class="text-sm font-bold text-right">${s.value}</span></div>`).join('');
         document.getElementById('sidebar-content').innerHTML = `<div><h2 class="text-2xl font-bold text-accent mb-1">${data.title}</h2><p class="text-xs font-mono text-muted border-b border-theme pb-4">${data.subtitle}</p></div><div class="text-sm leading-relaxed text-main/80 bg-black/5 dark:bg-white/5 p-4 rounded-lg border border-theme">${data.description}</div><div class="flex flex-col gap-1 mt-2">${specs}</div>`;
         const footer = document.getElementById('sidebar-footer');
-        if(data.link) { footer.innerHTML = `<a href="${data.link}" target="_blank" class="w-full btn-glass py-3 rounded-lg flex justify-center items-center gap-2 font-bold hover:bg-accent hover:text-white transition">OPEN LIVE VIEW <i data-lucide="external-link" class="w-4 h-4"></i></a>`; footer.classList.remove('hidden'); } else { footer.classList.add('hidden'); }
+        if(data.link) { 
+            footer.innerHTML = `<a href="${data.link}" target="_blank" class="w-full btn-glass py-3 rounded-lg flex justify-center items-center gap-2 font-bold hover:bg-accent hover:text-white transition">OPEN LIVE VIEW <i data-lucide="external-link" class="w-4 h-4"></i></a>`; 
+            footer.classList.remove('hidden'); 
+        } else { footer.classList.add('hidden'); }
         document.getElementById('detail-sidebar').classList.add('open');
     },
     openAnalyticsModal: () => { document.getElementById('analytics-modal').classList.remove('hidden'); charts.loadAll(); },
@@ -109,12 +132,30 @@ async function fetchRadar() {
     try {
         const res = await fetch('/api/live');
         const data = await res.json();
-        if (!data || !data.aircraft) return;
-        const planes = Object.entries(data.aircraft).map(([h, p]) => ({...p, hex: h})).filter(p => p.lat && p.lon);
+        
+        // 1. Handle Empty/Loading State
+        const aircraft = data.aircraft || {};
+        const planes = Object.entries(aircraft).map(([h, p]) => ({...p, hex: h})).filter(p => p.lat && p.lon);
         
         document.getElementById('plane-count').innerText = planes.length;
         
-        // --- FIXED CARRIER LOGIC ---
+        const statusText = document.getElementById('status-text');
+        const statusDot = document.getElementById('status-dot');
+        
+        if (planes.length > 0) {
+            statusText.innerText = "SYSTEM ONLINE";
+            statusDot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
+        } else {
+            statusText.innerText = "WAITING FOR TRAFFIC";
+            statusDot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse";
+        }
+
+        // 2. Mock Network Stats
+        const msgRate = (planes.length * 1.8).toFixed(1);
+        document.getElementById('net-rate').innerText = `${msgRate} msg/s`;
+        document.getElementById('net-bw').innerText = `${(msgRate * 0.12).toFixed(2)} KB/s`;
+        
+        // 3. Carrier Logic (Safe)
         const counts = {};
         planes.forEach(p => { 
             let c = (p.flightno || p.callsign || '').substring(0,3);
@@ -123,26 +164,22 @@ async function fetchRadar() {
         
         const top = Object.keys(counts).length > 0 
             ? Object.keys(counts).reduce((a,b)=>counts[a]>counts[b]?a:b) 
-            : (planes.length > 0 ? "SCANNING..." : "NO TRAFFIC");
+            : "WAITING...";
             
         document.getElementById('insight-carrier').innerText = top;
-        // ---------------------------
-
-        // Stats Updates
-        const msgRate = (planes.length * 1.8).toFixed(1);
-        document.getElementById('net-rate').innerText = `${msgRate} msg/s`;
-        document.getElementById('net-bw').innerText = `${(msgRate * 0.12).toFixed(2)} KB/s`;
         
-        const alts = planes.map(p => p.altitude).filter(a => a);
-        const avgAlt = alts.length ? Math.round(alts.reduce((a,b)=>a+b)/alts.length) : 0;
-        document.getElementById('insight-alt').innerText = `${avgAlt} ft`;
-        
-        // FIX: Force Integer Math
+        // 4. Averages (Safe)
         const speeds = planes.map(p => parseInt(p.speed || 0)).filter(s => s > 0);
         const avgSpeed = speeds.length ? Math.round(speeds.reduce((a,b)=>a+b, 0)/speeds.length) : 0;
         document.getElementById('insight-speed').innerText = `${avgSpeed} kts`;
 
-        // Map updates (Keep existing)
+        const alts = planes.map(p => p.altitude).filter(a => a);
+        const avgAlt = alts.length ? Math.round(alts.reduce((a,b)=>a+b)/alts.length) : 0;
+        document.getElementById('insight-alt').innerText = `${avgAlt} ft`;
+
+        // 5. Update Map Markers
+        if (selectedHex) { const p = planes.find(x => x.hex === selectedHex); if (p) ui.openFlightSidebar(p); }
+        
         const currentHexes = new Set();
         planes.forEach(p => {
             currentHexes.add(p.hex);
@@ -174,27 +211,45 @@ const commonOpts = { responsive: true, maintainAspectRatio: false, plugins: { le
 
 const charts = {
     currentOffset: 0,
+    currentBucket: '30m', // Store state
+
     loadAll: async () => {
         const getData = async (ep) => (await fetch(ep)).json();
+        
+        // KPIs
         const kpi = await getData('/api/kpi');
-        document.getElementById('kpi-unique').innerText = kpi.unique || '--';
-        document.getElementById('kpi-speed').innerText = kpi.speed || '--';
-        document.getElementById('kpi-alt').innerText = kpi.alt || '--';
+        document.getElementById('kpi-unique').innerText = kpi.unique_planes_24h || '--';
+        document.getElementById('kpi-speed').innerText = kpi.max_speed_24h || '--';
+        document.getElementById('kpi-alt').innerText = kpi.max_alt_24h || '--';
 
+        // 1. Daily Bar
         if(!chartInstances.daily) {
             const d = await getData('/api/daily');
             const ctx = document.getElementById('chart-daily');
-            chartInstances.daily = new Chart(ctx, { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#3b82f6', borderRadius: 4 }] }, options: { ...commonOpts, onClick: (e, els) => { if(els.length) { charts.currentOffset = d.labels.length - 1 - els[0].index; charts.loadVolume(charts.currentOffset, '30m'); } } } });
+            chartInstances.daily = new Chart(ctx, { 
+                type: 'bar', 
+                data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#3b82f6', borderRadius: 4 }] }, 
+                options: { 
+                    ...commonOpts, 
+                    onClick: (e, els) => { 
+                        if(els.length) { 
+                            charts.currentOffset = d.labels.length - 1 - els[0].index; 
+                            charts.loadVolume(charts.currentOffset, charts.currentBucket); 
+                        } 
+                    } 
+                } 
+            });
         }
         
         charts.loadVolume(0, '30m');
 
+        // 2. Altitude
         if(!chartInstances.altitude) {
             const d = await getData('/api/altitude');
             chartInstances.altitude = new Chart(document.getElementById('chart-altitude'), { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#8b5cf6', borderRadius: 4 }] }, options: commonOpts });
         }
 
-        // FIXED PHYSICS CHART
+        // 3. Physics Scatter (Fixed Ranges)
         if(!chartInstances.scatter) {
             const d = await getData('/api/scatter');
             chartInstances.scatter = new Chart(document.getElementById('chart-scatter'), { 
@@ -210,21 +265,29 @@ const charts = {
             });
         }
 
+        // 4. Polar
         if(!chartInstances.polar) {
             const d = await getData('/api/direction');
             chartInstances.polar = new Chart(document.getElementById('chart-polar'), { type: 'polarArea', data: { labels: ['N','NE','E','SE','S','SW','W','NW'], datasets: [{ data: d.data, backgroundColor: ['#ef4444','#3b82f6','#eab308','#10b981','#8b5cf6','#f97316','#9ca3af','#6366f1'] }] }, options: { ...commonOpts, scales: { r: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { display: false } } } } });
         }
     },
 
-    changeResolution: (res) => { charts.loadVolume(charts.currentOffset, res); },
+    changeResolution: (res) => { 
+        charts.currentBucket = res;
+        charts.loadVolume(charts.currentOffset, res); 
+    },
 
     loadVolume: async (offset, bucket) => {
         const d = await (await fetch(`/api/history?offset=${offset}&bucket=${bucket}`)).json();
         const dateStr = offset === 0 ? "Today" : `-${offset} Days`;
-        document.getElementById('volume-title').innerText = `Traffic Volume (${dateStr})`;
+        document.getElementById('volume-title').innerText = `Traffic Volume (${dateStr} @ ${bucket})`;
         
         if(!chartInstances.volume) {
-            chartInstances.volume = new Chart(document.getElementById('chart-volume'), { type: 'line', data: { labels: d.labels, datasets: [{ data: d.data, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.4, pointRadius: 0 }] }, options: commonOpts });
+            chartInstances.volume = new Chart(document.getElementById('chart-volume'), { 
+                type: 'line', 
+                data: { labels: d.labels, datasets: [{ data: d.data, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.4, pointRadius: 0 }] }, 
+                options: commonOpts 
+            });
         } else {
             chartInstances.volume.data.labels = d.labels;
             chartInstances.volume.data.datasets[0].data = d.data;
