@@ -1,0 +1,68 @@
+/* --- CORE THEME --- */
+:root {
+    --bg-solid: #f4f4f5; --glass-bg: rgba(255, 255, 255, 0.9); --glass-border: rgba(0, 0, 0, 0.1);
+    --text-main: #09090b; --text-muted: #52525b; --accent: #2563eb;
+    --map-filter: contrast(1.05) brightness(1); --map-opacity: 1; --map-bg: #e5e5e5;
+}
+.dark {
+    --bg-solid: #050505; --glass-bg: rgba(10, 10, 12, 0.85); --glass-border: rgba(255, 255, 255, 0.08);
+    --text-main: #ffffff; --text-muted: #a1a1aa; --accent: #f59e0b;
+    --map-filter: brightness(1.2) contrast(1.1); --map-opacity: 0.6; --map-bg: #09090b;
+}
+body { background-color: var(--bg-solid); color: var(--text-main); transition: 0.3s; overflow-x: hidden; }
+
+/* --- MAP & UI STATES --- */
+#map-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; filter: var(--map-filter); opacity: var(--map-opacity); background: var(--map-bg); transition: 0.3s; }
+#main-ui { transition: opacity 0.3s ease, transform 0.3s ease; }
+.ui-hidden #main-ui { opacity: 0; pointer-events: none; transform: scale(0.98); }
+
+/* --- COMPONENTS --- */
+.glass-panel { background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); box-shadow: 0 8px 32px rgba(0,0,0,0.03); transition: 0.2s; }
+.project-card:hover { border-color: var(--accent); transform: translateY(-4px); }
+.btn-glass { background: var(--glass-bg); border: 1px solid var(--glass-border); backdrop-filter: blur(8px); transition: 0.2s; }
+.btn-glass:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+
+/* --- SIDEBARS --- */
+/* Right (Detail) */
+#detail-sidebar { 
+    position: fixed; top: 0; right: 0; height: 100%; width: 100%; max-width: 450px; z-index: 60; 
+    background: var(--glass-bg); border-left: 1px solid var(--glass-border); backdrop-filter: blur(25px); 
+    transform: translateX(100%); transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; 
+}
+#detail-sidebar.open { transform: translateX(0); }
+
+/* Left (Tactical) */
+#tactical-sidebar { 
+    position: fixed; top: 100px; left: 0; bottom: 0; width: 300px; z-index: 50; 
+    background: transparent; transform: translateX(-100%); transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+    padding: 20px; display: flex; flex-direction: column; gap: 15px; 
+}
+.tactical-active #tactical-sidebar { transform: translateX(0); }
+
+/* --- TOAST NOTIFICATION --- */
+#hint-toast { 
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); 
+    z-index: 70; opacity: 0; transition: 0.5s cubic-bezier(0.16, 1, 0.3, 1); 
+}
+.tactical-active #hint-toast { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+/* --- DATA VISUALS --- */
+.tech-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.tech-item { background: rgba(0,0,0,0.03); border: 1px solid var(--glass-border); border-radius: 0.5rem; padding: 0.75rem; }
+.dark .tech-item { background: rgba(255,255,255,0.03); }
+.tech-label { font-size: 10px; color: var(--text-muted); font-family: 'JetBrains Mono'; text-transform: uppercase; margin-bottom: 4px; }
+.tech-val { font-size: 14px; font-weight: 700; font-family: 'JetBrains Mono'; }
+
+/* --- MAP ELEMENTS --- */
+.plane-label { background: rgba(9, 9, 11, 0.95); border: 1px solid var(--accent); color: #fff; font-family: 'JetBrains Mono'; padding: 4px 6px; border-radius: 4px; text-align: left; min-width: 90px; margin-top: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; flex-direction: column; line-height: 1.1; z-index: 100; }
+.leaflet-tooltip { background: rgba(255,255,255,0.95); border: 1px solid var(--glass-border); color: #000 !important; font-family: 'JetBrains Mono'; font-weight: 700; box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
+.dark .leaflet-tooltip { background: rgba(10,10,12,0.95); border-color: rgba(255,255,255,0.2); color: #fff !important; }
+
+/* --- PROFILE & MISC --- */
+.header-layout { display: flex; flex-direction: column-reverse; gap: 2rem; }
+.profile-img { width: 160px; height: 160px; border-radius: 20px; object-fit: cover; border: 1px solid var(--accent); transition: 0.3s; }
+.profile-img:hover { transform: scale(1.02) rotate(1deg); border-color: #fff; }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--text-muted); opacity: 0.2; border-radius: 10px; }
+@media (min-width: 768px) { .header-layout { flex-direction: row; align-items: center; justify-content: space-between; } .profile-img { width: 220px; height: 220px; } }
