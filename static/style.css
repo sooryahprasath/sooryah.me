@@ -37,6 +37,12 @@ body { background-color: var(--bg-solid); color: var(--text-main); transition: 0
 }
 .tactical-active #tactical-sidebar { transform: translateX(0); }
 
+/* --- SCROLL UTILS --- */
+.overflow-hidden { overflow: hidden !important; }
+/* Hide Scrollbars but keep functionality */
+#sidebar-content, #tactical-sidebar { -ms-overflow-style: none; scrollbar-width: none; }
+#sidebar-content::-webkit-scrollbar, #tactical-sidebar::-webkit-scrollbar { display: none; }
+
 /* --- TOAST NOTIFICATION --- */
 #hint-toast { 
     position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); 
@@ -56,7 +62,7 @@ body { background-color: var(--bg-solid); color: var(--text-main); transition: 0
 .leaflet-tooltip { background: rgba(255,255,255,0.95); border: 1px solid var(--glass-border); color: #000 !important; font-family: 'JetBrains Mono'; font-weight: 700; box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
 .dark .leaflet-tooltip { background: rgba(10,10,12,0.95); border-color: rgba(255,255,255,0.2); color: #fff !important; }
 
-/* --- PROFILE & MISC --- */
+/* --- PROFILE --- */
 .header-layout { display: flex; flex-direction: column-reverse; gap: 2rem; }
 .profile-img { width: 160px; height: 160px; border-radius: 20px; object-fit: cover; border: 1px solid var(--accent); transition: 0.3s; }
 .profile-img:hover { transform: scale(1.02) rotate(1deg); border-color: #fff; }
