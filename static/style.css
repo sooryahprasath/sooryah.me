@@ -11,8 +11,20 @@
 }
 body { background-color: var(--bg-solid); color: var(--text-main); transition: 0.3s; overflow-x: hidden; }
 
-/* --- MAP & UI STATES --- */
-#map-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; filter: var(--map-filter); opacity: var(--map-opacity); background: var(--map-bg); transition: 0.3s; }
+/* --- MAP & UI STATES (FIXED INTERACTION) --- */
+#map-container { 
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; 
+    filter: var(--map-filter); opacity: var(--map-opacity); background: var(--map-bg); transition: 0.3s;
+    
+    /* FIX: Disable interaction by default so you don't accidentally drag it */
+    pointer-events: none; 
+}
+
+/* FIX: Only enable interaction when in "Tactical/Telemetry" Mode */
+.tactical-active #map-container {
+    pointer-events: auto;
+}
+
 #main-ui { transition: opacity 0.3s ease, transform 0.3s ease; }
 .ui-hidden #main-ui { opacity: 0; pointer-events: none; transform: scale(0.98); }
 
@@ -44,7 +56,7 @@ body { background-color: var(--bg-solid); color: var(--text-main); transition: 0
         max-width: 100% !important;
         left: 0 !important;
         right: 0 !important;
-        background: var(--glass-bg) !important; /* Ensure readable background */
+        background: var(--glass-bg) !important;
     }
     #tactical-sidebar {
         top: 80px; 
@@ -62,6 +74,7 @@ body { background-color: var(--bg-solid); color: var(--text-main); transition: 0
 #hint-toast { 
     position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); 
     z-index: 70; opacity: 0; transition: 0.5s cubic-bezier(0.16, 1, 0.3, 1); 
+    pointer-events: none; /* Let clicks pass through the toast */
 }
 .tactical-active #hint-toast { transform: translateX(-50%) translateY(0); opacity: 1; }
 
@@ -73,7 +86,7 @@ body { background-color: var(--bg-solid); color: var(--text-main); transition: 0
 .tech-val { font-size: 14px; font-weight: 700; font-family: 'JetBrains Mono'; }
 
 /* --- MAP ELEMENTS --- */
-.plane-label { background: rgba(9, 9, 11, 0.95); border: 1px solid var(--accent); color: #fff; font-family: 'JetBrains Mono'; padding: 4px 6px; border-radius: 4px; text-align: left; min-width: 90px; margin-top: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; flex-direction: column; line-height: 1.1; z-index: 100; }
+.plane-label { background: rgba(9, 9, 11, 0.95); border: 1px solid var(--accent); color: #fff; font-family: 'JetBrains Mono'; padding: 4px 6px; border-radius: 4px; text-align: left; min-width: 90px; margin-top: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; flex-direction: column; line-height: 1.1; z-index: 100; pointer-events: auto; /* Ensure tooltip is clickable if needed */ }
 .leaflet-tooltip { background: rgba(255,255,255,0.95); border: 1px solid var(--glass-border); color: #000 !important; font-family: 'JetBrains Mono'; font-weight: 700; box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
 .dark .leaflet-tooltip { background: rgba(10,10,12,0.95); border-color: rgba(255,255,255,0.2); color: #fff !important; }
 
