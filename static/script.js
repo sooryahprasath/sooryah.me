@@ -6,27 +6,36 @@ const ui = {
         if (mapLayer.active) map.removeLayer(mapLayer.active);
         setTimeout(() => { mapLayer.active = L.tileLayer(isDark ? mapLayer.dark : mapLayer.light, { maxZoom: 19 }).addTo(map); }, 10);
     },
+    
+    // LEFT SIDEBAR LOGIC
     toggleTacticalMode: () => {
+        // Force Close Right Sidebar if open
+        ui.closeSidebar();
+        
         const body = document.body;
         const btn = document.getElementById('view-btn-text');
+        
         if (body.classList.contains('tactical-active')) {
-            body.classList.remove('tactical-active', 'ui-hidden'); btn.innerText = "LIVE TELEMETRY VIEW";
+            body.classList.remove('tactical-active', 'ui-hidden'); 
+            btn.innerText = "LIVE TELEMETRY VIEW";
             map.dragging.disable();
             map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
         } else {
-            body.classList.add('tactical-active', 'ui-hidden'); btn.innerText = "EXIT TELEMETRY VIEW";
+            body.classList.add('tactical-active', 'ui-hidden'); 
+            btn.innerText = "EXIT TELEMETRY VIEW";
             map.dragging.enable(); map.invalidateSize();
         }
     },
-    openProjectSidebar: (key) => {
-        const data = PROJECT_DATA[key];
-        document.getElementById('sidebar-title').innerText = "PROJECT ARCHITECTURE";
-        document.getElementById('sidebar-content').innerHTML = `<div><h2 class="text-2xl font-bold text-accent mb-1">${data.title}</h2><p class="text-xs font-mono text-muted border-b border-theme pb-4">${data.subtitle}</p></div><div class="text-sm leading-relaxed text-main/80 bg-black/5 dark:bg-white/5 p-4 rounded-lg border border-theme">${data.description}</div><div class="flex flex-col gap-1 mt-2">${data.specs.map(s => `<div class="flex justify-between items-center py-2 border-b border-white/5"><span class="text-xs text-muted font-mono uppercase">${s.label}</span><span class="text-sm font-bold text-right">${s.value}</span></div>`).join('')}</div>`;
-        const footer = document.getElementById('sidebar-footer');
-        if(data.link) { footer.innerHTML = `<a href="${data.link}" target="_blank" class="w-full btn-glass py-3 rounded-lg flex justify-center items-center gap-2 font-bold hover:bg-accent hover:text-white transition">OPEN LIVE VIEW <i data-lucide="external-link" class="w-4 h-4"></i></a>`; footer.classList.remove('hidden'); } else { footer.classList.add('hidden'); }
-        document.getElementById('detail-sidebar').classList.add('open');
-    },
+
+    // RIGHT SIDEBAR LOGIC
     openFlightSidebar: (data) => {
+        // FORCE CLOSE LEFT SIDEBAR if open
+        const body = document.body;
+        if (body.classList.contains('tactical-active')) {
+            body.classList.remove('tactical-active'); // Keep ui-hidden if you want
+            document.getElementById('view-btn-text').innerText = "LIVE TELEMETRY VIEW";
+        }
+
         document.body.style.overflow = 'hidden'; // SCROLL LOCK
         document.getElementById('sidebar-title').innerText = "LIVE FLIGHT TELEMETRY";
         document.getElementById('detail-sidebar').classList.add('open');
@@ -51,23 +60,21 @@ const ui = {
                 <div class="tech-item"><div class="tech-label">Heading</div><div class="tech-val">${val(data.heading, '°')}</div></div>
                 <div class="tech-item"><div class="tech-label">Latitude</div><div class="tech-val">${val(data.lat)}</div></div>
             </div>
-            <h3 class="text-xs font-bold text-muted uppercase tracking-widest mt-2">Avionics</h3>
-            <div class="tech-grid">
-                <div class="tech-item"><div class="tech-label">Squawk</div><div class="tech-val text-accent">${val(data.squawk)}</div></div>
-                <div class="tech-item"><div class="tech-label">Air Temp</div><div class="tech-val">${val(data.oat, '°C')}</div></div>
-            </div>
+            <div class="p-4 bg-black/5 dark:bg-white/5 rounded border border-theme text-[10px] font-mono text-muted text-center mt-4">HEX: ${data.hex}</div>
         `;
     },
+    
     closeSidebar: () => {
         document.body.style.overflow = ''; // UNLOCK SCROLL
         document.getElementById('detail-sidebar').classList.remove('open');
         selectedHex = null;
     },
+    
     openAnalyticsModal: () => { document.getElementById('analytics-modal').classList.remove('hidden'); charts.loadAll(); },
     closeAnalyticsModal: () => { document.getElementById('analytics-modal').classList.add('hidden'); }
 };
 
-// --- MAP ENGINE ---
+// --- MAP & DATA LOGIC ---
 const DEFAULT_CENTER = [12.98, 77.6];
 const DEFAULT_ZOOM = 8.4;
 const map = L.map('map-container', { zoomControl: false, attributionControl: false, zoomSnap: 0.1, boxZoom: false, doubleClickZoom: false, dragging: false, scrollWheelZoom: false }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
@@ -88,10 +95,8 @@ async function fetchRadar() {
         if (!data || !data.aircraft) return;
         const planes = Object.entries(data.aircraft).map(([h, p]) => ({...p, hex: h})).filter(p => p.lat && p.lon);
         
-        // Updates
         document.getElementById('plane-count').innerText = planes.length;
         document.getElementById('status-text').innerText = "SYSTEM ONLINE";
-        document.getElementById('status-dot').className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
         
         // Mock Stats
         const msgRate = (planes.length * 1.8).toFixed(1);
@@ -102,18 +107,20 @@ async function fetchRadar() {
         const counts = {};
         planes.forEach(p => { 
             const c = (p.flightno || p.callsign || 'UNK').substring(0,3); 
-            if(c !== 'UNK') counts[c] = (counts[c]||0)+1; 
+            if(c !== 'UNK' && c.length === 3) counts[c] = (counts[c]||0)+1; 
         });
-        const top = Object.keys(counts).length ? Object.keys(counts).reduce((a,b)=>counts[a]>counts[b]?a:b) : "SCANNING...";
+        // FIX: Handle empty array gracefully
+        const top = Object.keys(counts).length > 0 ? Object.keys(counts).reduce((a,b)=>counts[a]>counts[b]?a:b) : "WAITING...";
         document.getElementById('insight-carrier').innerText = top;
         
+        // FIX: Force Integer Math for Average Speed
+        const speeds = planes.map(p => parseInt(p.speed || 0)).filter(s => s > 0);
+        const avgSpeed = speeds.length ? Math.round(speeds.reduce((a,b)=>a+b, 0)/speeds.length) : 0;
+        document.getElementById('insight-speed').innerText = `${avgSpeed} kts`;
+
         const alts = planes.map(p => p.altitude).filter(a => a);
         const avgAlt = alts.length ? Math.round(alts.reduce((a,b)=>a+b)/alts.length) : 0;
         document.getElementById('insight-alt').innerText = `${avgAlt} ft`;
-        
-        const speeds = planes.map(p => p.speed).filter(s => s);
-        const avgSpeed = speeds.length ? Math.round(speeds.reduce((a,b)=>a+b)/speeds.length) : 0;
-        document.getElementById('insight-speed').innerText = `${avgSpeed} kts`;
 
         if (selectedHex) { const p = planes.find(x => x.hex === selectedHex); if (p) ui.openFlightSidebar(p); }
         
@@ -149,11 +156,14 @@ const charts = {
     currentOffset: 0,
     loadAll: async () => {
         const getData = async (ep) => (await fetch(ep)).json();
+        
+        // KPIs
         const kpi = await getData('/api/kpi');
         document.getElementById('kpi-unique').innerText = kpi.unique_planes_24h || '--';
         document.getElementById('kpi-speed').innerText = kpi.max_speed_24h || '--';
         document.getElementById('kpi-alt').innerText = kpi.max_alt_24h || '--';
 
+        // 1. Daily Bar
         if(!chartInstances.daily) {
             const d = await getData('/api/daily');
             const ctx = document.getElementById('chart-daily');
@@ -193,10 +203,4 @@ const charts = {
             chartInstances.volume.update();
         }
     }
-};
-
-const PROJECT_DATA = {
-    adsb: { title: "RF & IoT Sensor Networks", subtitle: "Station ID: CustardLev | Bengaluru", description: "Distributed ADSB receiver network...", specs: [{ label: "Host", value: "Raspberry Pi 2B" }, { label: "Radio", value: "RTL-SDR V3" }], link: "https://planes.custardlev.uk" },
-    telemetry: { title: "Enterprise Telemetry Pipeline", subtitle: "Data Engineering", description: "Centralized pipeline utilizing Apache Airflow...", specs: [{ label: "Orchestrator", value: "Airflow" }], link: null },
-    cloud: { title: "Private Cloud Cluster", subtitle: "Homelab", description: "Proxmox cluster running Kubernetes...", specs: [{ label: "Orchestrator", value: "K3s" }], link: null }
 };

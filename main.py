@@ -6,6 +6,7 @@ from influxdb_client import InfluxDBClient
 import httpx
 import os
 from collections import Counter
+from datetime import timedelta
 
 app = FastAPI()
 
@@ -42,7 +43,9 @@ def get_kpi():
     try:
         client = get_influx_client()
         query_api = client.query_api()
+        # Count unique hex codes in last 24h
         q1 = f'from(bucket:"{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn:(r)=>r._measurement=="aircraft_snapshot" and r._field=="speed") |> group(columns:["icao_hex"]) |> count() |> group() |> count()'
+        # Get Max Speed/Alt
         q2 = f'from(bucket:"{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn:(r)=>r._measurement=="aircraft_snapshot" and (r._field=="speed" or r._field=="altitude")) |> max()'
         
         res1 = query_api.query(org=INFLUX_ORG, query=q1)
@@ -59,7 +62,7 @@ def get_kpi():
     except:
         return {"unique": 0, "speed": "0", "alt": "0"}
 
-# --- 3. TRAFFIC HISTORY (Dynamic Buckets) ---
+# --- 3. TRAFFIC HISTORY (IST TIMEZONE) ---
 @app.get("/api/history")
 def get_history(offset: int = 0, bucket: str = "30m"):
     try:
@@ -70,8 +73,8 @@ def get_history(offset: int = 0, bucket: str = "30m"):
         stop = f"-{24 * offset}h"
         if offset == 0: stop = "now()"
         
-        # Security check on bucket
-        if bucket not in ["1m", "5m", "15m", "30m", "1h", "3h"]: bucket = "30m"
+        # Valid buckets: 5m, 15m, 1h, 3h
+        if bucket not in ["5m", "15m", "1h", "3h"]: bucket = "30m"
 
         query = f'''
         from(bucket: "{INFLUX_BUCKET}")
@@ -83,12 +86,19 @@ def get_history(offset: int = 0, bucket: str = "30m"):
         '''
         result = query_api.query(org=INFLUX_ORG, query=query)
         labels, data = [], []
+        
+        # IST Offset: +5 hours 30 mins
+        ist_delta = timedelta(hours=5, minutes=30)
+
         for t in result:
             for r in t.records:
-                labels.append(r.get_time().strftime("%H:%M"))
+                # Convert UTC to IST
+                local_time = r.get_time() + ist_delta
+                labels.append(local_time.strftime("%H:%M"))
                 data.append(round(r.get_value(), 1))
         return {"labels": labels, "data": data}
-    except:
+    except Exception as e:
+        print(f"History Error: {e}")
         return {"labels": [], "data": []}
 
 # --- 4. PHYSICS SCATTER ---
@@ -97,7 +107,7 @@ def get_scatter():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # Increased sample size for better charts
+        # Ensure we get data even if sparse
         query = f'''
         from(bucket: "{INFLUX_BUCKET}")
           |> range(start: -24h)
@@ -105,7 +115,7 @@ def get_scatter():
           |> filter(fn: (r) => r["_field"] == "altitude" or r["_field"] == "temp_c")
           |> pivot(rowKey:["_time", "icao_hex"], columnKey: ["_field"], valueColumn: "_value")
           |> filter(fn: (r) => exists r.altitude and exists r.temp_c)
-          |> sample(n: 200) 
+          |> sample(n: 200)
           |> keep(columns: ["altitude", "temp_c"])
         '''
         result = query_api.query(org=INFLUX_ORG, query=query)
@@ -129,9 +139,13 @@ def get_daily():
         '''
         result = query_api.query(org=INFLUX_ORG, query=query)
         labels, data = [], []
+        # IST Offset for days
+        ist_delta = timedelta(hours=5, minutes=30)
+        
         for t in result:
             for r in t.records:
-                labels.append(r.get_time().strftime("%a %d"))
+                local_time = r.get_time() + ist_delta
+                labels.append(local_time.strftime("%a %d"))
                 data.append(r.get_value())
         return {"labels": labels, "data": data}
     except:
@@ -143,16 +157,17 @@ def get_altitude():
     try:
         client = get_influx_client()
         query_api = client.query_api()
+        # Scan 30 days
         query = f'''from(bucket: "{INFLUX_BUCKET}") |> range(start: -30d) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "altitude") |> sample(n: 1000)'''
         result = query_api.query(org=INFLUX_ORG, query=query)
         alts = [r.get_value() for t in result for r in t.records]
-        buckets = {"0-5k": 0, "5k-15k": 0, "15k-25k": 0, "25k-35k": 0, "35k+": 0}
+        buckets = {"0-10k": 0, "10k-20k": 0, "20k-30k": 0, "30k-40k": 0, "40k+": 0}
         for a in alts:
-            if a < 5000: buckets["0-5k"] += 1
-            elif a < 15000: buckets["5k-15k"] += 1
-            elif a < 25000: buckets["15k-25k"] += 1
-            elif a < 35000: buckets["25k-35k"] += 1
-            else: buckets["35k+"] += 1
+            if a < 10000: buckets["0-10k"] += 1
+            elif a < 20000: buckets["10k-20k"] += 1
+            elif a < 30000: buckets["20k-30k"] += 1
+            elif a < 40000: buckets["30k-40k"] += 1
+            else: buckets["40k+"] += 1
         return {"labels": list(buckets.keys()), "data": list(buckets.values())}
     except: return {"labels": [], "data": []}
 
