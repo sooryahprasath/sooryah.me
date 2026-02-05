@@ -12,30 +12,29 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # --- NEW STEP: Create .env file from Secrets ---
+      - name: Create .env file
+        run: |
+          echo "INFLUX_URL=${{ secrets.INFLUX_URL }}" >> .env
+          echo "INFLUX_TOKEN=${{ secrets.INFLUX_TOKEN }}" >> .env
+          echo "INFLUX_ORG=${{ secrets.INFLUX_ORG }}" >> .env
+          echo "INFLUX_BUCKET=${{ secrets.INFLUX_BUCKET }}" >> .env
+          echo "RADAR_IP=${{ secrets.RADAR_IP }}" >> .env
+
       - name: Deploy Updates
         run: |
-          # 1. Build the image locally
-          # We use build because the code is already on the server via checkout
           docker compose build
-
-          # 2. Restart containers
-          # Force recreate ensures the new image (with new port 8090) is applied
           docker compose up -d --force-recreate
 
       - name: Verification
         run: |
           echo "⏳ Waiting 10s for application boot..."
           sleep 10
-          
-          # Check if container is actually running
           if [ "$(docker inspect -f '{{.State.Running}}' portfolio-web)" = "true" ]; then
               echo "✅ Container is online."
-              
-              # Verify the HTML file exists inside the static directory
               docker exec portfolio-web ls -l /app/static/index.html
-              echo "✅ File structure verified."
           else
-              echo "❌ CRITICAL: Container crashed. Fetching last 20 logs..."
+              echo "❌ CRITICAL: Container crashed. Fetching logs..."
               docker logs --tail 20 portfolio-web
               exit 1
           fi
