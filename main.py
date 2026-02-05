@@ -43,13 +43,31 @@ def get_kpi():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        q1 = f'from(bucket:"{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn:(r)=>r._measurement=="aircraft_snapshot" and r._field=="speed") |> group(columns:["icao_hex"]) |> count() |> group() |> count()'
-        q2 = f'from(bucket:"{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn:(r)=>r._measurement=="aircraft_snapshot" and (r._field=="speed" or r._field=="altitude")) |> max()'
+        # Query 1: Unique count (Robust)
+        q1 = f'''
+        from(bucket:"{INFLUX_BUCKET}") 
+        |> range(start: -24h) 
+        |> filter(fn:(r)=>r._measurement=="aircraft_snapshot" and r._field=="speed") 
+        |> keep(columns: ["icao_hex"]) 
+        |> distinct(column: "icao_hex") 
+        |> count()
+        '''
+        
+        # Query 2: Max values
+        q2 = f'''
+        from(bucket:"{INFLUX_BUCKET}") 
+        |> range(start: -24h) 
+        |> filter(fn:(r)=>r._measurement=="aircraft_snapshot" and (r._field=="speed" or r._field=="altitude")) 
+        |> max()
+        '''
         
         res1 = query_api.query(org=INFLUX_ORG, query=q1)
         res2 = query_api.query(org=INFLUX_ORG, query=q2)
         
-        unique = res1[0].records[0].get_value() if res1 and res1[0].records else 0
+        unique = 0
+        if res1 and len(res1) > 0 and len(res1[0].records) > 0:
+            unique = res1[0].records[0].get_value()
+            
         max_s, max_a = 0, 0
         for t in res2:
             for r in t.records:
@@ -57,10 +75,11 @@ def get_kpi():
                 if r.get_field() == "altitude": max_a = r.get_value()
 
         return {"unique": unique, "speed": f"{max_s} kts", "alt": f"{max_a} ft"}
-    except:
-        return {"unique": 0, "speed": "0", "alt": "0"}
+    except Exception as e:
+        print(f"KPI Error: {e}")
+        return {"unique": 0, "speed": "0 kts", "alt": "0 ft"}
 
-# --- 3. TRAFFIC HISTORY (IST TIMEZONE & BUCKETS) ---
+# --- 3. TRAFFIC HISTORY ---
 @app.get("/api/history")
 def get_history(offset: int = 0, bucket: str = "30m"):
     try:
@@ -70,9 +89,7 @@ def get_history(offset: int = 0, bucket: str = "30m"):
         start = f"-{24 * (offset + 1)}h"
         stop = f"-{24 * offset}h"
         if offset == 0: stop = "now()"
-        
-        # Valid buckets for the filter buttons
-        if bucket not in ["5m", "15m", "30m", "1h", "3h"]: bucket = "30m"
+        if bucket not in ["5m", "15m", "1h", "3h"]: bucket = "30m"
 
         query = f'''
         from(bucket: "{INFLUX_BUCKET}")
@@ -84,45 +101,43 @@ def get_history(offset: int = 0, bucket: str = "30m"):
         '''
         result = query_api.query(org=INFLUX_ORG, query=query)
         labels, data = [], []
-        
-        # IST Offset (UTC + 5:30)
         ist_delta = timedelta(hours=5, minutes=30)
 
         for t in result:
             for r in t.records:
-                # Convert to IST
                 local_time = r.get_time() + ist_delta
                 labels.append(local_time.strftime("%H:%M"))
                 data.append(round(r.get_value(), 1))
         return {"labels": labels, "data": data}
-    except Exception as e:
-        print(f"History Error: {e}")
+    except:
         return {"labels": [], "data": []}
 
-# --- 4. PHYSICS SCATTER ---
+# --- 4. PHYSICS SCATTER (FIXED) ---
 @app.get("/api/scatter")
 def get_scatter():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # Ensure we get data even if sparse
+        # FIX: Align timestamps to 1m window so PIVOT works
         query = f'''
         from(bucket: "{INFLUX_BUCKET}")
-          |> range(start: -24h)
+          |> range(start: -12h)
           |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot")
           |> filter(fn: (r) => r["_field"] == "altitude" or r["_field"] == "temp_c")
-          |> pivot(rowKey:["_time", "icao_hex"], columnKey: ["_field"], valueColumn: "_value")
+          |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+          |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
           |> filter(fn: (r) => exists r.altitude and exists r.temp_c)
-          |> sample(n: 200)
+          |> sample(n: 200) 
           |> keep(columns: ["altitude", "temp_c"])
         '''
         result = query_api.query(org=INFLUX_ORG, query=query)
         data = [{"x": r["temp_c"], "y": r["altitude"]} for t in result for r in t.records]
         return data
-    except:
+    except Exception as e:
+        print(f"Scatter Error: {e}")
         return []
 
-# --- 5. DAILY BAR CHART ---
+# --- 5. DAILY BAR ---
 @app.get("/api/daily")
 def get_daily():
     try:
@@ -137,13 +152,10 @@ def get_daily():
         '''
         result = query_api.query(org=INFLUX_ORG, query=query)
         labels, data = [], []
-        # IST Offset for days
         ist_delta = timedelta(hours=5, minutes=30)
-        
         for t in result:
             for r in t.records:
-                local_time = r.get_time() + ist_delta
-                labels.append(local_time.strftime("%a %d"))
+                labels.append((r.get_time() + ist_delta).strftime("%a %d"))
                 data.append(r.get_value())
         return {"labels": labels, "data": data}
     except:
@@ -155,17 +167,16 @@ def get_altitude():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # Scan 30 days
-        query = f'''from(bucket: "{INFLUX_BUCKET}") |> range(start: -30d) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "altitude") |> sample(n: 1000)'''
+        query = f'''from(bucket: "{INFLUX_BUCKET}") |> range(start: -7d) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "altitude") |> sample(n: 1000)'''
         result = query_api.query(org=INFLUX_ORG, query=query)
         alts = [r.get_value() for t in result for r in t.records]
-        buckets = {"0-5k": 0, "5k-15k": 0, "15k-25k": 0, "25k-35k": 0, "35k+": 0}
+        buckets = {"0-10k": 0, "10k-20k": 0, "20k-30k": 0, "30k-40k": 0, "40k+": 0}
         for a in alts:
-            if a < 5000: buckets["0-5k"] += 1
-            elif a < 15000: buckets["5k-15k"] += 1
-            elif a < 25000: buckets["15k-25k"] += 1
-            elif a < 35000: buckets["25k-35k"] += 1
-            else: buckets["35k+"] += 1
+            if a < 10000: buckets["0-10k"] += 1
+            elif a < 20000: buckets["10k-20k"] += 1
+            elif a < 30000: buckets["20k-30k"] += 1
+            elif a < 40000: buckets["30k-40k"] += 1
+            else: buckets["40k+"] += 1
         return {"labels": list(buckets.keys()), "data": list(buckets.values())}
     except: return {"labels": [], "data": []}
 

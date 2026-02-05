@@ -4,110 +4,111 @@ const ui = {
     toggleTheme: () => {
         const isDark = document.documentElement.classList.toggle('dark');
         if (mapLayer.active) map.removeLayer(mapLayer.active);
-        setTimeout(() => { 
-            mapLayer.active = L.tileLayer(isDark ? mapLayer.dark : mapLayer.light, { maxZoom: 19 }).addTo(map); 
-        }, 10);
+        setTimeout(() => { mapLayer.active = L.tileLayer(isDark ? mapLayer.dark : mapLayer.light, { maxZoom: 19 }).addTo(map); }, 10);
     },
     
-    // --- LEFT SIDEBAR (Live Telemetry View) ---
+    // LEFT SIDEBAR (Live View)
     toggleTacticalMode: () => {
-        // 1. Force Close Right Sidebar if open
-        ui.closeSidebar(); 
-        
+        // NOTE: We do NOT close the right sidebar here anymore.
         const body = document.body;
         const btn = document.getElementById('view-btn-text');
         
         if (body.classList.contains('tactical-active')) {
-            // DEACTIVATE
             body.classList.remove('tactical-active', 'ui-hidden'); 
             btn.innerText = "LIVE TELEMETRY VIEW";
             map.dragging.disable();
             map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
         } else {
-            // ACTIVATE
             body.classList.add('tactical-active', 'ui-hidden'); 
             btn.innerText = "EXIT TELEMETRY VIEW";
-            map.dragging.enable(); 
-            map.invalidateSize(); // Fix map rendering glitch
+            map.dragging.enable(); map.invalidateSize();
         }
     },
 
-    // --- RIGHT SIDEBAR (Flight Details) ---
+    // RIGHT SIDEBAR (Plane Details)
     openFlightSidebar: (data) => {
-        // 1. Force Close Left Sidebar Logic
-        const body = document.body;
-        if (body.classList.contains('tactical-active')) {
-            body.classList.remove('tactical-active'); // Keep ui-hidden if you want to stay focused
-            document.getElementById('view-btn-text').innerText = "LIVE TELEMETRY VIEW";
+        // NOTE: We do NOT close the left sidebar here anymore.
+        // We only change the button text if needed
+        if (document.body.classList.contains('tactical-active')) {
+            document.getElementById('view-btn-text').innerText = "LIVE TELEMETRY VIEW"; 
+            // We removed the removal of 'tactical-active' class
         }
 
-        // 2. LOCK SCROLLING
-        document.body.classList.add('overflow-hidden');
-        
-        // 3. Open Sidebar
+        document.body.classList.add('overflow-hidden'); // SCROLL LOCK
         document.getElementById('sidebar-title').innerText = "LIVE FLIGHT TELEMETRY";
         document.getElementById('detail-sidebar').classList.add('open');
         selectedHex = data.hex;
         
         const val = (v, unit='') => v !== undefined && v !== null ? `${v}${unit}` : 'N/A';
         
+        // COMPACT HTML LAYOUT
         document.getElementById('sidebar-content').innerHTML = `
-            <div class="p-5 rounded-xl bg-gradient-to-br from-black/10 to-transparent border border-theme">
-                <div class="flex justify-between items-start">
-                    <div><div class="text-xs text-muted mb-1 font-mono">CALLSIGN</div><div class="text-4xl font-bold text-accent font-mono tracking-tight">${data.flightno || data.callsign || 'N/A'}</div></div>
-                    <div class="text-right"><div class="text-xs text-muted mb-1 font-mono">REGISTRATION</div><div class="text-xl font-bold font-mono text-main">${data.reg || 'N/A'}</div></div>
+            <div class="p-4 rounded-xl bg-gradient-to-br from-black/10 to-transparent border border-theme">
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <div class="text-[10px] text-muted font-mono">CALLSIGN</div>
+                        <div class="text-2xl font-bold text-accent font-mono tracking-tight leading-none">${data.flightno || data.callsign || 'N/A'}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] text-muted font-mono">REG</div>
+                        <div class="text-lg font-bold font-mono text-main leading-none">${data.reg || 'N/A'}</div>
+                    </div>
                 </div>
-                <div class="mt-6 pt-4 border-t border-white/10 flex justify-between items-center">
-                    <div><div class="text-xs text-muted mb-1 font-mono">ROUTE</div><div class="text-lg font-bold">${data.route || 'Unknown'}</div></div>
-                    <div class="text-right"><div class="text-xs text-muted mb-1 font-mono">TYPE</div><div class="text-lg font-bold font-mono">${data.type || 'N/A'}</div></div>
+                <div class="flex justify-between items-center border-t border-white/10 pt-2">
+                    <div>
+                        <div class="text-[10px] text-muted font-mono">ROUTE</div>
+                        <div class="text-sm font-bold">${data.route || 'Unknown'}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] text-muted font-mono">TYPE</div>
+                        <div class="text-sm font-bold font-mono">${data.type || 'N/A'}</div>
+                    </div>
                 </div>
-            </div>
-            
-            <h3 class="text-xs font-bold text-muted uppercase tracking-widest mt-2">Flight Dynamics</h3>
-            <div class="tech-grid">
-                <div class="tech-item"><div class="tech-label">Altitude</div><div class="tech-val text-accent">${val(data.altitude, ' ft')}</div></div>
-                <div class="tech-item"><div class="tech-label">Vert Rate</div><div class="tech-val">${val(data.vert_rate, ' fpm')}</div></div>
-                <div class="tech-item"><div class="tech-label">Ground Speed</div><div class="tech-val">${val(data.speed, ' kts')}</div></div>
-                <div class="tech-item"><div class="tech-label">Track</div><div class="tech-val">${val(data.track_angle, '°')}</div></div>
-                <div class="tech-item"><div class="tech-label">Heading</div><div class="tech-val">${val(data.heading, '°')}</div></div>
-                <div class="tech-item"><div class="tech-label">Distance</div><div class="tech-val">${val(data.polar_distance, ' nm')}</div></div>
-                <div class="tech-item"><div class="tech-label">Latitude</div><div class="tech-val">${val(data.lat)}</div></div>
-                <div class="tech-item"><div class="tech-label">Longitude</div><div class="tech-val">${val(data.lon)}</div></div>
             </div>
 
-            <h3 class="text-xs font-bold text-muted uppercase tracking-widest mt-2">Avionics & Environment</h3>
-            <div class="tech-grid">
-                <div class="tech-item"><div class="tech-label">Squawk</div><div class="tech-val text-accent">${val(data.squawk)}</div></div>
-                <div class="tech-item"><div class="tech-label">Category</div><div class="tech-val">${val(data.category)}</div></div>
-                <div class="tech-item"><div class="tech-label">Air Temp</div><div class="tech-val">${val(data.oat, '°C')}</div></div>
-                <div class="tech-item"><div class="tech-label">Wind Speed</div><div class="tech-val">${val(data.wind_speed, ' kts')}</div></div>
+            <div class="space-y-1">
+                <h3 class="text-[10px] font-bold text-muted uppercase tracking-widest">Dynamics</h3>
+                <div class="tech-grid gap-2">
+                    <div class="tech-item p-2"><div class="tech-label">Alt</div><div class="tech-val text-accent">${val(data.altitude, ' ft')}</div></div>
+                    <div class="tech-item p-2"><div class="tech-label">V.Rate</div><div class="tech-val">${val(data.vert_rate, ' fpm')}</div></div>
+                    <div class="tech-item p-2"><div class="tech-label">Spd</div><div class="tech-val">${val(data.speed, ' kts')}</div></div>
+                    <div class="tech-item p-2"><div class="tech-label">Track</div><div class="tech-val">${val(data.track_angle, '°')}</div></div>
+                    <div class="tech-item p-2"><div class="tech-label">Hdg</div><div class="tech-val">${val(data.heading, '°')}</div></div>
+                    <div class="tech-item p-2"><div class="tech-label">Dist</div><div class="tech-val">${val(data.polar_distance, ' nm')}</div></div>
+                    <div class="tech-item p-2"><div class="tech-label">Lat</div><div class="tech-val text-xs">${val(data.lat)}</div></div>
+                    <div class="tech-item p-2"><div class="tech-label">Lon</div><div class="tech-val text-xs">${val(data.lon)}</div></div>
+                </div>
+            </div>
+
+            <div class="space-y-1">
+                <h3 class="text-[10px] font-bold text-muted uppercase tracking-widest">Sensors</h3>
+                <div class="tech-grid gap-2">
+                    <div class="tech-item p-2"><div class="tech-label">Squawk</div><div class="tech-val text-accent">${val(data.squawk)}</div></div>
+                    <div class="tech-item p-2"><div class="tech-label">Cat</div><div class="tech-val">${val(data.category)}</div></div>
+                    <div class="tech-item p-2"><div class="tech-label">Temp</div><div class="tech-val">${val(data.oat, '°C')}</div></div>
+                    <div class="tech-item p-2"><div class="tech-label">Wind</div><div class="tech-val">${val(data.wind_speed, ' kts')}</div></div>
+                </div>
             </div>
             
-            <div class="p-4 bg-black/5 dark:bg-white/5 rounded border border-theme text-[10px] font-mono text-muted text-center mt-4">
-                HEX: ${data.hex} | MSG AGE: ${data.age || 0}s
+            <div class="p-2 bg-black/5 dark:bg-white/5 rounded border border-theme text-[9px] font-mono text-muted text-center">
+                HEX: ${data.hex} | AGE: ${data.age || 0}s
             </div>
         `;
     },
     
-    // GENERIC CLOSE
     closeSidebar: () => {
-        // UNLOCK SCROLLING
-        document.body.classList.remove('overflow-hidden');
+        document.body.classList.remove('overflow-hidden'); 
         document.getElementById('detail-sidebar').classList.remove('open');
         selectedHex = null;
     },
     
-    // MODALS (Big Data)
     openProjectSidebar: (key) => { 
         const data = PROJECT_DATA[key];
         document.getElementById('sidebar-title').innerText = "PROJECT ARCHITECTURE";
         const specs = data.specs.map(s => `<div class="flex justify-between items-center py-2 border-b border-white/5"><span class="text-xs text-muted font-mono uppercase">${s.label}</span><span class="text-sm font-bold text-right">${s.value}</span></div>`).join('');
         document.getElementById('sidebar-content').innerHTML = `<div><h2 class="text-2xl font-bold text-accent mb-1">${data.title}</h2><p class="text-xs font-mono text-muted border-b border-theme pb-4">${data.subtitle}</p></div><div class="text-sm leading-relaxed text-main/80 bg-black/5 dark:bg-white/5 p-4 rounded-lg border border-theme">${data.description}</div><div class="flex flex-col gap-1 mt-2">${specs}</div>`;
         const footer = document.getElementById('sidebar-footer');
-        if(data.link) { 
-            footer.innerHTML = `<a href="${data.link}" target="_blank" class="w-full btn-glass py-3 rounded-lg flex justify-center items-center gap-2 font-bold hover:bg-accent hover:text-white transition">OPEN LIVE VIEW <i data-lucide="external-link" class="w-4 h-4"></i></a>`; 
-            footer.classList.remove('hidden'); 
-        } else { footer.classList.add('hidden'); }
+        if(data.link) { footer.innerHTML = `<a href="${data.link}" target="_blank" class="w-full btn-glass py-3 rounded-lg flex justify-center items-center gap-2 font-bold hover:bg-accent hover:text-white transition">OPEN LIVE VIEW <i data-lucide="external-link" class="w-4 h-4"></i></a>`; footer.classList.remove('hidden'); } else { footer.classList.add('hidden'); }
         document.getElementById('detail-sidebar').classList.add('open');
     },
     openAnalyticsModal: () => { document.getElementById('analytics-modal').classList.remove('hidden'); charts.loadAll(); },
@@ -133,7 +134,6 @@ async function fetchRadar() {
         const res = await fetch('/api/live');
         const data = await res.json();
         
-        // 1. Handle Empty/Loading State
         const aircraft = data.aircraft || {};
         const planes = Object.entries(aircraft).map(([h, p]) => ({...p, hex: h})).filter(p => p.lat && p.lon);
         
@@ -141,7 +141,6 @@ async function fetchRadar() {
         
         const statusText = document.getElementById('status-text');
         const statusDot = document.getElementById('status-dot');
-        
         if (planes.length > 0) {
             statusText.innerText = "SYSTEM ONLINE";
             statusDot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse";
@@ -150,25 +149,18 @@ async function fetchRadar() {
             statusDot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse";
         }
 
-        // 2. Mock Network Stats
         const msgRate = (planes.length * 1.8).toFixed(1);
         document.getElementById('net-rate').innerText = `${msgRate} msg/s`;
         document.getElementById('net-bw').innerText = `${(msgRate * 0.12).toFixed(2)} KB/s`;
         
-        // 3. Carrier Logic (Safe)
         const counts = {};
         planes.forEach(p => { 
             let c = (p.flightno || p.callsign || '').substring(0,3);
             if (c && c.length === 3) counts[c] = (counts[c]||0)+1; 
         });
-        
-        const top = Object.keys(counts).length > 0 
-            ? Object.keys(counts).reduce((a,b)=>counts[a]>counts[b]?a:b) 
-            : "WAITING...";
-            
+        const top = Object.keys(counts).length > 0 ? Object.keys(counts).reduce((a,b)=>counts[a]>counts[b]?a:b) : "WAITING...";
         document.getElementById('insight-carrier').innerText = top;
         
-        // 4. Averages (Safe)
         const speeds = planes.map(p => parseInt(p.speed || 0)).filter(s => s > 0);
         const avgSpeed = speeds.length ? Math.round(speeds.reduce((a,b)=>a+b, 0)/speeds.length) : 0;
         document.getElementById('insight-speed').innerText = `${avgSpeed} kts`;
@@ -177,7 +169,6 @@ async function fetchRadar() {
         const avgAlt = alts.length ? Math.round(alts.reduce((a,b)=>a+b)/alts.length) : 0;
         document.getElementById('insight-alt').innerText = `${avgAlt} ft`;
 
-        // 5. Update Map Markers
         if (selectedHex) { const p = planes.find(x => x.hex === selectedHex); if (p) ui.openFlightSidebar(p); }
         
         const currentHexes = new Set();
@@ -211,45 +202,35 @@ const commonOpts = { responsive: true, maintainAspectRatio: false, plugins: { le
 
 const charts = {
     currentOffset: 0,
-    currentBucket: '30m', // Store state
+    currentBucket: '30m',
 
     loadAll: async () => {
         const getData = async (ep) => (await fetch(ep)).json();
         
-        // KPIs
+        // 0. KPIs - FIXED 0 HANDLING
         const kpi = await getData('/api/kpi');
-        document.getElementById('kpi-unique').innerText = kpi.unique_planes_24h || '--';
-        document.getElementById('kpi-speed').innerText = kpi.max_speed_24h || '--';
-        document.getElementById('kpi-alt').innerText = kpi.max_alt_24h || '--';
+        const kpiUnique = (kpi.unique !== undefined && kpi.unique !== null) ? kpi.unique : '--';
+        const kpiSpeed = kpi.speed || '--';
+        const kpiAlt = kpi.alt || '--';
+        
+        document.getElementById('kpi-unique').innerText = kpiUnique;
+        document.getElementById('kpi-speed').innerText = kpiSpeed;
+        document.getElementById('kpi-alt').innerText = kpiAlt;
 
         // 1. Daily Bar
         if(!chartInstances.daily) {
             const d = await getData('/api/daily');
             const ctx = document.getElementById('chart-daily');
-            chartInstances.daily = new Chart(ctx, { 
-                type: 'bar', 
-                data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#3b82f6', borderRadius: 4 }] }, 
-                options: { 
-                    ...commonOpts, 
-                    onClick: (e, els) => { 
-                        if(els.length) { 
-                            charts.currentOffset = d.labels.length - 1 - els[0].index; 
-                            charts.loadVolume(charts.currentOffset, charts.currentBucket); 
-                        } 
-                    } 
-                } 
-            });
+            chartInstances.daily = new Chart(ctx, { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#3b82f6', borderRadius: 4 }] }, options: { ...commonOpts, onClick: (e, els) => { if(els.length) { charts.currentOffset = d.labels.length - 1 - els[0].index; charts.loadVolume(charts.currentOffset, charts.currentBucket); } } } });
         }
         
         charts.loadVolume(0, '30m');
 
-        // 2. Altitude
         if(!chartInstances.altitude) {
             const d = await getData('/api/altitude');
             chartInstances.altitude = new Chart(document.getElementById('chart-altitude'), { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#8b5cf6', borderRadius: 4 }] }, options: commonOpts });
         }
 
-        // 3. Physics Scatter (Fixed Ranges)
         if(!chartInstances.scatter) {
             const d = await getData('/api/scatter');
             chartInstances.scatter = new Chart(document.getElementById('chart-scatter'), { 
@@ -265,7 +246,6 @@ const charts = {
             });
         }
 
-        // 4. Polar
         if(!chartInstances.polar) {
             const d = await getData('/api/direction');
             chartInstances.polar = new Chart(document.getElementById('chart-polar'), { type: 'polarArea', data: { labels: ['N','NE','E','SE','S','SW','W','NW'], datasets: [{ data: d.data, backgroundColor: ['#ef4444','#3b82f6','#eab308','#10b981','#8b5cf6','#f97316','#9ca3af','#6366f1'] }] }, options: { ...commonOpts, scales: { r: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { display: false } } } } });
