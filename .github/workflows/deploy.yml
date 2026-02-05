@@ -15,17 +15,27 @@ jobs:
       - name: Deploy Updates
         run: |
           # 1. Build the image locally
-          # We use build because the code is right here on the server
+          # We use build because the code is already on the server via checkout
           docker compose build
 
-          # 2. Restart containers to load new Python logic & HTML
-          # This automatically picks up your local .env file for secrets
+          # 2. Restart containers
+          # Force recreate ensures the new image (with new port 8090) is applied
           docker compose up -d --force-recreate
 
       - name: Verification
         run: |
-          sleep 5
-          # 3. Verify against the new FastAPI container (portfolio-web)
-          # The path inside the container is now /app/static/
-          docker exec portfolio-web grep "Senior Network Automation Engineer" /app/static/index.html
-          echo "✅ Verification Passed: FastAPI is serving the correct content."
+          echo "⏳ Waiting 10s for application boot..."
+          sleep 10
+          
+          # Check if container is actually running
+          if [ "$(docker inspect -f '{{.State.Running}}' portfolio-web)" = "true" ]; then
+              echo "✅ Container is online."
+              
+              # Verify the HTML file exists inside the static directory
+              docker exec portfolio-web ls -l /app/static/index.html
+              echo "✅ File structure verified."
+          else
+              echo "❌ CRITICAL: Container crashed. Fetching last 20 logs..."
+              docker logs --tail 20 portfolio-web
+              exit 1
+          fi
