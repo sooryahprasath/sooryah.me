@@ -7,31 +7,34 @@ const ui = {
         setTimeout(() => { mapLayer.active = L.tileLayer(isDark ? mapLayer.dark : mapLayer.light, { maxZoom: 19 }).addTo(map); }, 10);
     },
     
-    // LEFT SIDEBAR (Live View)
+    // --- LIVE TELEMETRY VIEW (LEFT) ---
     toggleTacticalMode: () => {
-        // NOTE: We do NOT close the right sidebar here anymore.
+        // We do NOT close the right sidebar. We allow both.
+        
         const body = document.body;
         const btn = document.getElementById('view-btn-text');
         
         if (body.classList.contains('tactical-active')) {
+            // DEACTIVATE
             body.classList.remove('tactical-active', 'ui-hidden'); 
             btn.innerText = "LIVE TELEMETRY VIEW";
             map.dragging.disable();
             map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
         } else {
+            // ACTIVATE
             body.classList.add('tactical-active', 'ui-hidden'); 
             btn.innerText = "EXIT TELEMETRY VIEW";
-            map.dragging.enable(); map.invalidateSize();
+            map.dragging.enable(); 
+            map.invalidateSize(); 
         }
     },
 
-    // RIGHT SIDEBAR (Plane Details)
+    // --- FLIGHT DETAILS (RIGHT) ---
     openFlightSidebar: (data) => {
-        // NOTE: We do NOT close the left sidebar here anymore.
-        // We only change the button text if needed
-        if (document.body.classList.contains('tactical-active')) {
-            document.getElementById('view-btn-text').innerText = "LIVE TELEMETRY VIEW"; 
-            // We removed the removal of 'tactical-active' class
+        // Ensure Left Sidebar stays if it was open
+        const isTactical = document.body.classList.contains('tactical-active');
+        if (isTactical) {
+            document.getElementById('view-btn-text').innerText = "EXIT TELEMETRY VIEW";
         }
 
         document.body.classList.add('overflow-hidden'); // SCROLL LOCK
@@ -41,74 +44,101 @@ const ui = {
         
         const val = (v, unit='') => v !== undefined && v !== null ? `${v}${unit}` : 'N/A';
         
-        // COMPACT HTML LAYOUT
+        // INCREASED FONT SIZES BY ~10-15%
         document.getElementById('sidebar-content').innerHTML = `
-            <div class="p-4 rounded-xl bg-gradient-to-br from-black/10 to-transparent border border-theme">
-                <div class="flex justify-between items-start mb-2">
+            <div class="p-5 rounded-xl bg-gradient-to-br from-black/10 to-transparent border border-theme">
+                <div class="flex justify-between items-start mb-3">
                     <div>
-                        <div class="text-[10px] text-muted font-mono">CALLSIGN</div>
-                        <div class="text-2xl font-bold text-accent font-mono tracking-tight leading-none">${data.flightno || data.callsign || 'N/A'}</div>
+                        <div class="text-xs text-muted mb-1 font-mono">CALLSIGN</div>
+                        <div class="text-3xl font-bold text-accent font-mono tracking-tight leading-none">${data.flightno || data.callsign || 'N/A'}</div>
                     </div>
                     <div class="text-right">
-                        <div class="text-[10px] text-muted font-mono">REG</div>
-                        <div class="text-lg font-bold font-mono text-main leading-none">${data.reg || 'N/A'}</div>
+                        <div class="text-xs text-muted mb-1 font-mono">REGISTRATION</div>
+                        <div class="text-xl font-bold font-mono text-main leading-none">${data.reg || 'N/A'}</div>
                     </div>
                 </div>
-                <div class="flex justify-between items-center border-t border-white/10 pt-2">
+                <div class="flex justify-between items-center border-t border-white/10 pt-3">
                     <div>
-                        <div class="text-[10px] text-muted font-mono">ROUTE</div>
-                        <div class="text-sm font-bold">${data.route || 'Unknown'}</div>
+                        <div class="text-xs text-muted font-mono">ROUTE</div>
+                        <div class="text-base font-bold">${data.route || 'Unknown'}</div>
                     </div>
                     <div class="text-right">
-                        <div class="text-[10px] text-muted font-mono">TYPE</div>
-                        <div class="text-sm font-bold font-mono">${data.type || 'N/A'}</div>
+                        <div class="text-xs text-muted font-mono">TYPE</div>
+                        <div class="text-base font-bold font-mono">${data.type || 'N/A'}</div>
                     </div>
                 </div>
             </div>
 
-            <div class="space-y-1">
-                <h3 class="text-[10px] font-bold text-muted uppercase tracking-widest">Dynamics</h3>
-                <div class="tech-grid gap-2">
-                    <div class="tech-item p-2"><div class="tech-label">Alt</div><div class="tech-val text-accent">${val(data.altitude, ' ft')}</div></div>
-                    <div class="tech-item p-2"><div class="tech-label">V.Rate</div><div class="tech-val">${val(data.vert_rate, ' fpm')}</div></div>
-                    <div class="tech-item p-2"><div class="tech-label">Spd</div><div class="tech-val">${val(data.speed, ' kts')}</div></div>
-                    <div class="tech-item p-2"><div class="tech-label">Track</div><div class="tech-val">${val(data.track_angle, '°')}</div></div>
-                    <div class="tech-item p-2"><div class="tech-label">Hdg</div><div class="tech-val">${val(data.heading, '°')}</div></div>
-                    <div class="tech-item p-2"><div class="tech-label">Dist</div><div class="tech-val">${val(data.polar_distance, ' nm')}</div></div>
-                    <div class="tech-item p-2"><div class="tech-label">Lat</div><div class="tech-val text-xs">${val(data.lat)}</div></div>
-                    <div class="tech-item p-2"><div class="tech-label">Lon</div><div class="tech-val text-xs">${val(data.lon)}</div></div>
+            <div class="space-y-2 mt-2">
+                <h3 class="text-xs font-bold text-muted uppercase tracking-widest">Flight Dynamics</h3>
+                <div class="tech-grid gap-3">
+                    <div class="tech-item p-3"><div class="tech-label">Altitude</div><div class="tech-val text-accent text-lg">${val(data.altitude, ' ft')}</div></div>
+                    <div class="tech-item p-3"><div class="tech-label">Vert Rate</div><div class="tech-val text-lg">${val(data.vert_rate, ' fpm')}</div></div>
+                    <div class="tech-item p-3"><div class="tech-label">Ground Speed</div><div class="tech-val text-lg">${val(data.speed, ' kts')}</div></div>
+                    <div class="tech-item p-3"><div class="tech-label">Track Angle</div><div class="tech-val text-lg">${val(data.track_angle, '°')}</div></div>
+                    <div class="tech-item p-3"><div class="tech-label">Heading</div><div class="tech-val text-lg">${val(data.heading, '°')}</div></div>
+                    <div class="tech-item p-3"><div class="tech-label">Distance</div><div class="tech-val text-lg">${val(data.polar_distance, ' nm')}</div></div>
+                    <div class="tech-item p-3"><div class="tech-label">Latitude</div><div class="tech-val text-sm">${val(data.lat)}</div></div>
+                    <div class="tech-item p-3"><div class="tech-label">Longitude</div><div class="tech-val text-sm">${val(data.lon)}</div></div>
                 </div>
             </div>
 
-            <div class="space-y-1">
-                <h3 class="text-[10px] font-bold text-muted uppercase tracking-widest">Sensors</h3>
-                <div class="tech-grid gap-2">
-                    <div class="tech-item p-2"><div class="tech-label">Squawk</div><div class="tech-val text-accent">${val(data.squawk)}</div></div>
-                    <div class="tech-item p-2"><div class="tech-label">Cat</div><div class="tech-val">${val(data.category)}</div></div>
-                    <div class="tech-item p-2"><div class="tech-label">Temp</div><div class="tech-val">${val(data.oat, '°C')}</div></div>
-                    <div class="tech-item p-2"><div class="tech-label">Wind</div><div class="tech-val">${val(data.wind_speed, ' kts')}</div></div>
+            <div class="space-y-2 mt-2">
+                <h3 class="text-xs font-bold text-muted uppercase tracking-widest">Avionics & Environment</h3>
+                <div class="tech-grid gap-3">
+                    <div class="tech-item p-3"><div class="tech-label">Squawk</div><div class="tech-val text-accent text-lg">${val(data.squawk)}</div></div>
+                    <div class="tech-item p-3"><div class="tech-label">Category</div><div class="tech-val text-lg">${val(data.category)}</div></div>
+                    <div class="tech-item p-3"><div class="tech-label">Air Temp</div><div class="tech-val text-lg">${val(data.oat, '°C')}</div></div>
+                    <div class="tech-item p-3"><div class="tech-label">Wind Speed</div><div class="tech-val text-lg">${val(data.wind_speed, ' kts')}</div></div>
                 </div>
             </div>
             
-            <div class="p-2 bg-black/5 dark:bg-white/5 rounded border border-theme text-[9px] font-mono text-muted text-center">
-                HEX: ${data.hex} | AGE: ${data.age || 0}s
+            <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme text-[10px] font-mono text-muted text-center mt-4">
+                HEX: ${data.hex} | MSG AGE: ${data.age || 0}s
             </div>
         `;
     },
     
+    // CLOSE SIDEBAR (Restores Button Logic)
     closeSidebar: () => {
         document.body.classList.remove('overflow-hidden'); 
         document.getElementById('detail-sidebar').classList.remove('open');
         selectedHex = null;
+        
+        // CHECK: If Left Sidebar is still open, keep button as "EXIT"
+        if (document.body.classList.contains('tactical-active')) {
+            document.getElementById('view-btn-text').innerText = "EXIT TELEMETRY VIEW";
+        } else {
+            document.getElementById('view-btn-text').innerText = "LIVE TELEMETRY VIEW";
+        }
     },
     
+    // MODALS (Big Data)
     openProjectSidebar: (key) => { 
         const data = PROJECT_DATA[key];
         document.getElementById('sidebar-title').innerText = "PROJECT ARCHITECTURE";
-        const specs = data.specs.map(s => `<div class="flex justify-between items-center py-2 border-b border-white/5"><span class="text-xs text-muted font-mono uppercase">${s.label}</span><span class="text-sm font-bold text-right">${s.value}</span></div>`).join('');
-        document.getElementById('sidebar-content').innerHTML = `<div><h2 class="text-2xl font-bold text-accent mb-1">${data.title}</h2><p class="text-xs font-mono text-muted border-b border-theme pb-4">${data.subtitle}</p></div><div class="text-sm leading-relaxed text-main/80 bg-black/5 dark:bg-white/5 p-4 rounded-lg border border-theme">${data.description}</div><div class="flex flex-col gap-1 mt-2">${specs}</div>`;
+        
+        // RESTORED FULL DATA DISPLAY
+        let specsHtml = data.specs.map(s => `<div class="flex justify-between items-center py-2 border-b border-white/5"><span class="text-xs text-muted font-mono uppercase">${s.label}</span><span class="text-sm font-bold text-right">${s.value}</span></div>`).join('');
+        
+        document.getElementById('sidebar-content').innerHTML = `
+            <div>
+                <h2 class="text-2xl font-bold text-accent mb-1">${data.title}</h2>
+                <p class="text-xs font-mono text-muted border-b border-theme pb-4">${data.subtitle}</p>
+            </div>
+            <div class="text-sm leading-relaxed text-main/80 bg-black/5 dark:bg-white/5 p-4 rounded-lg border border-theme">
+                ${data.description}
+            </div>
+            <div class="flex flex-col gap-1 mt-2">
+                ${specsHtml}
+            </div>
+        `;
+        
         const footer = document.getElementById('sidebar-footer');
-        if(data.link) { footer.innerHTML = `<a href="${data.link}" target="_blank" class="w-full btn-glass py-3 rounded-lg flex justify-center items-center gap-2 font-bold hover:bg-accent hover:text-white transition">OPEN LIVE VIEW <i data-lucide="external-link" class="w-4 h-4"></i></a>`; footer.classList.remove('hidden'); } else { footer.classList.add('hidden'); }
+        if(data.link) { 
+            footer.innerHTML = `<a href="${data.link}" target="_blank" class="w-full btn-glass py-3 rounded-lg flex justify-center items-center gap-2 font-bold hover:bg-accent hover:text-white transition">OPEN LIVE VIEW <i data-lucide="external-link" class="w-4 h-4"></i></a>`; 
+            footer.classList.remove('hidden'); 
+        } else { footer.classList.add('hidden'); }
         document.getElementById('detail-sidebar').classList.add('open');
     },
     openAnalyticsModal: () => { document.getElementById('analytics-modal').classList.remove('hidden'); charts.loadAll(); },
@@ -153,6 +183,7 @@ async function fetchRadar() {
         document.getElementById('net-rate').innerText = `${msgRate} msg/s`;
         document.getElementById('net-bw').innerText = `${(msgRate * 0.12).toFixed(2)} KB/s`;
         
+        // Carrier Logic
         const counts = {};
         planes.forEach(p => { 
             let c = (p.flightno || p.callsign || '').substring(0,3);
@@ -207,7 +238,6 @@ const charts = {
     loadAll: async () => {
         const getData = async (ep) => (await fetch(ep)).json();
         
-        // 0. KPIs - FIXED 0 HANDLING
         const kpi = await getData('/api/kpi');
         const kpiUnique = (kpi.unique !== undefined && kpi.unique !== null) ? kpi.unique : '--';
         const kpiSpeed = kpi.speed || '--';
@@ -217,7 +247,6 @@ const charts = {
         document.getElementById('kpi-speed').innerText = kpiSpeed;
         document.getElementById('kpi-alt').innerText = kpiAlt;
 
-        // 1. Daily Bar
         if(!chartInstances.daily) {
             const d = await getData('/api/daily');
             const ctx = document.getElementById('chart-daily');
@@ -276,8 +305,50 @@ const charts = {
     }
 };
 
+// RESTORED PROJECT DATA
 const PROJECT_DATA = {
-    adsb: { title: "RF & IoT Sensor Networks", subtitle: "Station ID: CustardLev | Bengaluru", description: "Distributed ADSB receiver network...", specs: [{ label: "Host", value: "Raspberry Pi 2B" }, { label: "Radio", value: "RTL-SDR V3" }], link: "https://planes.custardlev.uk" },
-    telemetry: { title: "Enterprise Telemetry Pipeline", subtitle: "Data Engineering", description: "Centralized pipeline utilizing Apache Airflow...", specs: [{ label: "Orchestrator", value: "Airflow" }], link: null },
-    cloud: { title: "Private Cloud Cluster", subtitle: "Homelab", description: "Proxmox cluster running Kubernetes...", specs: [{ label: "Orchestrator", value: "K3s" }], link: null }
+    adsb: { 
+        title: "RF & IoT Sensor Networks", 
+        subtitle: "Station ID: CustardLev | Bengaluru", 
+        description: `
+            <p class="mb-4"><strong>Operational since 2016.</strong> My journey into RF started with a generic DVB-T dongle and a 6.9cm quarter-wave antenna (my first attempt at tuning). Over the years, I iterated through Spider and Cantenna designs to optimize gain.</p>
+            <p class="mb-4">Today, the station runs on a custom-built <strong>2ft Collinear Coaxial (CoCo)</strong> antenna mounted 50ft AGL on my roof, providing 360° horizon visibility.</p>
+            <p>It feeds real-time flight data to FlightRadar24, FlightAware, and this portfolio.</p>
+        `, 
+        specs: [
+            { label: "Host", value: "Raspberry Pi 2 Model B" }, 
+            { label: "Radio", value: "RTL-SDR Blog V3 TCXO" },
+            { label: "LNA / Filter", value: "Nooelec ADS-B (SAW+LNA)" },
+            { label: "Antenna", value: "Custom 2ft Coaxial Collinear" },
+            { label: "Software", value: "Dump1090-fa, Piaware" },
+            { label: "Range", value: "~180 Nautical Miles" }
+        ], 
+        link: "https://planes.custardlev.uk" 
+    },
+    telemetry: { 
+        title: "Enterprise Telemetry Pipeline", 
+        subtitle: "Data Engineering", 
+        description: "Centralized pipeline utilizing Apache Airflow and Azure SQL to ingest real-time data from 150+ global sites, feeding dynamic Power BI dashboards.", 
+        specs: [
+            { label: "Orchestration", value: "Apache Airflow" },
+            { label: "Database", value: "Azure SQL (Managed Instance)" },
+            { label: "Language", value: "Python (Pandas, PyODBC)" },
+            { label: "Visualization", value: "Power BI Pro" },
+            { label: "Latency", value: "< 2 Minutes End-to-End" }
+        ], 
+        link: null 
+    },
+    cloud: { 
+        title: "Private Cloud Cluster", 
+        subtitle: "Homelab", 
+        description: "Production-grade home infrastructure. A 3-node Proxmox cluster running Kubernetes (K3s), n8n pipelines, and Grafana stacks.", 
+        specs: [
+            { label: "Hypervisor", value: "Proxmox VE 8.1" }, 
+            { label: "Orchestrator", value: "Kubernetes (K3s)" },
+            { label: "Storage", value: "ZFS RaidZ1 Pool" },
+            { label: "Networking", value: "Tailscale Mesh VPN" },
+            { label: "Ingress", value: "Traefik + Cloudflare Tunnel" }
+        ], 
+        link: null 
+    }
 };

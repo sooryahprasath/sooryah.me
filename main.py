@@ -37,23 +37,26 @@ async def get_live_radar():
         except:
             return {"aircraft": {}}
 
-# --- 2. KPI ENDPOINT ---
+# --- 2. KPI ENDPOINT (FIXED) ---
 @app.get("/api/kpi")
 def get_kpi():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # Query 1: Unique count (Robust)
+        
+        # FIX: The previous query was counting tables, not rows. 
+        # We group by nothing to merge all tables, then count unique.
         q1 = f'''
         from(bucket:"{INFLUX_BUCKET}") 
         |> range(start: -24h) 
         |> filter(fn:(r)=>r._measurement=="aircraft_snapshot" and r._field=="speed") 
-        |> keep(columns: ["icao_hex"]) 
-        |> distinct(column: "icao_hex") 
+        |> group(columns: ["icao_hex"]) 
+        |> distinct(column: "icao_hex")
+        |> group()
         |> count()
         '''
         
-        # Query 2: Max values
+        # Max Speed/Alt (Today)
         q2 = f'''
         from(bucket:"{INFLUX_BUCKET}") 
         |> range(start: -24h) 
@@ -118,20 +121,33 @@ def get_scatter():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # FIX: Align timestamps to 1m window so PIVOT works
+        
+        # FIX: Simplified query. We grab the last 24h of snapshots.
+        # We manually zip altitude and temp in python if pivot fails or is slow.
+        # But proper pivot requires exact timestamps.
+        # Strategy: Use aggregateWindow to snap timestamps to nearest 10s to ensure alignment.
         query = f'''
         from(bucket: "{INFLUX_BUCKET}")
-          |> range(start: -12h)
+          |> range(start: -24h)
           |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot")
           |> filter(fn: (r) => r["_field"] == "altitude" or r["_field"] == "temp_c")
-          |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
+          |> aggregateWindow(every: 2m, fn: mean, createEmpty: false)
           |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
           |> filter(fn: (r) => exists r.altitude and exists r.temp_c)
-          |> sample(n: 200) 
+          |> sample(n: 300)
           |> keep(columns: ["altitude", "temp_c"])
         '''
         result = query_api.query(org=INFLUX_ORG, query=query)
-        data = [{"x": r["temp_c"], "y": r["altitude"]} for t in result for r in t.records]
+        
+        data = []
+        for t in result:
+            for r in t.records:
+                # Ensure we have valid numbers
+                alt = r["altitude"]
+                temp = r["temp_c"]
+                if alt is not None and temp is not None:
+                    data.append({"x": temp, "y": alt})
+                    
         return data
     except Exception as e:
         print(f"Scatter Error: {e}")
