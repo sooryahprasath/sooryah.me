@@ -51,10 +51,16 @@ def start_engine():
     rtsp_url = f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=4&subtype=0"
     
     cap = cv2.VideoCapture(rtsp_url)
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Anti-lag
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     
     last_ai_time = 0
-    last_seen_counts = {}
+    
+    # State for smoothing (Debounce)
+    # Stores the raw count from the PREVIOUS frame to bridge flickers
+    previous_raw_counts = {} 
+    # Stores the "smoothed" count considered valid in the last cycle
+    last_valid_counts = {}   
+
     temp_boxes = []
 
     while True:
@@ -69,30 +75,50 @@ def start_engine():
         draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         now = time.time()
         
+        # AI INFERENCE
         if now - last_ai_time > AI_INTERVAL_SEC:
             last_ai_time = now
             try:
-                # Reduced image size for low CPU
                 results = model(draw_frame, classes=list(CLASS_NAMES.keys()), verbose=False, imgsz=320)
-                raw_counts = {}
+                current_raw_counts = {}
                 new_boxes = []
+                
+                # 1. Count objects in CURRENT frame
                 for r in results:
                     for box in r.boxes:
                         x1, y1, x2, y2 = map(int, box.xyxy[0])
                         label = CLASS_NAMES.get(int(box.cls[0]), "Unknown")
                         new_boxes.append((x1, y1, x2, y2, label))
-                        raw_counts[label] = raw_counts.get(label, 0) + 1
+                        current_raw_counts[label] = current_raw_counts.get(label, 0) + 1
                 
                 temp_boxes = new_boxes
-                new_v = sum([max(0, raw_counts.get(l, 0) - last_seen_counts.get(l, 0)) for l in raw_counts])
-                if new_v > 0: history.increment(new_v)
-                last_seen_counts = raw_counts
+                
+                # 2. APPLY SMOOTHING (Debounce)
+                # effective_count = max(current_frame, previous_frame)
+                # This ensures that if a car disappears for 1 frame (flicker), the max holds it at '1', preventing a recount.
+                smoothed_counts = {}
+                all_keys = set(current_raw_counts.keys()) | set(previous_raw_counts.keys())
+                
+                for label in all_keys:
+                    curr = current_raw_counts.get(label, 0)
+                    prev = previous_raw_counts.get(label, 0)
+                    smoothed_counts[label] = max(curr, prev)
+
+                # 3. Calculate Increase based on Smoothed Data
+                new_v = sum([max(0, smoothed_counts.get(l, 0) - last_valid_counts.get(l, 0)) for l in smoothed_counts])
+                
+                if new_v > 0: 
+                    history.increment(new_v)
+                
+                # 4. Update State
+                previous_raw_counts = current_raw_counts # Save raw for next debounce comparison
+                last_valid_counts = smoothed_counts      # Save smoothed for next increment calc
                 
                 with lock:
-                    current_stats = {"status": "Online", "total_all_time": history.total_count, **raw_counts}
-                    if raw_counts:
+                    current_stats = {"status": "Online", "total_all_time": history.total_count, **current_raw_counts}
+                    if current_raw_counts:
                         ts = datetime.datetime.now().strftime("%H:%M:%S")
-                        current_stats['log'] = f"[{ts}] DETECTED: {raw_counts}"
+                        current_stats['log'] = f"[{ts}] DETECTED: {current_raw_counts}"
             except: pass
 
         for (x1, y1, x2, y2, label) in temp_boxes:
@@ -103,7 +129,6 @@ def start_engine():
             _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 65])
             output_frame = bytearray(encoded)
         
-        # 0.05 sleep = 20FPS cap, leaves CPU breathing room
         time.sleep(0.05)
 
 @app.route("/video_feed")
