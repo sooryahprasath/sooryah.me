@@ -90,6 +90,7 @@ const ui = {
         document.getElementById('traffic-modal').classList.remove('hidden'); 
         // Direct HTTPS Cloudflare URL
         document.getElementById('traffic-stream').src = "https://traffic.sooryah.me/api/intersection";
+        charts.loadTrafficHistory();
     },
     closeTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.add('hidden'); 
