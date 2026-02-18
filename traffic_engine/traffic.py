@@ -9,7 +9,8 @@ from flask_cors import CORS  # Required to allow port 8090 to talk to 5000
 from ultralytics import YOLO
 
 app = Flask(__name__)
-CORS(app) # Enable Cross-Origin Resource Sharing
+# Enable Cross-Origin Resource Sharing to allow your main dashboard to fetch stats
+CORS(app) 
 
 # --- CONFIG ---
 FRAME_WIDTH = 854
@@ -54,6 +55,7 @@ class HistoryManager:
     def increment(self, amount):
         if amount > 0:
             self.total_count += amount
+            # Save history in a background thread to prevent engine stutter
             threading.Thread(target=self.save).start()
 
 history = HistoryManager()
@@ -90,6 +92,7 @@ def start_engine():
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             continue
 
+        # Resize for consistent processing speed
         draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         now = time.time()
         
@@ -107,7 +110,7 @@ def start_engine():
                     raw_counts[label] = raw_counts.get(label, 0) + 1
             
             last_boxes = temp_boxes
-            # Count only new entries to increment total
+            # Logic: Only increment the total when a new vehicle enters the frame
             new_v = sum([max(0, raw_counts.get(l, 0) - last_seen_counts.get(l, 0)) for l in raw_counts])
             if new_v > 0: history.increment(new_v)
             last_seen_counts = raw_counts
@@ -120,7 +123,7 @@ def start_engine():
                     payload['log'] = f"[{ts}] DETECTED: {', '.join([f'{k}: {v}' for k,v in raw_counts.items()])}"
                 current_stats = payload
 
-        # Draw detections on the frame
+        # Draw detections on the frame for the MJPEG stream
         for (x1, y1, x2, y2, label) in last_boxes:
             cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(draw_frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
@@ -143,11 +146,12 @@ def video_feed():
 
 @app.route("/api/stats")
 def stats():
+    # Independent endpoint for traffic statistics
     with lock:
         return jsonify(current_stats)
 
 if __name__ == "__main__":
     t = threading.Thread(target=start_engine, daemon=True)
     t.start()
-    # Runs on port 5000 as an independent AI service
+    # Explicitly listening on 0.0.0.0 for external network access
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
