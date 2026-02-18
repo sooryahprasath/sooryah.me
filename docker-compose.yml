@@ -56,5 +56,4 @@ services:
     network_mode: "host"
     command: tunnel run
     environment:
-      - TUNNEL_TOKEN=73378dfa-1a27-4897-8d03-fc93f7ee5009
-
+      - TUNNEL_TOKEN=eyJhIjoiZGE5NGE1MzRiMzY2ZDk1Zjc4ODliZjkzZjA1MzkxMWIiLCJ0IjoiNzMzNzhkZmEtMWEyNy00ODk3LThkMDMtZmM5M2Y3ZWU1MDA5IiwicyI6Ik0yTTFNR05tWWpFdE5qUXhZeTAwTkRRMkxXRTRaalF0WVRaa1ptUTJOMk01TkRFMiJ9
