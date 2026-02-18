@@ -219,3 +219,19 @@ if __name__ == "__main__":
     t.start()
     # Runs on port 5000, consistent with your Cloudflare Tunnel
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
+
+import requests # Ensure this is at the top of traffic.py
+
+# --- RADAR PROXY ROUTES ---
+@app.route("/api/live")
+def proxy_live():
+    # Points to your main portfolio's live API
+    r = requests.get("http://localhost:8090/api/live")
+    return jsonify(r.json())
+
+@app.route("/api/kpi")
+def proxy_kpi():
+    r = requests.get("http://localhost:8090/api/kpi")
+    return jsonify(r.json())
+
+# Add any other missing routes (daily, history, etc.) similarly
