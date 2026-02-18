@@ -215,32 +215,55 @@
                 </div>
                 <button onclick="ui.closeTrafficModal()" class="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg"><i data-lucide="x" class="w-6 h-6"></i></button>
             </div>
-            <div class="flex-grow p-6 overflow-y-auto bg-[var(--bg-solid)]">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
-                    <div class="md:col-span-2 glass-panel rounded-xl overflow-hidden relative bg-black min-h-[400px]">
-                        <img id="traffic-stream" class="w-full h-full object-contain bg-black" src="" alt="Live Traffic Feed" />
-                        <div class="absolute top-4 left-4 px-3 py-1 bg-red-600/80 backdrop-blur-md text-white text-[10px] font-bold rounded flex items-center gap-2 z-20">
-                            <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span> LIVE ANALYTIC FEED
-                        </div>
-                    </div>
-                    <div class="flex flex-col gap-6">
-                        <div class="text-center w-full">
-                            <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Total Activity</p>
-                            <h3 id="modal-live-cars" class="text-6xl font-black text-white mb-4 drop-shadow-lg">0</h3>
-                            
-                            <div id="traffic-breakdown" class="grid grid-cols-3 gap-2 w-full max-w-[300px] mx-auto mb-4 min-h-[50px]">
-                                </div>
+            <div class="flex-grow p-4 overflow-y-auto bg-[var(--bg-solid)]">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+        
+        <div class="lg:col-span-2 glass-panel rounded-xl overflow-hidden relative bg-black min-h-[400px] border border-white/10 shadow-2xl">
+            <img id="traffic-stream" class="w-full h-full object-contain bg-black" src="" alt="Live Traffic Feed" />
+            
+            <div class="absolute top-4 left-4 px-3 py-1 bg-red-600/90 backdrop-blur-md text-white text-[10px] font-bold rounded-full flex items-center gap-2 z-20 shadow-lg">
+                <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span> LIVE ANALYTIC FEED
+            </div>
+            
+            <div class="absolute bottom-4 right-4 text-right">
+                <p class="text-[10px] text-emerald-500/80 font-mono">YOLOv8 NANO // INTEL CPU</p>
+                <p class="text-[10px] text-gray-500 font-mono">15 FPS / 480p MJPEG</p>
+            </div>
+        </div>
 
-                            <div class="w-full max-w-[300px] mx-auto bg-black/80 rounded border border-emerald-500/20 p-2 h-32 overflow-hidden relative">
-                                <div class="absolute top-0 left-0 w-full h-4 bg-gradient-to-b from-black to-transparent z-10"></div>
-                                <div id="traffic-log" class="flex flex-col font-mono text-[10px] h-full overflow-y-auto pt-2">
-                                    <div class="text-gray-600 italic">Awaiting data stream..</div>
-                                </div>
-                            </div>
-                        </div>
+        <div class="flex flex-col gap-4 h-full">
+            
+            <div class="bg-gradient-to-br from-emerald-900/40 to-black border border-emerald-500/30 rounded-xl p-5 text-center relative overflow-hidden group shadow-lg">
+                <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
+                <h4 class="text-[10px] text-emerald-400 uppercase tracking-[0.2em] mb-1 font-bold relative z-10">Total Detections (All Time)</h4>
+                <div id="total-all-time" class="text-6xl font-black text-white font-mono drop-shadow-[0_0_15px_rgba(16,185,129,0.5)] relative z-10">
+                    --
+                </div>
+                <div class="text-[9px] text-gray-500 mt-2 font-mono relative z-10">SYNCED WITH INFLUXDB</div>
+            </div>
+
+            <div class="flex-grow">
+                <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-2 px-1">Active Targets</p>
+                <div id="traffic-breakdown" class="grid grid-cols-2 gap-3">
+                    <div class="col-span-2 bg-white/5 rounded-lg p-6 text-center border border-white/5 border-dashed">
+                        <span class="text-xs text-gray-500 animate-pulse">Scanning Sector...</span>
                     </div>
                 </div>
             </div>
+
+                <div class="h-[200px] bg-black rounded-xl border border-gray-800 flex flex-col overflow-hidden shadow-inner">
+                    <div class="bg-gray-900/50 p-2 border-b border-gray-800 flex justify-between items-center">
+                        <span class="text-[9px] font-bold text-gray-400 font-mono">SYSTEM EVENTS</span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    </div>
+                    <div id="traffic-log" class="flex-1 overflow-y-auto p-3 font-mono text-[10px] space-y-1 scrollbar-thin scrollbar-thumb-gray-700">
+                        <div class="text-gray-600 italic">> Initializing stream connection...</div>
+                    </div>
+                </div>
+
+                </div>
+            </div>
+        </div>
         </div>
     </div>
 

@@ -38,16 +38,19 @@ services:
       - CAMERA_IP=${CAMERA_IP}
 
   traffic-ingest:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile  # Or wherever you put the python script
     container_name: traffic-ingest
-    command: python traffic_ingest.py
     network_mode: "host"
     environment:
       - INFLUX_URL=${INFLUX_URL}
       - INFLUX_TOKEN=${INFLUX_TOKEN}
       - INFLUX_ORG=${INFLUX_ORG}
       - INFLUX_BUCKET=${INFLUX_BUCKET}
+    command: python traffic_ingest.py
     restart: always
+    
   # --- ADD THIS SECTION ---
   cloudflared:
     image: cloudflare/cloudflared:latest

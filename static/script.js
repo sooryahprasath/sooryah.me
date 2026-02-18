@@ -231,82 +231,91 @@ const charts = {
         }
     }
 };
-
-// APPENDED: Traffic Polling
-// Global variable to store last log so we don't repeat
-let lastLogMsg = "";
-
-let lastLogMsg = ""; // Keep track of the last log to avoid duplicates
+// Variable to track the last log message so we don't duplicate it
+let lastLogTimestamp = "";
 
 async function syncTrafficStats() {
     try {
-        // 1. Fetch the data
         const res = await fetch('https://traffic.sooryah.me/api/stats');
         const data = await res.json();
         
-        let totalCount = 0;
+        let liveTotal = 0;
         let gridHTML = '';
         
-        // 2. Loop through the JSON data
+        // 1. PROCESS COUNTS (Generate Tiles)
         for (const [key, value] of Object.entries(data)) {
-            
-            // SKIP the "log" key (it's text, not a count)
+            // Skip the log text field
             if (key === 'log') continue;
 
-            // Process Numbers (CAR: 1, PERSON: 2)
-            if (typeof value === 'number' && value > 0) {
-                totalCount += value;
+            if (value > 0) {
+                liveTotal += value;
                 
-                // Create a glass-morphism box for each detection
+                // GENERATE SEPARATED TILE (Big Number + Label)
                 gridHTML += `
-                    <div class="bg-emerald-900/30 border border-emerald-500/30 rounded px-2 py-2 flex flex-col items-center justify-center animate-pulse">
-                        <span class="text-xl font-bold text-white leading-none">${value}</span>
-                        <span class="text-[8px] font-bold text-emerald-400 uppercase mt-1 tracking-wider">${key}</span>
+                    <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center hover:bg-white/10 transition-all group min-h-[100px]">
+                        <span class="text-4xl font-black text-white mb-2 group-hover:scale-110 transition-transform drop-shadow-md">${value}</span>
+                        <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest border-t border-white/10 pt-2 w-full text-center">${key}</span>
                     </div>
                 `;
             }
         }
 
-        // 3. Update the Big Total Number
-        const totalEl = document.getElementById('modal-live-cars');
-        if (totalEl) totalEl.innerText = totalCount;
+        // 2. UPDATE TOTAL COUNTER (Targets the ID from your HTML)
+        // This will update the big number at the top
+        const totalEl = document.getElementById('total-all-time') || document.getElementById('modal-live-cars');
+        if (totalEl) {
+            // If total is 0, show "--" or "0"
+            totalEl.innerText = liveTotal > 0 ? liveTotal : "0";
+        }
 
-        // 4. Update the Breakdown Grid
+        // 3. INJECT TILES INTO GRID
         const gridEl = document.getElementById('traffic-breakdown');
         if (gridEl) {
-            if (totalCount === 0) {
-                gridEl.innerHTML = `<div class="col-span-3 text-center text-[10px] text-gray-500 font-mono py-2">-- SCANNING SECTOR --</div>`;
+            if (liveTotal === 0) {
+                // Show "Scanning" placeholder if no cars detected
+                gridEl.innerHTML = `
+                    <div class="col-span-2 flex flex-col items-center justify-center bg-white/5 rounded-xl border border-white/5 border-dashed p-6 h-full min-h-[100px]">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping mb-2"></span>
+                        <span class="text-xs text-gray-500 font-mono uppercase tracking-widest">Scanning Sector...</span>
+                    </div>`;
             } else {
                 gridEl.innerHTML = gridHTML;
             }
         }
 
-        // 5. Update the "Chat" Log (Only if it changed)
-        if (data.log && data.log !== lastLogMsg) {
-            lastLogMsg = data.log;
+        // 4. UPDATE MATRIX CHAT LOG
+        if (data.log && data.log !== lastLogTimestamp) {
+            lastLogTimestamp = data.log; // Prevent duplicates
+            
             const logContainer = document.getElementById('traffic-log');
             if (logContainer) {
                 const newEntry = document.createElement('div');
-                // Matrix style green text
-                newEntry.className = "text-emerald-400/90 border-b border-emerald-500/10 py-1 truncate hover:whitespace-normal transition-all";
-                newEntry.innerText = `> ${data.log}`;
                 
-                // Add to top
+                // Format: "[13:00] DETECTED: CAR: 1"
+                // Split it to style the timestamp differently
+                const parts = data.log.split('] '); 
+                const time = parts[0] ? parts[0] + ']' : '';
+                const msg = parts[1] || data.log;
+
+                newEntry.innerHTML = `<span class="text-gray-500 opacity-70 mr-2">${time}</span><span class="text-emerald-400 font-bold">${msg}</span>`;
+                newEntry.className = "border-b border-white/5 pb-1 mb-1 text-left opacity-0 animate-in fade-in slide-in-from-left-2 duration-300";
+                
+                // Add new message to the TOP
                 logContainer.prepend(newEntry);
                 
-                // Keep history clean (max 10 items)
-                if (logContainer.children.length > 10) {
-                    logContainer.removeChild(logContainer.lastChild);
+                // Keep history clean (Max 50 items)
+                if (logContainer.children.length > 50) {
+                    logContainer.lastChild.remove();
                 }
             }
         }
 
     } catch (e) {
-        // console.error("Sync Error:", e); // Uncomment for debugging
+        // console.error("Sync Error", e); 
     }
 }
 
-// Poll every 1 second (1000ms)
+// Poll every 1 second
 setInterval(syncTrafficStats, 1000);
 
 
