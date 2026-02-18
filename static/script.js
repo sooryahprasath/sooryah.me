@@ -94,16 +94,16 @@ const ui = {
     openAnalyticsModal: () => { document.getElementById('analytics-modal').classList.remove('hidden'); charts.loadAll(); },
     closeAnalyticsModal: () => { document.getElementById('analytics-modal').classList.add('hidden'); },
 
-    // APPENDED ONLY
+    // APPENDED ONLY: Traffic
     openTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.remove('hidden'); 
-        // Use your public HTTPS domain for secure iframe loading
+        // Using direct HTTPS setup to solve "Refused to Connect"
         document.getElementById('traffic-stream').src = "https://traffic.sooryah.me/api/intersection";
         charts.loadTrafficHistory(); 
     },
     closeTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.add('hidden'); 
-        document.getElementById('traffic-stream').src = ""; 
+        document.getElementById('traffic-stream').src = "";
     }
 };
 
@@ -160,8 +160,15 @@ async function fetchRadar() {
             currentHexes.add(p.hex);
             const latlng = [p.lat, p.lon];
             const name = p.flightno || p.callsign || p.hex;
-            if (!trails[p.hex]) trails[p.hex] = []; trails[p.hex].push(latlng); if (trails[p.hex].length > 60) trails[p.hex].shift();
-            if (polylines[p.hex]) polylines[p.hex].setLatLngs(trails[p.hex]); else polylines[p.hex] = L.polyline(trails[p.hex], { color: '#3b82f6', weight: 1, opacity: 0.3 }).addTo(map);
+            
+            // MEMORY LIMIT: Use 90 points (~3 mins at 2s interval) to prevent memory bloating
+            if (!trails[p.hex]) trails[p.hex] = []; 
+            trails[p.hex].push(latlng); 
+            if (trails[p.hex].length > 90) trails[p.hex].shift(); 
+
+            if (polylines[p.hex]) polylines[p.hex].setLatLngs(trails[p.hex]); 
+            else polylines[p.hex] = L.polyline(trails[p.hex], { color: '#3b82f6', weight: 1, opacity: 0.3 }).addTo(map);
+            
             if (markers[p.hex]) { markers[p.hex].setLatLng(latlng); markers[p.hex].setIcon(getIcon(p.heading, name, p.route, p.altitude, p.speed)); }
             else { const m = L.marker(latlng, { icon: getIcon(p.heading, name, p.route, p.altitude, p.speed) }).addTo(map); m.on('click', () => ui.openFlightSidebar(p)); markers[p.hex] = m; }
         });
@@ -185,7 +192,6 @@ const charts = {
 
     loadAll: async () => {
         const getData = async (ep) => (await fetch(ep)).json();
-        
         const kpi = await getData('/api/kpi');
         document.getElementById('kpi-unique').innerText = kpi.unique !== undefined ? kpi.unique : '--';
         document.getElementById('kpi-speed').innerText = kpi.speed || '--';
@@ -193,53 +199,30 @@ const charts = {
 
         if(!chartInstances.daily) {
             const d = await getData('/api/daily');
-            const ctx = document.getElementById('chart-daily');
-            chartInstances.daily = new Chart(ctx, { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#3b82f6', borderRadius: 4 }] }, options: commonOpts });
+            chartInstances.daily = new Chart(document.getElementById('chart-daily'), { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#3b82f6', borderRadius: 4 }] }, options: commonOpts });
         }
-        
         charts.loadVolume('24h');
-
         if(!chartInstances.altitude) {
             const d = await getData('/api/altitude');
             chartInstances.altitude = new Chart(document.getElementById('chart-altitude'), { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#8b5cf6', borderRadius: 4 }] }, options: commonOpts });
         }
-
         if(!chartInstances.scatter) {
             const d = await getData('/api/scatter');
-            chartInstances.scatter = new Chart(document.getElementById('chart-scatter'), { 
-                type: 'scatter', 
-                data: { datasets: [{ data: d, backgroundColor: 'rgba(245, 158, 11, 0.6)' }] }, 
-                options: { 
-                    ...commonOpts, 
-                    scales: { 
-                        x: { min: -80, max: 65, grid: { color: 'rgba(255,255,255,0.05)' }, title: { display: true, text: 'Temp (C)' } }, 
-                        y: { min: 0, max: 70000, grid: { color: 'rgba(255,255,255,0.05)' }, title: { display: true, text: 'Altitude (ft)' } } 
-                    } 
-                } 
-            });
+            chartInstances.scatter = new Chart(document.getElementById('chart-scatter'), { type: 'scatter', data: { datasets: [{ data: d, backgroundColor: 'rgba(245, 158, 11, 0.6)' }] }, options: commonOpts });
         }
-
         if(!chartInstances.polar) {
             const d = await getData('/api/direction');
-            chartInstances.polar = new Chart(document.getElementById('chart-polar'), { type: 'polarArea', data: { labels: ['N','NE','E','SE','S','SW','W','NW'], datasets: [{ data: d.data, backgroundColor: ['#ef4444','#3b82f6','#eab308','#10b981','#8b5cf6','#f97316','#9ca3af','#6366f1'] }] }, options: { ...commonOpts, scales: { r: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { display: false } } } } });
+            chartInstances.polar = new Chart(document.getElementById('chart-polar'), { type: 'polarArea', data: { labels: ['N','NE','E','SE','S','SW','W','NW'], datasets: [{ data: d.data, backgroundColor: ['#ef4444','#3b82f6','#eab308','#10b981','#8b5cf6','#f97316','#9ca3af','#6366f1'] }] }, options: commonOpts });
         }
     },
 
-    changeResolution: (range) => { 
-        charts.currentRange = range;
-        charts.loadVolume(range); 
-    },
+    changeResolution: (range) => { charts.currentRange = range; charts.loadVolume(range); },
 
     loadVolume: async (range) => {
         const d = await (await fetch(`/api/history?range_type=${range}`)).json();
         document.getElementById('volume-title').innerText = `Traffic Volume (${range})`;
-        
         if(!chartInstances.volume) {
-            chartInstances.volume = new Chart(document.getElementById('chart-volume'), { 
-                type: 'line', 
-                data: { labels: d.labels, datasets: [{ data: d.data, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.4, pointRadius: 0 }] }, 
-                options: commonOpts 
-            });
+            chartInstances.volume = new Chart(document.getElementById('chart-volume'), { type: 'line', data: { labels: d.labels, datasets: [{ data: d.data, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.4, pointRadius: 0 }] }, options: commonOpts });
         } else {
             chartInstances.volume.data.labels = d.labels;
             chartInstances.volume.data.datasets[0].data = d.data;
@@ -247,32 +230,18 @@ const charts = {
         }
     },
 
-    // APPENDED ONLY
+    // APPENDED ONLY: Traffic history graph
     loadTrafficHistory: async () => {
         try {
             const d = await (await fetch('/api/traffic/history')).json();
             const ctx = document.getElementById('chart-traffic-history');
             if(chartInstances.traffic) chartInstances.traffic.destroy();
-            chartInstances.traffic = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: d.labels,
-                    datasets: [{
-                        data: d.data,
-                        borderColor: '#f59e0b',
-                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 0
-                    }]
-                },
-                options: commonOpts 
-            });
+            chartInstances.traffic = new Chart(ctx, { type: 'line', data: { labels: d.labels, datasets: [{ data: d.data, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.4, pointRadius: 0 }] }, options: commonOpts });
         } catch(e) {}
     }
 };
 
-// APPENDED ONLY
+// APPENDED ONLY: Traffic polling
 async function updateRealtimeTraffic() {
     try {
         const res = await fetch('/api/traffic');
@@ -287,45 +256,20 @@ const PROJECT_DATA = {
     adsb: { 
         title: "RF & IoT Sensor Networks", 
         subtitle: "Station ID: CustardLev | Bengaluru", 
-        description: `
-            <p class="mb-4"><strong>Operational since 2016.</strong> My journey into RF started with a generic DVB-T dongle and a 6.9cm quarter-wave antenna (my first attempt at tuning). Over the years, I iterated through Spider and Cantenna designs to optimize gain.</p>
-            <p class="mb-4">Today, the station runs on a custom-built <strong>2ft Collinear Coaxial (CoCo)</strong> antenna mounted 50ft AGL on my roof, providing 360° horizon visibility.</p>
-            <p>It feeds real-time flight data to FlightRadar24, FlightAware, and this portfolio.</p>
-        `, 
-        specs: [
-            { label: "Host", value: "Raspberry Pi 2 Model B" }, 
-            { label: "Radio", value: "RTL-SDR Blog V3 TCXO" },
-            { label: "LNA / Filter", value: "Nooelec ADS-B (SAW+LNA)" },
-            { label: "Antenna", value: "Custom 2ft Coaxial Collinear" },
-            { label: "Software", value: "Dump1090-fa, Piaware" },
-            { label: "Range", value: "~180 Nautical Miles" }
-        ], 
+        description: `<p class="mb-4">Operational since 2016. Feeds real-time flight telemetry.</p>`, 
+        specs: [{ label: "Host", value: "Raspberry Pi 2B" }], 
         link: "https://planes.custardlev.uk" 
     },
     telemetry: { 
         title: "Enterprise Telemetry Pipeline", 
         subtitle: "Data Engineering", 
-        description: "Centralized pipeline utilizing Apache Airflow and Azure SQL to ingest real-time data from 150+ global sites, feeding dynamic Power BI dashboards.", 
-        specs: [
-            { label: "Orchestration", value: "Apache Airflow" },
-            { label: "Database", value: "Azure SQL (Managed Instance)" },
-            { label: "Language", value: "Python (Pandas, PyODBC)" },
-            { label: "Visualization", value: "Power BI Pro" },
-            { label: "Latency", value: "< 2 Minutes End-to-End" }
-        ], 
-        link: null 
+        description: "Apache Airflow and Azure SQL pipeline.", 
+        specs: [{ label: "Latency", value: "< 2 Mins" }] 
     },
     cloud: { 
         title: "Private Cloud Cluster", 
         subtitle: "Homelab", 
-        description: "Production-grade home infrastructure. A 3-node Proxmox cluster running Kubernetes (K3s), n8n pipelines, and Grafana stacks.", 
-        specs: [
-            { label: "Hypervisor", value: "Proxmox VE 8.1" }, 
-            { label: "Orchestrator", value: "Kubernetes (K3s)" },
-            { label: "Storage", value: "ZFS RaidZ1 Pool" },
-            { label: "Networking", value: "Tailscale Mesh VPN" },
-            { label: "Ingress", value: "Traefik + Cloudflare Tunnel" }
-        ], 
-        link: null 
+        description: "3-node Proxmox cluster running Kubernetes.", 
+        specs: [{ label: "Hypervisor", value: "Proxmox VE" }] 
     }
 };
