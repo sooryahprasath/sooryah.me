@@ -236,31 +236,35 @@ let lastLogTimestamp = "";
 
 async function syncTrafficStats() {
     try {
-        // 1. FETCH LIVE STATS (For Tiles & Chat)
-        const liveRes = await fetch('/api/stats');
-        const liveData = await liveRes.json();
+        // We use a relative path + a timestamp to prevent the browser from caching old 'zero' data
+        const res = await fetch(`/api/stats?t=${new Date().getTime()}`);
         
+        if (!res.ok) throw new Error('Network response was not ok');
+        
+        const data = await res.json();
+        console.log("Traffic Data Received:", data); // Check your Browser Console (F12) to see this!
+
+        // 1. Update the Big "All Time" Counter
+        const totalEl = document.getElementById('total-all-time');
+        if (totalEl) {
+            // Your API sends 'total_all_time'. If it's missing, we show 0.
+            totalEl.innerText = data.total_all_time !== undefined ? data.total_all_time : "0";
+        }
+
+        // 2. Generate the "Active Target" Tiles
         let gridHTML = '';
         let hasActiveTargets = false;
 
-        // 2. FETCH HISTORICAL TOTAL (The Fix for the "--")
-        // We query the total from the Python Engine which tracks session totals
-        const totalEl = document.getElementById('total-all-time');
-        if (totalEl) {
-            // Using total_all_time from the engine's session memory
-            totalEl.innerText = liveData.total_all_time || "0";
-        }
-
-        // 3. GENERATE LIVE TILES
-        for (const [key, value] of Object.entries(liveData)) {
+        for (const [key, value] of Object.entries(data)) {
+            // Filter out system strings
             if (['log', 'status', 'total_all_time'].includes(key)) continue;
 
             if (typeof value === 'number' && value > 0) {
                 hasActiveTargets = true;
                 gridHTML += `
                     <div class="bg-emerald-900/30 border border-emerald-500/30 backdrop-blur-md rounded-xl p-4 flex flex-col items-center justify-center shadow-lg animate-in zoom-in duration-300">
-                        <span class="text-3xl font-black text-white mb-1">${value}</span>
-                        <div class="w-full border-t border-emerald-500/30 my-1"></div>
+                        <span class="text-3xl font-black text-white mb-1 drop-shadow-md">${value}</span>
+                        <div class="w-full border-t border-emerald-500/30 my-1 opacity-30"></div>
                         <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">${key}</span>
                     </div>
                 `;
@@ -269,30 +273,39 @@ async function syncTrafficStats() {
 
         const gridEl = document.getElementById('traffic-breakdown');
         if (gridEl) {
-            gridEl.innerHTML = hasActiveTargets ? gridHTML : `
-                <div class="col-span-2 flex flex-col items-center justify-center bg-white/5 rounded-xl border border-white/5 border-dashed p-6 opacity-60">
-                    <span class="text-[10px] text-gray-500 font-mono uppercase tracking-widest animate-pulse">Scanning Sector...</span>
-                </div>`;
+            if (hasActiveTargets) {
+                gridEl.innerHTML = gridHTML;
+            } else {
+                gridEl.innerHTML = `
+                    <div class="col-span-2 flex flex-col items-center justify-center bg-white/5 rounded-xl border border-white/5 border-dashed p-6 opacity-60">
+                         <div class="flex gap-1 mb-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce delay-100"></span>
+                            <span class="text-xs text-gray-500 font-mono uppercase tracking-widest ml-2">Scanning...</span>
+                        </div>
+                    </div>`;
+            }
         }
 
-        // 4. UPDATE FLOWING CHAT
-        if (liveData.log && liveData.log !== lastLogTimestamp) {
-            lastLogTimestamp = liveData.log;
+        // 3. Update the Matrix Event Log
+        if (data.log && data.log !== lastLogTimestamp) {
+            lastLogTimestamp = data.log;
             const logContainer = document.getElementById('traffic-log');
             if (logContainer) {
                 const newEntry = document.createElement('div');
-                newEntry.className = "flex gap-2 items-start border-b border-white/5 pb-1 mb-1 animate-in fade-in slide-in-from-left-2";
-                newEntry.innerHTML = `<span class="text-emerald-400 font-mono text-[10px] font-bold">${liveData.log}</span>`;
+                newEntry.className = "flex gap-2 items-start border-b border-white/5 pb-1 mb-1 animate-in fade-in slide-in-from-left-2 duration-300";
+                newEntry.innerHTML = `<span class="text-emerald-400 font-mono text-[10px] leading-tight">> ${data.log}</span>`;
                 logContainer.prepend(newEntry);
                 if (logContainer.children.length > 50) logContainer.lastChild.remove();
             }
         }
 
     } catch (e) {
-        console.error("Sync error:", e);
+        console.error("Traffic Sync Error:", e);
     }
 }
 
+// Poll every 1 second for live updates
 setInterval(syncTrafficStats, 1000);
 
 
