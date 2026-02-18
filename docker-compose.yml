@@ -26,14 +26,15 @@ services:
       - RADAR_IP=${RADAR_IP}
     restart: always
 
-frigate:
+  # Move these inside the services block
+  frigate:
     container_name: frigate
     image: ghcr.io/blakeblackshear/frigate:stable
     privileged: true
     restart: always
     shm_size: "128mb"
     devices:
-      - /dev/dri/renderD128:/dev/dri/renderD128 # Intel iGPU for OpenVINO
+      - /dev/dri/renderD128:/dev/dri/renderD128
     volumes:
       - ./frigate/config.yml:/config/config.yml:ro
     environment:
@@ -41,14 +42,14 @@ frigate:
       - FRIGATE_CAMERA_PASS=${CAMERA_PASS}
       - FRIGATE_CAMERA_IP=${CAMERA_IP}
 
-traffic-ingest:
-  build: .
-  container_name: traffic-ingest
-  command: python traffic_ingest.py
-  network_mode: "host"
-  environment:
-    - INFLUX_URL=${INFLUX_URL}
-    - INFLUX_TOKEN=${INFLUX_TOKEN}
-    - INFLUX_ORG=${INFLUX_ORG}
-    - INFLUX_BUCKET=${INFLUX_BUCKET}
-  restart: always
+  traffic-ingest:
+    build: .
+    container_name: traffic-ingest
+    command: python traffic_ingest.py
+    network_mode: "host"
+    environment:
+      - INFLUX_URL=${INFLUX_URL}
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
+      - INFLUX_ORG=${INFLUX_ORG}
+      - INFLUX_BUCKET=${INFLUX_BUCKET}
+    restart: always
