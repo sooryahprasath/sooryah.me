@@ -8,14 +8,12 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# 1. Install CPU-only PyTorch
+# Install AI and DB libraries
 RUN pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-
-# 2. Install All Dependencies (including influxdb-client)
 RUN pip install flask opencv-python-headless ultralytics influxdb-client requests
 
-# 3. Copy EVERYTHING in the folder (Fixes the missing file error)
+# COPY ALL FILES (This ensures traffic_ingest.py is included)
 COPY . .
 
-# Default command
+# Default to engine, but compose will override for the ingest service
 CMD ["python", "traffic.py"]
