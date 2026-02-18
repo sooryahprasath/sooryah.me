@@ -109,7 +109,7 @@ const ui = {
 };
 
 // --- MAP ENGINE ---
-const DEFAULT_CENTER = [13.50, 77.6];
+const DEFAULT_CENTER = [13.30, 77.6];
 const DEFAULT_ZOOM = 8.4;
 const map = L.map('map-container', { 
     zoomControl: false, attributionControl: false, zoomSnap: 0.1, boxZoom: false, 
@@ -193,63 +193,54 @@ const charts = {
     loadAll: async () => {
         const getData = async (ep) => (await fetch(ep)).json();
         
-        // Load KPIs
-        const kpi = await getData('/api/kpi');
-        document.getElementById('kpi-unique').innerText = kpi.unique || '--';
-        document.getElementById('kpi-speed').innerText = kpi.speed || '--';
-        document.getElementById('kpi-alt').innerText = kpi.alt || '--';
+        try {
+            const kpi = await getData('/api/kpi');
+            document.getElementById('kpi-unique').innerText = kpi.unique || '--';
+            document.getElementById('kpi-speed').innerText = kpi.speed || '--';
+            document.getElementById('kpi-alt').innerText = kpi.alt || '--';
 
-        // Load History (Timeline)
-        charts.loadVolume('24h');
+            charts.loadVolume('24h');
 
-        // Static Charts
-        if(!chartInstances.daily) {
             const d = await getData('/api/daily');
+            if(chartInstances.daily) chartInstances.daily.destroy();
             chartInstances.daily = new Chart(document.getElementById('chart-daily'), { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#3b82f6', borderRadius: 4 }] }, options: commonOpts });
-        }
-        if(!chartInstances.altitude) {
-            const d = await getData('/api/altitude');
-            chartInstances.altitude = new Chart(document.getElementById('chart-altitude'), { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#8b5cf6', borderRadius: 4 }] }, options: commonOpts });
-        }
-        if(!chartInstances.scatter) {
-            const d = await getData('/api/scatter');
-            chartInstances.scatter = new Chart(document.getElementById('chart-scatter'), { type: 'scatter', data: { datasets: [{ data: d, backgroundColor: 'rgba(245, 158, 11, 0.6)' }] }, options: commonOpts });
-        }
-        if(!chartInstances.polar) {
-            const d = await getData('/api/direction');
-            chartInstances.polar = new Chart(document.getElementById('chart-polar'), { type: 'polarArea', data: { labels: ['N','NE','E','SE','S','SW','W','NW'], datasets: [{ data: d.data, backgroundColor: ['#ef4444','#3b82f6','#eab308','#10b981','#8b5cf6','#f97316','#9ca3af','#6366f1'] }] }, options: commonOpts });
-        }
-        
-        charts.loadTrafficHistory();
+
+            const alt = await getData('/api/altitude');
+            if(chartInstances.altitude) chartInstances.altitude.destroy();
+            chartInstances.altitude = new Chart(document.getElementById('chart-altitude'), { type: 'bar', data: { labels: alt.labels, datasets: [{ data: alt.data, backgroundColor: '#8b5cf6', borderRadius: 4 }] }, options: commonOpts });
+
+            const sc = await getData('/api/scatter');
+            if(chartInstances.scatter) chartInstances.scatter.destroy();
+            chartInstances.scatter = new Chart(document.getElementById('chart-scatter'), { type: 'scatter', data: { datasets: [{ data: sc, backgroundColor: 'rgba(245, 158, 11, 0.6)' }] }, options: commonOpts });
+
+            const dir = await getData('/api/direction');
+            if(chartInstances.polar) chartInstances.polar.destroy();
+            chartInstances.polar = new Chart(document.getElementById('chart-polar'), { type: 'polarArea', data: { labels: ['N','NE','E','SE','S','SW','W','NW'], datasets: [{ data: dir.data, backgroundColor: ['#ef4444','#3b82f6','#eab308','#10b981','#8b5cf6','#f97316','#9ca3af','#6366f1'] }] }, options: commonOpts });
+
+            charts.loadTrafficHistory();
+        } catch (e) { console.error("Chart loading failed", e); }
     },
 
     loadTrafficHistory: async () => {
         try {
-            const d = await (await fetch('/api/traffic/history')).json();
+            const res = await fetch('/api/traffic/history');
+            const d = await res.json();
             const ctx = document.getElementById('chart-traffic');
             if(!ctx) return;
-            if(!chartInstances.traffic) {
-                chartInstances.traffic = new Chart(ctx, { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#10b981', borderRadius: 4 }] }, options: commonOpts });
-            } else {
-                chartInstances.traffic.data.labels = d.labels;
-                chartInstances.traffic.data.datasets[0].data = d.data;
-                chartInstances.traffic.update();
-            }
+            if(chartInstances.traffic) chartInstances.traffic.destroy();
+            chartInstances.traffic = new Chart(ctx, { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#10b981', borderRadius: 4 }] }, options: commonOpts });
         } catch (e) { console.error("Traffic history error", e); }
     },
 
     changeResolution: (range) => { charts.currentRange = range; charts.loadVolume(range); },
 
     loadVolume: async (range) => {
-        const d = await (await fetch(`/api/history?range_type=${range}`)).json();
-        document.getElementById('volume-title').innerText = `Traffic Volume (${range})`;
-        if(!chartInstances.volume) {
+        try {
+            const d = await (await fetch(`/api/history?range_type=${range}`)).json();
+            document.getElementById('volume-title').innerText = `Traffic Volume (${range})`;
+            if(chartInstances.volume) chartInstances.volume.destroy();
             chartInstances.volume = new Chart(document.getElementById('chart-volume'), { type: 'line', data: { labels: d.labels, datasets: [{ data: d.data, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.4, pointRadius: 0 }] }, options: commonOpts });
-        } else {
-            chartInstances.volume.data.labels = d.labels;
-            chartInstances.volume.data.datasets[0].data = d.data;
-            chartInstances.volume.update();
-        }
+        } catch (e) { console.error("Volume chart error", e); }
     }
 };
 
@@ -258,7 +249,9 @@ let lastLogTimestamp = "";
 async function syncTrafficStats() {
     try {
         const res = await fetch('/api/stats');
+        
         if (!res.ok) throw new Error('Network response was not ok');
+        
         const data = await res.json();
 
         const totalEl = document.getElementById('total-all-time');
@@ -318,7 +311,7 @@ async function syncTrafficStats() {
 }
 
 setInterval(syncTrafficStats, 1000);
-charts.loadAll();
+charts.loadAll(); // Initial Load call
 
 const PROJECT_DATA = {
     adsb: { 

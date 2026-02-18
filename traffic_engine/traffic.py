@@ -22,7 +22,7 @@ CLASS_NAMES = {0: "PERSON", 1: "BICYCLE", 2: "CAR", 3: "MOTORCYCLE", 5: "BUS", 7
 # GLOBAL STATE
 output_frame = cv2.imencode('.jpg', np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8))[1].tobytes()
 lock = threading.Lock()
-frame_buffer = None # Holds the latest frame from the thread
+frame_buffer = None 
 
 class HistoryManager:
     def __init__(self):
@@ -45,7 +45,7 @@ history = HistoryManager()
 current_stats = {"status": "Starting", "total_all_time": history.total_count}
 
 def capture_loop():
-    """Independent thread to read frames as fast as possible to prevent buffer lag."""
+    """Independent thread to read frames continuously."""
     global frame_buffer
     user, pwd, ip = os.getenv('CAMERA_USER'), os.getenv('CAMERA_PASS'), os.getenv('CAMERA_IP')
     rtsp_url = f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=4&subtype=0"
@@ -60,9 +60,8 @@ def capture_loop():
             cap = cv2.VideoCapture(rtsp_url)
             continue
         
-        # Only keep the latest frame in the global buffer
         frame_buffer = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
-        time.sleep(0.005) # Tiny sleep to prevent 100% CPU on read loop
+        time.sleep(0.005)
 
 def processing_loop():
     """Main thread for AI and Encoding."""
@@ -75,7 +74,6 @@ def processing_loop():
     last_ai_time = 0
     last_seen_counts = {}
 
-    # Start the capture thread
     threading.Thread(target=capture_loop, daemon=True).start()
 
     while True:
@@ -83,11 +81,9 @@ def processing_loop():
             time.sleep(0.1)
             continue
 
-        # Copy frame to avoid threading conflicts
         draw_frame = frame_buffer.copy()
         now = time.time()
         
-        # AI INFERENCE (Throttled)
         if now - last_ai_time > AI_INTERVAL_SEC:
             last_ai_time = now
             try:
@@ -116,13 +112,10 @@ def processing_loop():
                     cv2.putText(draw_frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
             except: pass
 
-        # ENCODING
         with lock:
-            # Lower quality slightly to 60 to reduce bandwidth lag
             _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
             output_frame = bytearray(encoded)
         
-        # Cap processing FPS to save CPU
         time.sleep(1.0 / FPS_LIMIT)
 
 @app.route("/video_feed")
