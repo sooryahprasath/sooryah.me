@@ -12,13 +12,17 @@ from ultralytics import YOLO
 app = Flask(__name__)
 CORS(app)
 
-FRAME_WIDTH, FRAME_HEIGHT, FPS_LIMIT, AI_INTERVAL_SEC = 854, 480, 15, 0.5
+# CONFIG
+FRAME_WIDTH, FRAME_HEIGHT = 854, 480
+FPS_LIMIT = 15          
+AI_INTERVAL_SEC = 0.5   
 HISTORY_FILE = "history.json"
 CLASS_NAMES = {0: "PERSON", 1: "BICYCLE", 2: "CAR", 3: "MOTORCYCLE", 5: "BUS", 7: "TRUCK"}
 
-# Initialize with a blank frame to prevent startup crashes
+# GLOBAL STATE
 output_frame = cv2.imencode('.jpg', np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8))[1].tobytes()
 lock = threading.Lock()
+frame_buffer = None # Holds the latest frame from the thread
 
 class HistoryManager:
     def __init__(self):
@@ -40,34 +44,50 @@ class HistoryManager:
 history = HistoryManager()
 current_stats = {"status": "Starting", "total_all_time": history.total_count}
 
-def start_engine():
-    global output_frame, current_stats
-    
-    # Load model safely
-    try:
-        model = YOLO("yolov8n.pt") 
-    except Exception as e:
-        print(f"Failed to load YOLO model: {e}")
-        return
-
+def capture_loop():
+    """Independent thread to read frames as fast as possible to prevent buffer lag."""
+    global frame_buffer
     user, pwd, ip = os.getenv('CAMERA_USER'), os.getenv('CAMERA_PASS'), os.getenv('CAMERA_IP')
     rtsp_url = f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=4&subtype=0"
     
     cap = cv2.VideoCapture(rtsp_url)
-    last_ai_time, last_seen_counts = 0, {}
-
+    
     while True:
         success, frame = cap.read()
         if not success:
-            # If camera fails, retry instead of crashing the loop
             cap.release()
             time.sleep(2)
             cap = cv2.VideoCapture(rtsp_url)
             continue
         
-        draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
+        # Only keep the latest frame in the global buffer
+        frame_buffer = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
+        time.sleep(0.005) # Tiny sleep to prevent 100% CPU on read loop
+
+def processing_loop():
+    """Main thread for AI and Encoding."""
+    global output_frame, current_stats, frame_buffer
+    
+    try:
+        model = YOLO("yolov8n.pt") 
+    except: return
+
+    last_ai_time = 0
+    last_seen_counts = {}
+
+    # Start the capture thread
+    threading.Thread(target=capture_loop, daemon=True).start()
+
+    while True:
+        if frame_buffer is None:
+            time.sleep(0.1)
+            continue
+
+        # Copy frame to avoid threading conflicts
+        draw_frame = frame_buffer.copy()
         now = time.time()
         
+        # AI INFERENCE (Throttled)
         if now - last_ai_time > AI_INTERVAL_SEC:
             last_ai_time = now
             try:
@@ -88,19 +108,22 @@ def start_engine():
                 with lock:
                     current_stats = {"status": "Online", "total_all_time": history.total_count, **raw_counts}
                     if raw_counts:
-                        ts = datetime.datetime.now().strftime('%H:%M:%S')
+                        ts = datetime.datetime.now().strftime("%H:%M:%S")
                         current_stats['log'] = f"[{ts}] DETECTED: {raw_counts}"
-                
+
                 for (x1, y1, x2, y2, label) in temp_boxes:
                     cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     cv2.putText(draw_frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-            except Exception as e:
-                print(f"AI Processing Error: {e}")
+            except: pass
 
+        # ENCODING
         with lock:
+            # Lower quality slightly to 60 to reduce bandwidth lag
             _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
             output_frame = bytearray(encoded)
-        time.sleep(0.01)
+        
+        # Cap processing FPS to save CPU
+        time.sleep(1.0 / FPS_LIMIT)
 
 @app.route("/video_feed")
 def video_feed():
@@ -117,5 +140,5 @@ def stats():
     with lock: return jsonify(current_stats)
 
 if __name__ == "__main__":
-    threading.Thread(target=start_engine, daemon=True).start()
+    threading.Thread(target=processing_loop, daemon=True).start()
     app.run(host="0.0.0.0", port=5000)
