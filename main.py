@@ -75,8 +75,8 @@ def get_scatter():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # FIXED: Using Speed vs Altitude (Physics Scatter)
-        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot") |> filter(fn: (r) => r["_field"] == "altitude" or r["_field"] == "speed") |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value") |> filter(fn: (r) => exists r.altitude and exists r.speed) |> limit(n: 500)'
+        # FIXED: Reduced range to -6h for density, added aggregation to fix missing points
+        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -6h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot") |> filter(fn: (r) => r["_field"] == "altitude" or r["_field"] == "speed") |> aggregateWindow(every: 1m, fn: mean, createEmpty: false) |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value") |> filter(fn: (r) => exists r.altitude and exists r.speed) |> limit(n: 500)'
         result = query_api.query(org=INFLUX_ORG, query=query)
         return [{"x": r["speed"], "y": r["altitude"]} for t in result for r in t.records]
     except: return []
@@ -101,8 +101,8 @@ def get_altitude():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # FIXED: Removed sample() to force full data scan
-        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "altitude")'
+        # FIXED: Removed sample() and used 6h range to ensure buckets are filled
+        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -6h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "altitude") |> limit(n: 2000)'
         result = query_api.query(org=INFLUX_ORG, query=query)
         buckets = {"0-10k": 0, "10k-20k": 0, "20k-30k": 0, "30k-40k": 0, "40k+": 0}
         for t in result:
@@ -121,8 +121,8 @@ def get_direction():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # FIXED: Removed sample() to force full data scan
-        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "bearing")'
+        # FIXED: Removed sample() and used 6h range
+        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -6h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "bearing") |> limit(n: 2000)'
         result = query_api.query(org=INFLUX_ORG, query=query)
         counts = [0]*8
         for t in result:

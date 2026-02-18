@@ -109,7 +109,7 @@ const ui = {
 };
 
 // --- MAP ENGINE ---
-const DEFAULT_CENTER = [13.51, 77.6];
+const DEFAULT_CENTER = [13.53, 77.6];
 const DEFAULT_ZOOM = 8.4;
 const map = L.map('map-container', { 
     zoomControl: false, attributionControl: false, zoomSnap: 0.1, boxZoom: false, 
@@ -173,9 +173,11 @@ async function fetchRadar() {
             else { 
                 const m = L.marker(latlng, { icon: getIcon(p.heading, name, p.route, p.altitude, p.speed) }).addTo(map); 
                 m.on('click', () => {
-                    // DISABLE CLICK if 'tactical-active' class is present on body
-                    if (document.body.classList.contains('tactical-active')) return;
-                    ui.openFlightSidebar(p); 
+                    // --- CLICK DISABLE FIX ---
+                    // Only allow clicks if the body has the 'tactical-active' class (Live View)
+                    if (document.body.classList.contains('tactical-active')) {
+                        ui.openFlightSidebar(p);
+                    }
                 }); 
                 markers[p.hex] = m; 
             }
@@ -183,7 +185,6 @@ async function fetchRadar() {
         Object.keys(markers).forEach(hex => { if(!currentHexes.has(hex)) { map.removeLayer(markers[hex]); delete markers[hex]; } });
     } catch (e) {}
 }
-
 setInterval(fetchRadar, 2000); fetchRadar();
 
 // --- CHART ENGINE ---
@@ -322,7 +323,7 @@ async function syncTrafficStats() {
 }
 
 setInterval(syncTrafficStats, 1000);
-charts.loadAll(); // Initial Load
+charts.loadAll();
 
 const PROJECT_DATA = {
     adsb: { 
