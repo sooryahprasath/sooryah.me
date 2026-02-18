@@ -170,11 +170,20 @@ async function fetchRadar() {
             else polylines[p.hex] = L.polyline(trails[p.hex], { color: '#3b82f6', weight: 1, opacity: 0.3 }).addTo(map);
             
             if (markers[p.hex]) { markers[p.hex].setLatLng(latlng); markers[p.hex].setIcon(getIcon(p.heading, name, p.route, p.altitude, p.speed)); }
-            else { const m = L.marker(latlng, { icon: getIcon(p.heading, name, p.route, p.altitude, p.speed) }).addTo(map); m.on('click', () => ui.openFlightSidebar(p)); markers[p.hex] = m; }
+            else { 
+                const m = L.marker(latlng, { icon: getIcon(p.heading, name, p.route, p.altitude, p.speed) }).addTo(map); 
+                m.on('click', () => {
+                    // DISABLE CLICK if 'tactical-active' class is present on body
+                    if (document.body.classList.contains('tactical-active')) return;
+                    ui.openFlightSidebar(p); 
+                }); 
+                markers[p.hex] = m; 
+            }
         });
         Object.keys(markers).forEach(hex => { if(!currentHexes.has(hex)) { map.removeLayer(markers[hex]); delete markers[hex]; } });
     } catch (e) {}
 }
+
 setInterval(fetchRadar, 2000); fetchRadar();
 
 // --- CHART ENGINE ---
