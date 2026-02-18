@@ -1,8 +1,7 @@
 lucide.createIcons();
 
 // --- CONFIGURATION ---
-// Empty string ensures we use the same domain (sooryah.me) for all calls
-const TRAFFIC_URL = ""; 
+const TRAFFIC_URL = ""; // Proxy via sooryah.me (main.py)
 
 const ui = {
     toggleTheme: () => {
@@ -100,13 +99,11 @@ const ui = {
 
     openTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.remove('hidden'); 
-        // Use relative path which main.py proxies to the traffic engine
         document.getElementById('traffic-stream').src = "/video_feed";
         charts.loadTrafficHistory(); 
     },
     closeTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.add('hidden'); 
-        // clear src to save bandwidth when closed
         document.getElementById('traffic-stream').src = ""; 
     }
 };
@@ -164,7 +161,6 @@ async function fetchRadar() {
             currentHexes.add(p.hex);
             const latlng = [p.lat, p.lon];
             const name = p.flightno || p.callsign || p.hex;
-            
             if (!trails[p.hex]) trails[p.hex] = []; 
             trails[p.hex].push(latlng); 
             if (trails[p.hex].length > 90) trails[p.hex].shift(); 
@@ -178,7 +174,7 @@ async function fetchRadar() {
         Object.keys(markers).forEach(hex => { if(!currentHexes.has(hex)) { map.removeLayer(markers[hex]); delete markers[hex]; } });
     } catch (e) {}
 }
-setInterval(fetchRadar, 2000); fetchRadar();
+setInterval(fetchRadar, 2000);
 
 // --- CHART ENGINE ---
 let chartInstances = {};
@@ -195,41 +191,72 @@ const charts = {
 
     loadAll: async () => {
         const getData = async (ep) => (await fetch(ep)).json();
+        
+        // Load KPIs
         const kpi = await getData('/api/kpi');
-        document.getElementById('kpi-unique').innerText = kpi.unique !== undefined ? kpi.unique : '--';
+        document.getElementById('kpi-unique').innerText = kpi.unique || '--';
         document.getElementById('kpi-speed').innerText = kpi.speed || '--';
         document.getElementById('kpi-alt').innerText = kpi.alt || '--';
 
+        // History Chart (Radar Volume)
+        charts.loadVolume('24h');
+
+        // Daily (Last 7 Days)
         if(!chartInstances.daily) {
             const d = await getData('/api/daily');
             chartInstances.daily = new Chart(document.getElementById('chart-daily'), { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#3b82f6', borderRadius: 4 }] }, options: commonOpts });
         }
-        charts.loadVolume('24h');
+        // Altitude Dist
         if(!chartInstances.altitude) {
             const d = await getData('/api/altitude');
             chartInstances.altitude = new Chart(document.getElementById('chart-altitude'), { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#8b5cf6', borderRadius: 4 }] }, options: commonOpts });
         }
+        // Physics Scatter
         if(!chartInstances.scatter) {
             const d = await getData('/api/scatter');
             chartInstances.scatter = new Chart(document.getElementById('chart-scatter'), { type: 'scatter', data: { datasets: [{ data: d, backgroundColor: 'rgba(245, 158, 11, 0.6)' }] }, options: commonOpts });
         }
+        // Approach direction
         if(!chartInstances.polar) {
             const d = await getData('/api/direction');
             chartInstances.polar = new Chart(document.getElementById('chart-polar'), { type: 'polarArea', data: { labels: ['N','NE','E','SE','S','SW','W','NW'], datasets: [{ data: d.data, backgroundColor: ['#ef4444','#3b82f6','#eab308','#10b981','#8b5cf6','#f97316','#9ca3af','#6366f1'] }] }, options: commonOpts });
         }
+        // Vehicle History (Traffic Mission Control)
+        charts.loadTrafficHistory();
     },
 
     loadTrafficHistory: async () => {
-        console.log("Traffic history chart loading...");
+        const res = await fetch('/api/traffic/history');
+        const d = await res.json();
+        const ctx = document.getElementById('chart-traffic');
+        if(!ctx) return;
+
+        if(!chartInstances.traffic) {
+            chartInstances.traffic = new Chart(ctx, { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#10b981', borderRadius: 4 }] }, options: commonOpts });
+        } else {
+            chartInstances.traffic.data.labels = d.labels;
+            chartInstances.traffic.data.datasets[0].data = d.data;
+            chartInstances.traffic.update();
+        }
     },
 
-    changeResolution: (range) => { charts.currentRange = range; charts.loadVolume(range); },
+    changeResolution: (range) => { 
+        charts.currentRange = range; 
+        charts.loadVolume(range); 
+    },
 
     loadVolume: async (range) => {
-        const d = await (await fetch(`/api/history?range_type=${range}`)).json();
-        document.getElementById('volume-title').innerText = `Traffic Volume (${range})`;
+        const res = await fetch(`/api/history?range_type=${range}`);
+        const d = await res.json();
+        const title = document.getElementById('volume-title');
+        if (title) title.innerText = `Traffic Volume (${range})`;
+        
         if(!chartInstances.volume) {
-            chartInstances.volume = new Chart(document.getElementById('chart-volume'), { type: 'line', data: { labels: d.labels, datasets: [{ data: d.data, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.4, pointRadius: 0 }] }, options: commonOpts });
+            chartInstances.volume = new Chart(document.getElementById('chart-volume'), { 
+                type: 'line', 
+                data: { labels: d.labels, datasets: [{ data: d.data, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.4, pointRadius: 0 }] }, 
+                options: commonOpts 
+            });
         } else {
             chartInstances.volume.data.labels = d.labels;
             chartInstances.volume.data.datasets[0].data = d.data;
@@ -242,24 +269,20 @@ let lastLogTimestamp = "";
 
 async function syncTrafficStats() {
     try {
-        // Use relative path which main.py proxies to the traffic engine
         const res = await fetch('/api/stats');
-        
-        if (!res.ok) throw new Error('Network response was not ok');
-        
+        if (!res.ok) throw new Error('Network error');
         const data = await res.json();
 
+        // 1. Update Counter
         const totalEl = document.getElementById('total-all-time');
-        if (totalEl) {
-            totalEl.innerText = data.total_all_time !== undefined ? data.total_all_time : "0";
-        }
+        if (totalEl) totalEl.innerText = data.total_all_time || "0";
 
+        // 2. Generate Active Target Tiles
         let gridHTML = '';
         let hasActiveTargets = false;
 
         for (const [key, value] of Object.entries(data)) {
             if (['log', 'status', 'total_all_time'].includes(key)) continue;
-
             if (typeof value === 'number' && value > 0) {
                 hasActiveTargets = true;
                 gridHTML += `
@@ -267,44 +290,37 @@ async function syncTrafficStats() {
                         <span class="text-3xl font-black text-white mb-1 drop-shadow-md">${value}</span>
                         <div class="w-full border-t border-emerald-500/30 my-1 opacity-30"></div>
                         <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">${key}</span>
-                    </div>
-                `;
+                    </div>`;
             }
         }
 
         const gridEl = document.getElementById('traffic-breakdown');
         if (gridEl) {
-            if (hasActiveTargets) {
-                gridEl.innerHTML = gridHTML;
-            } else {
-                gridEl.innerHTML = `
-                    <div class="col-span-2 flex flex-col items-center justify-center bg-white/5 rounded-xl border border-white/5 border-dashed p-6 opacity-60">
-                         <div class="flex gap-1 mb-2">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce"></span>
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce delay-100"></span>
-                            <span class="text-xs text-gray-500 font-mono uppercase tracking-widest ml-2">Scanning...</span>
-                        </div>
-                    </div>`;
-            }
+            if (hasActiveTargets) gridEl.innerHTML = gridHTML;
+            else gridEl.innerHTML = `<div class="col-span-2 flex flex-col items-center justify-center bg-white/5 rounded-xl border border-white/5 border-dashed p-6 opacity-60"><span class="text-xs text-gray-500 font-mono uppercase tracking-widest">Scanning...</span></div>`;
         }
 
+        // 3. Event Log
         if (data.log && data.log !== lastLogTimestamp) {
             lastLogTimestamp = data.log;
             const logContainer = document.getElementById('traffic-log');
             if (logContainer) {
-                const newEntry = document.createElement('div');
-                newEntry.className = "flex gap-2 items-start border-b border-white/5 pb-1 mb-1 animate-in fade-in slide-in-from-left-2 duration-300";
-                newEntry.innerHTML = `<span class="text-emerald-400 font-mono text-[10px] leading-tight">> ${data.log}</span>`;
-                logContainer.prepend(newEntry);
+                const entry = document.createElement('div');
+                entry.className = "flex gap-2 items-start border-b border-white/5 pb-1 mb-1 animate-in fade-in slide-in-from-left-2 duration-300";
+                entry.innerHTML = `<span class="text-emerald-400 font-mono text-[10px] leading-tight">> ${data.log}</span>`;
+                logContainer.prepend(entry);
                 if (logContainer.children.length > 50) logContainer.lastChild.remove();
             }
         }
-
-    } catch (e) {
-        console.error("Traffic Sync Error:", e);
-    }
+    } catch (e) { console.error("Traffic Sync Error:", e); }
 }
 
+// --- INITIALIZE ---
+fetchRadar();
+syncTrafficStats();
+charts.loadAll();
+
+setInterval(fetchRadar, 2000);
 setInterval(syncTrafficStats, 1000);
 
 const PROJECT_DATA = {
