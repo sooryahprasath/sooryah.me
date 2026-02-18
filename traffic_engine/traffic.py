@@ -27,7 +27,7 @@ output_frame = None
 current_stats = {}
 lock = threading.Lock()
 
-# --- PERSISTENT HISTORY MANAGER ---
+# --- PERSISTENT HISTORY (Non-Blocking) ---
 class HistoryManager:
     def __init__(self):
         self.file = HISTORY_FILE
@@ -35,7 +35,6 @@ class HistoryManager:
         self.load()
 
     def load(self):
-        # Load total from file if it exists
         if os.path.exists(self.file):
             try:
                 with open(self.file, 'r') as f:
@@ -45,7 +44,6 @@ class HistoryManager:
                 self.total_count = 0
 
     def save(self):
-        # Save total to file
         try:
             with open(self.file, 'w') as f:
                 json.dump({"total": self.total_count}, f)
@@ -55,55 +53,11 @@ class HistoryManager:
     def increment(self, amount):
         if amount > 0:
             self.total_count += amount
-            self.save()
-            return True
-        return False
+            threading.Thread(target=self.save).start() # Save in background
 
 history = HistoryManager()
 
-# --- STATS MEMORY & LOGIC ---
-class StatTracker:
-    def __init__(self, retention=2.0):
-        self.retention = retention
-        self.buffer = {} 
-        self.last_seen_counts = {} # To track "NEW" cars for the history
-
-    def update(self, current_frame_counts):
-        now = time.time()
-        
-        # 1. Update Buffer (For Live Display)
-        for label, count in current_frame_counts.items():
-            if count > 0:
-                self.buffer[label] = {'expires': now + self.retention, 'count': count}
-        
-        # 2. Check for NEW vehicles (For All-Time History)
-        # Simple logic: If we see MORE cars now than last frame, add difference to history
-        new_vehicles = 0
-        for label, count in current_frame_counts.items():
-            prev = self.last_seen_counts.get(label, 0)
-            if count > prev:
-                diff = count - prev
-                new_vehicles += diff
-        
-        self.last_seen_counts = current_frame_counts
-        
-        # 3. Save to History
-        if new_vehicles > 0:
-            history.increment(new_vehicles)
-
-        # 4. Clean Expired Items
-        clean_stats = {}
-        for label in list(self.buffer.keys()):
-            if now < self.buffer[label]['expires']:
-                clean_stats[label] = self.buffer[label]['count']
-            else:
-                del self.buffer[label]
-        
-        return clean_stats
-
-tracker = StatTracker()
-
-# --- ROBUST CAMERA CLASS ---
+# --- CAMERA CLASS (Auto-Healing) ---
 class RobustCamera:
     def __init__(self, src):
         self.src = src
@@ -111,27 +65,34 @@ class RobustCamera:
         self.frame = None
         self.running = True
         self.lock = threading.Lock()
+        # Start reading immediately
         self.thread = threading.Thread(target=self.update, daemon=True)
         self.thread.start()
 
     def update(self):
         while self.running:
             if self.cap is None or not self.cap.isOpened():
+                print("📷 Connecting to camera...")
                 self.cap = cv2.VideoCapture(self.src)
+                # Optimize for low latency
                 self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                 time.sleep(1)
+                
                 if not self.cap.isOpened():
+                    print("❌ Connection failed. Retrying in 5s...")
                     time.sleep(5)
                     continue
-            
+
             success, frame = self.cap.read()
             if success:
                 with self.lock:
                     self.frame = frame
+                # Limit FPS to save CPU
                 time.sleep(1.0 / FPS_LIMIT)
             else:
+                print("⚠️ Lost stream signal. Reconnecting...")
                 self.cap.release()
-                time.sleep(0.5)
+                time.sleep(1)
 
     def get_frame(self):
         with self.lock:
@@ -150,15 +111,24 @@ def start_engine():
     rtsp_url = f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=4&subtype=0"
     
     cam = RobustCamera(rtsp_url)
+    
     last_ai_time = 0
     last_boxes = [] 
+    
+    # Track previous frame counts to detect "NEW" cars
+    last_seen_counts = {} 
+
+    print("✅ Engine Started. Waiting for video...")
 
     while True:
         frame = cam.get_frame()
+        
+        # If no frame yet, send a blank black frame so video feed doesn't crash
         if frame is None:
             time.sleep(0.1)
             continue
 
+        # Resize (Important for CPU speed)
         frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         
         # --- AI INFERENCE ---
@@ -182,19 +152,30 @@ def start_engine():
                 
                 last_boxes = temp_boxes
                 
-                # UPDATE STATS
-                live_stats = tracker.update(raw_counts)
+                # --- LOGIC: COUNT NEW VEHICLES ---
+                new_vehicles = 0
+                for label, count in raw_counts.items():
+                    prev = last_seen_counts.get(label, 0)
+                    if count > prev:
+                        diff = count - prev
+                        new_vehicles += diff
                 
-                # INJECT ALL-TIME TOTAL INTO API RESPONSE
-                live_stats['total_all_time'] = history.total_count
+                if new_vehicles > 0:
+                    history.increment(new_vehicles)
                 
+                last_seen_counts = raw_counts
+                
+                # Update Global Stats for API
                 with lock:
+                    stats_copy = raw_counts.copy()
+                    stats_copy['total_all_time'] = history.total_count
+                    
                     if raw_counts:
                         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
                         details = ", ".join([f"{k}: {v}" for k,v in raw_counts.items()])
-                        live_stats['log'] = f"[{timestamp}] DETECTED: {details}"
+                        stats_copy['log'] = f"[{timestamp}] DETECTED: {details}"
                     
-                    current_stats = live_stats
+                    current_stats = stats_copy
                     
             except Exception as e:
                 print(f"AI Error: {e}")
@@ -204,10 +185,12 @@ def start_engine():
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
+        # --- ENCODING ---
         with lock:
             (_, encodedImage) = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
             output_frame = bytearray(encodedImage)
         
+        # Prevent CPU spinning
         time.sleep(0.01)
 
 def generate():
@@ -230,6 +213,7 @@ def stats():
         return jsonify(current_stats or {})
 
 if __name__ == "__main__":
+    # Start engine in background
     t = threading.Thread(target=start_engine, daemon=True)
     t.start()
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
