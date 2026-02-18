@@ -1,6 +1,11 @@
-# Add this block at the top
 mqtt:
   enabled: False
+
+# High-Performance Restreaming logic
+go2rtc:
+  streams:
+    intersection:
+      - rtsp://{FRIGATE_CAMERA_USER}:{FRIGATE_CAMERA_PASS}@{FRIGATE_CAMERA_IP}:554/cam/realmonitor?channel=4&subtype=0
 
 detectors:
   ov:
@@ -11,14 +16,15 @@ cameras:
   intersection:
     ffmpeg:
       inputs:
-        - path: rtsp://{FRIGATE_CAMERA_USER}:{FRIGATE_CAMERA_PASS}@{FRIGATE_CAMERA_IP}:554/cam/realmonitor?channel=4&subtype=0
+        # Use the go2rtc stream as the source for detection to save CPU/Bandwidth
+        - path: rtsp://127.0.0.1:8554/intersection
           roles:
             - detect
     detect:
       enabled: True
       width: 1280
       height: 720
-      fps: 5
+      fps: 10  # Increased to 10 for smoother AI tracking
     objects:
       track:
         - car
@@ -27,3 +33,7 @@ cameras:
       enabled: False
     snapshots:
       enabled: False
+
+# Global configuration to reduce latency
+ffmpeg:
+  hwaccel_args: preset-vaapi
