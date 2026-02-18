@@ -1,7 +1,6 @@
 lucide.createIcons();
 
-// --- CONFIGURATION ---
-// Since services are independent, we point specifically to the traffic domain
+// --- INDEPENDENT SERVICE URL ---
 const TRAFFIC_URL = "https://traffic.sooryah.me";
 
 const ui = {
@@ -98,10 +97,9 @@ const ui = {
     openAnalyticsModal: () => { document.getElementById('analytics-modal').classList.remove('hidden'); charts.loadAll(); },
     closeAnalyticsModal: () => { document.getElementById('analytics-modal').classList.add('hidden'); },
 
-    // UPDATED: Points to the independent Traffic Engine for the stream
     openTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.remove('hidden'); 
-        // FIX: Explicitly use the Traffic Engine URL to bypass port conflicts
+        // FIX: Explicitly point to the independent Traffic Engine domain
         document.getElementById('traffic-stream').src = `${TRAFFIC_URL}/video_feed`;
         charts.loadTrafficHistory(); 
     },
@@ -129,7 +127,7 @@ function getIcon(h, f, r, a, s) { return L.divIcon({ className: 'plane-icon-wrap
 
 async function fetchRadar() {
     try {
-        // Radar is served by portfolio-web (Port 8090), so relative path works
+        // Radar is served by the main website (8090), so relative path works
         const res = await fetch('/api/live');
         const data = await res.json();
         const aircraft = data.aircraft || {};
@@ -241,16 +239,15 @@ const charts = {
 
 let lastLogTimestamp = "";
 
-// UPDATED: Fetches stats from the independent Traffic Engine
+// UPDATED: Fetches stats from the independent Traffic Engine URL
 async function syncTrafficStats() {
     try {
-        // FIX: Explicitly target the Traffic Engine URL to bypass Port 8090
+        // FIX: Explicitly target the TRAFFIC_URL instead of a relative path
         const res = await fetch(`${TRAFFIC_URL}/api/stats`);
         
         if (!res.ok) throw new Error('Network response was not ok');
         
         const data = await res.json();
-        console.log("Traffic Data Received:", data);
 
         const totalEl = document.getElementById('total-all-time');
         if (totalEl) {
