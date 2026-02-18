@@ -1,7 +1,6 @@
 import time
 import requests
 import os
-import datetime
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
@@ -10,15 +9,18 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 API_URL = "http://localhost:5000/api/stats"
 
 # InfluxDB Settings (Loaded from your Docker Secrets)
-INFLUX_URL = os.getenv("INFLUX_URL") 
+INFLUX_URL = os.getenv("INFLUX_URL", "http://localhost:8086") 
 INFLUX_TOKEN = os.getenv("INFLUX_TOKEN")
-INFLUX_ORG = os.getenv("INFLUX_ORG")
+INFLUX_ORG = os.getenv("INFLUX_ORG", "primary")
 INFLUX_BUCKET = os.getenv("INFLUX_BUCKET", "traffic")
 
 print("⏳ [INGEST] Waiting 15s for Traffic Engine to boot...")
 time.sleep(15) 
 
 # Connect to Database
+client = None
+write_api = None
+
 try:
     client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
     write_api = client.write_api(write_options=SYNCHRONOUS)
@@ -36,12 +38,11 @@ while True:
             data = response.json()
             
             # 2. Filter data (We only want counts like 'CAR': 1)
-            # Ignore strings like 'log', 'status'
             live_counts = {k: v for k, v in data.items() 
                           if isinstance(v, (int, float)) and k not in ['total_all_time']}
             
-            # 3. Write Live Counts to DB (if any exist)
-            if live_counts:
+            # 3. Write Live Counts to DB
+            if live_counts and write_api:
                 point = Point("traffic_live")
                 has_data = False
                 for label, count in live_counts.items():
@@ -52,11 +53,9 @@ while True:
                     write_api.write(bucket=INFLUX_BUCKET, org=INFLUX_ORG, record=point)
                     print(f"📝 [SAVED] {live_counts}")
 
-            # 4. Write "Total All Time" (For the top counter)
-            # This ensures the dashboard always has the latest total
+            # 4. Write "Total All Time"
             total = data.get('total_all_time', 0)
-            # Only write if it changed or every few seconds to keep graph alive
-            if total > 0 and total != last_total_sent:
+            if total > 0 and total != last_total_sent and write_api:
                  p = Point("traffic_stats").field("total_detections_all_time", total)
                  write_api.write(bucket=INFLUX_BUCKET, org=INFLUX_ORG, record=p)
                  last_total_sent = total
