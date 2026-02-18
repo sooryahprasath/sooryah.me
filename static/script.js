@@ -13,13 +13,11 @@ const ui = {
         const btn = document.getElementById('view-btn-text');
         
         if (body.classList.contains('tactical-active')) {
-            // EXIT
             body.classList.remove('tactical-active', 'ui-hidden'); 
             btn.innerText = "LIVE TELEMETRY VIEW";
             map.scrollWheelZoom.disable();
             map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
         } else {
-            // ENTER
             body.classList.add('tactical-active', 'ui-hidden'); 
             btn.innerText = "EXIT TELEMETRY VIEW";
             map.dragging.enable(); 
@@ -105,11 +103,13 @@ const ui = {
 
     openTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.remove('hidden'); 
-        charts.loadTrafficHistory(); // Ensure this is implemented in your 'charts' object
+        document.getElementById('traffic-stream').src = "http://" + window.location.hostname + ":5000/api/intersection";
+        charts.loadTrafficHistory(); 
     },
 
     closeTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.add('hidden'); 
+        document.getElementById('traffic-stream').src = "";
     }
 };
 
@@ -120,11 +120,9 @@ async function updateTraffic() {
         const data = await res.json();
         const count = data.cars || 0;
         
-        // Update sidebar
         const sidebarLive = document.getElementById('live-cars');
         if (sidebarLive) sidebarLive.innerText = count;
         
-        // Update modal if open
         const modalLive = document.getElementById('modal-live-cars');
         if (modalLive) modalLive.innerText = count;
     } catch (e) { 
@@ -132,16 +130,12 @@ async function updateTraffic() {
     }
 }
 
-// Initial update and interval sync
 setInterval(updateTraffic, 5000); 
 updateTraffic();
-
-
 
 // --- MAP ENGINE ---
 const DEFAULT_CENTER = [12.98, 77.6];
 const DEFAULT_ZOOM = 8.4;
-// FIX: ENABLE ZOOM
 const map = L.map('map-container', { 
     zoomControl: false, attributionControl: false, zoomSnap: 0.1, boxZoom: false, 
     doubleClickZoom: true, dragging: true, scrollWheelZoom: true 
@@ -204,7 +198,6 @@ setInterval(fetchRadar, 2000); fetchRadar();
 
 // --- CHART ENGINE ---
 let chartInstances = {};
-// FIX: ENABLE HOVER TOOLTIPS
 const commonOpts = { 
     responsive: true, 
     maintainAspectRatio: false, 
@@ -258,13 +251,33 @@ const charts = {
         }
     },
 
+    loadTrafficHistory: async () => {
+        const d = await (await fetch('/api/traffic/history')).json();
+        const ctx = document.getElementById('chart-traffic-history');
+        if(chartInstances.traffic) chartInstances.traffic.destroy();
+        chartInstances.traffic = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: d.labels,
+                datasets: [{
+                    data: d.data,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0
+                }]
+            },
+            options: commonOpts 
+        });
+    },
+
     changeResolution: (range) => { 
         charts.currentRange = range;
         charts.loadVolume(range); 
     },
 
     loadVolume: async (range) => {
-        // FIX: Send correct 'range_type' parameter
         const d = await (await fetch(`/api/history?range_type=${range}`)).json();
         document.getElementById('volume-title').innerText = `Traffic Volume (${range})`;
         
@@ -328,4 +341,3 @@ const PROJECT_DATA = {
         link: null 
     }
 };
-
