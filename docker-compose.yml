@@ -31,6 +31,9 @@ services:
     container_name: frigate
     image: ghcr.io/blakeblackshear/frigate:stable
     privileged: true
+    ports:
+      - "5000:5000" # Map Frigate Web UI
+      - "8554:8554" # RTSP restream
     restart: always
     shm_size: "128mb"
     devices:
