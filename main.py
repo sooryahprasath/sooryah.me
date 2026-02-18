@@ -72,64 +72,6 @@ def get_history(range_type: str = "24h"):
         return {"labels": labels, "data": data}
     except: return {"labels": [], "data": []}
 
-@app.get("/api/scatter")
-def get_scatter():
-    try:
-        client = get_influx_client()
-        query_api = client.query_api()
-        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot") |> filter(fn: (r) => r["_field"] == "altitude" or r["_field"] == "temp_c") |> aggregateWindow(every: 2m, fn: mean, createEmpty: false) |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value") |> filter(fn: (r) => exists r.altitude and exists r.temp_c) |> limit(n: 500) |> keep(columns: ["altitude", "temp_c"])'
-        result = query_api.query(org=INFLUX_ORG, query=query)
-        return [{"x": r["temp_c"], "y": r["altitude"]} for t in result for r in t.records]
-    except: return []
-
-@app.get("/api/daily")
-def get_daily():
-    try:
-        client = get_influx_client()
-        query_api = client.query_api()
-        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -7d) |> filter(fn: (r) => r["_measurement"] == "airspace_metrics") |> filter(fn: (r) => r["_field"] == "aircraft_count") |> aggregateWindow(every: 1d, fn: max, createEmpty: false)'
-        result = query_api.query(org=INFLUX_ORG, query=query)
-        labels, data, ist_delta = [], [], timedelta(hours=5, minutes=30)
-        for t in result:
-            for r in t.records:
-                labels.append((r.get_time() + ist_delta).strftime("%a %d"))
-                data.append(r.get_value())
-        return {"labels": labels, "data": data}
-    except: return {"labels": [], "data": []}
-
-@app.get("/api/altitude")
-def get_altitude():
-    try:
-        client = get_influx_client()
-        query_api = client.query_api()
-        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -7d) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "altitude") |> sample(n: 1000)'
-        result = query_api.query(org=INFLUX_ORG, query=query)
-        alts = [r.get_value() for t in result for r in t.records]
-        buckets = {"0-10k": 0, "10k-20k": 0, "20k-30k": 0, "30k-40k": 0, "40k+": 0}
-        for a in alts:
-            if a < 10000: buckets["0-10k"] += 1
-            elif a < 20000: buckets["10k-20k"] += 1
-            elif a < 30000: buckets["20k-30k"] += 1
-            elif a < 40000: buckets["30k-40k"] += 1
-            else: buckets["40k+"] += 1
-        return {"labels": list(buckets.keys()), "data": list(buckets.values())}
-    except: return {"labels": [], "data": []}
-
-@app.get("/api/direction")
-def get_direction():
-    try:
-        client = get_influx_client()
-        query_api = client.query_api()
-        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "bearing") |> sample(n: 200)'
-        result = query_api.query(org=INFLUX_ORG, query=query)
-        counts = [0]*8
-        for t in result:
-            for r in t.records:
-                b = r.get_value()
-                if b is not None: counts[int((b + 22.5) // 45) % 8] += 1
-        return {"data": counts}
-    except: return {"data": [0]*8}
-
 # --- TRAFFIC PROXY ROUTES ---
 @app.get("/api/stats")
 async def proxy_stats():
@@ -141,9 +83,18 @@ async def proxy_stats():
 
 @app.get("/video_feed")
 async def proxy_video():
-    async with httpx.AsyncClient() as client:
-        try:
-            req = client.build_request("GET", "http://localhost:5000/video_feed")
-            resp = await client.send(req, stream=True)
-            return StreamingResponse(resp.aiter_raw(), media_type="multipart/x-mixed-replace; boundary=frame")
-        except: return HTMLResponse("Stream Unavailable", status_code=503)
+    """MJPEG Proxy Generator: Pipes the infinite stream from Port 5000 to Port 8090"""
+    async def stream_generator():
+        async with httpx.AsyncClient() as client:
+            try:
+                # timeout=None is critical for infinite streams
+                async with client.stream("GET", "http://localhost:5000/video_feed", timeout=None) as r:
+                    async for chunk in r.aiter_bytes():
+                        yield chunk
+            except Exception as e:
+                print(f"Proxy Stream Error: {e}")
+
+    return StreamingResponse(
+        stream_generator(), 
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
