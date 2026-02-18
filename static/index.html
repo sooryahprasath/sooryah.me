@@ -211,14 +211,14 @@
             <div class="p-6 border-b border-theme flex justify-between items-center bg-[var(--glass-bg)]">
                 <div class="flex items-center gap-4">
                     <div class="p-2 bg-orange-500/10 rounded-lg text-orange-500"><i data-lucide="video" class="w-6 h-6"></i></div>
-                    <div><h2 class="text-xl font-bold tracking-tight">Traffic Mission Control</h2><div class="text-xs font-mono text-muted">SOURCE: FRIGATE AI | 25 FPS HD STREAM</div></div>
+                    <div><h2 class="text-xl font-bold tracking-tight">Traffic Mission Control</h2><div class="text-xs font-mono text-muted">SOURCE: YOLOv8 NANO | CPU INFERENCE | MJPEG STREAM</div></div>
                 </div>
                 <button onclick="ui.closeTrafficModal()" class="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg"><i data-lucide="x" class="w-6 h-6"></i></button>
             </div>
             <div class="flex-grow p-6 overflow-y-auto bg-[var(--bg-solid)]">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
                     <div class="md:col-span-2 glass-panel rounded-xl overflow-hidden relative bg-black min-h-[400px]">
-                        <img id="traffic-stream" class="w-full h-full object-cover bg-black" src="" alt="Live Traffic Feed" />
+                        <img id="traffic-stream" class="w-full h-full object-contain bg-black" src="" alt="Live Traffic Feed" />
                         <div class="absolute top-4 left-4 px-3 py-1 bg-red-600/80 backdrop-blur-md text-white text-[10px] font-bold rounded flex items-center gap-2 z-20">
                             <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span> LIVE ANALYTIC FEED
                         </div>
