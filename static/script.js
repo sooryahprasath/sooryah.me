@@ -13,13 +13,17 @@ const ui = {
         const btn = document.getElementById('view-btn-text');
         
         if (body.classList.contains('tactical-active')) {
+            // EXIT
             body.classList.remove('tactical-active', 'ui-hidden'); 
             btn.innerText = "LIVE TELEMETRY VIEW";
+            // FIX: Disable scroll zoom when in portfolio mode to prevent scroll-jacking
             map.scrollWheelZoom.disable();
             map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
         } else {
+            // ENTER
             body.classList.add('tactical-active', 'ui-hidden'); 
             btn.innerText = "EXIT TELEMETRY VIEW";
+            // FIX: Enable zoom for map work
             map.dragging.enable(); 
             map.scrollWheelZoom.enable();
             map.invalidateSize(); 
@@ -91,20 +95,19 @@ const ui = {
         if(data.link) { footer.innerHTML = `<a href="${data.link}" target="_blank" class="w-full btn-glass py-3 rounded-lg flex justify-center items-center gap-2 font-bold hover:bg-accent hover:text-white transition">OPEN LIVE VIEW <i data-lucide="external-link" class="w-4 h-4"></i></a>`; footer.classList.remove('hidden'); } else { footer.classList.add('hidden'); }
         document.getElementById('detail-sidebar').classList.add('open');
     },
-
     openAnalyticsModal: () => { document.getElementById('analytics-modal').classList.remove('hidden'); charts.loadAll(); },
     closeAnalyticsModal: () => { document.getElementById('analytics-modal').classList.add('hidden'); },
 
-    // ADD-ON ONLY: Traffic Management
+    // APPENDED LOGIC: Traffic Mission Control
     openTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.remove('hidden'); 
-        // CLOUDFLARE FIX: Point this to your public sub-path set in the Tunnel
-        document.getElementById('traffic-stream').src = "/frigate/api/intersection";
+        // FIX: Using your setup HTTPS Cloudflare URL
+        document.getElementById('traffic-stream').src = "https://traffic.sooryah.me/api/intersection";
         charts.loadTrafficHistory(); 
     },
     closeTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.add('hidden'); 
-        document.getElementById('traffic-stream').src = "";
+        document.getElementById('traffic-stream').src = ""; 
     }
 };
 
@@ -248,7 +251,7 @@ const charts = {
         }
     },
 
-    // ADD-ON: Traffic Analysis Chart
+    // APPENDED ONLY: Traffic Analysis Chart
     loadTrafficHistory: async () => {
         const d = await (await fetch('/api/traffic/history')).json();
         const ctx = document.getElementById('chart-traffic-history');
@@ -271,8 +274,8 @@ const charts = {
     }
 };
 
-// ADD-ON: Real-time In-frame Updates
-async function updateRealtimeTraffic() {
+// APPENDED ONLY: Global Polling for Count
+async function syncTrafficCount() {
     try {
         const res = await fetch('/api/traffic');
         const data = await res.json();
@@ -280,7 +283,7 @@ async function updateRealtimeTraffic() {
         if (el) el.innerText = data.cars || 0;
     } catch (e) {}
 }
-setInterval(updateRealtimeTraffic, 5000);
+setInterval(syncTrafficCount, 5000);
 
 const PROJECT_DATA = {
     adsb: { 
