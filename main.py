@@ -79,7 +79,7 @@ def get_scatter():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # FIXED: Use 'speed' instead of 'temp_c' to guarantee data points
+        # FIXED: Changed temp_c to speed to ensure data always exists
         query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot") |> filter(fn: (r) => r["_field"] == "altitude" or r["_field"] == "speed") |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value") |> filter(fn: (r) => exists r.altitude and exists r.speed) |> limit(n: 500)'
         result = query_api.query(org=INFLUX_ORG, query=query)
         return [{"x": r["speed"], "y": r["altitude"]} for t in result for r in t.records]
@@ -105,18 +105,17 @@ def get_altitude():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # FIXED: Removed sample() to fetch all available points
+        # FIXED: Removed sample(n:1000) which can return empty on small datasets
         query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "altitude")'
         result = query_api.query(org=INFLUX_ORG, query=query)
+        alts = [r.get_value() for t in result for r in t.records]
         buckets = {"0-10k": 0, "10k-20k": 0, "20k-30k": 0, "30k-40k": 0, "40k+": 0}
-        for t in result:
-            for r in t.records:
-                a = r.get_value()
-                if a < 10000: buckets["0-10k"] += 1
-                elif a < 20000: buckets["10k-20k"] += 1
-                elif a < 30000: buckets["20k-30k"] += 1
-                elif a < 40000: buckets["30k-40k"] += 1
-                else: buckets["40k+"] += 1
+        for a in alts:
+            if a < 10000: buckets["0-10k"] += 1
+            elif a < 20000: buckets["10k-20k"] += 1
+            elif a < 30000: buckets["20k-30k"] += 1
+            elif a < 40000: buckets["30k-40k"] += 1
+            else: buckets["40k+"] += 1
         return {"labels": list(buckets.keys()), "data": list(buckets.values())}
     except: return {"labels": [], "data": []}
 

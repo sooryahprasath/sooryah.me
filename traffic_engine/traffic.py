@@ -20,9 +20,9 @@ HISTORY_FILE = "history.json"
 CLASS_NAMES = {0: "PERSON", 1: "BICYCLE", 2: "CAR", 3: "MOTORCYCLE", 5: "BUS", 7: "TRUCK"}
 
 # GLOBAL STATE
+# Initialize with a blank frame to prevent startup crashes
 output_frame = cv2.imencode('.jpg', np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8))[1].tobytes()
 lock = threading.Lock()
-frame_buffer = None 
 
 class HistoryManager:
     def __init__(self):
@@ -44,58 +44,56 @@ class HistoryManager:
 history = HistoryManager()
 current_stats = {"status": "Starting", "total_all_time": history.total_count}
 
-def capture_loop():
-    """Independent thread to read frames continuously."""
-    global frame_buffer
+def start_engine():
+    global output_frame, current_stats
+    
+    # Load model safely
+    try:
+        model = YOLO("yolov8n.pt") 
+    except Exception as e:
+        print(f"Failed to load YOLO model: {e}")
+        return
+
     user, pwd, ip = os.getenv('CAMERA_USER'), os.getenv('CAMERA_PASS'), os.getenv('CAMERA_IP')
     rtsp_url = f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=4&subtype=0"
     
     cap = cv2.VideoCapture(rtsp_url)
+    # Optimization: Keep buffer small to prevent video lag
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     
+    last_ai_time = 0
+    last_seen_counts = {}
+    temp_boxes = [] 
+
     while True:
         success, frame = cap.read()
         if not success:
+            # If camera fails, retry instead of crashing
             cap.release()
             time.sleep(2)
             cap = cv2.VideoCapture(rtsp_url)
-            continue
-        
-        frame_buffer = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
-        time.sleep(0.005)
-
-def processing_loop():
-    """Main thread for AI and Encoding."""
-    global output_frame, current_stats, frame_buffer
-    
-    try:
-        model = YOLO("yolov8n.pt") 
-    except: return
-
-    last_ai_time = 0
-    last_seen_counts = {}
-
-    threading.Thread(target=capture_loop, daemon=True).start()
-
-    while True:
-        if frame_buffer is None:
-            time.sleep(0.1)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             continue
 
-        draw_frame = frame_buffer.copy()
+        draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         now = time.time()
         
+        # AI INFERENCE
         if now - last_ai_time > AI_INTERVAL_SEC:
             last_ai_time = now
             try:
-                results = model(draw_frame, classes=list(CLASS_NAMES.keys()), verbose=False)
+                # OPTIMIZATION: imgsz=320 reduces CPU usage by ~75% compared to default
+                results = model(draw_frame, classes=list(CLASS_NAMES.keys()), verbose=False, imgsz=320)
                 raw_counts = {}
-                temp_boxes = []
+                new_boxes = []
                 for r in results:
                     for box in r.boxes:
                         x1, y1, x2, y2 = map(int, box.xyxy[0])
                         label = CLASS_NAMES.get(int(box.cls[0]), "Unknown")
-                        temp_boxes.append((x1, y1, x2, y2, label))
+                        new_boxes.append((x1, y1, x2, y2, label))
                         raw_counts[label] = raw_counts.get(label, 0) + 1
+                
+                temp_boxes = new_boxes # Update boxes for drawing
                 
                 new_v = sum([max(0, raw_counts.get(l, 0) - last_seen_counts.get(l, 0)) for l in raw_counts])
                 if new_v > 0: history.increment(new_v)
@@ -106,17 +104,21 @@ def processing_loop():
                     if raw_counts:
                         ts = datetime.datetime.now().strftime("%H:%M:%S")
                         current_stats['log'] = f"[{ts}] DETECTED: {raw_counts}"
+            except Exception as e:
+                print(f"AI Error: {e}")
 
-                for (x1, y1, x2, y2, label) in temp_boxes:
-                    cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    cv2.putText(draw_frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-            except: pass
+        # Draw Persistent Boxes
+        for (x1, y1, x2, y2, label) in temp_boxes:
+            cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(draw_frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
         with lock:
+            # Lower quality slightly to 60 to reduce bandwidth/CPU load
             _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
             output_frame = bytearray(encoded)
         
-        time.sleep(1.0 / FPS_LIMIT)
+        # CRITICAL: Sleep to let CPU rest. 0.02s ~= 50fps max loop speed.
+        time.sleep(0.02)
 
 @app.route("/video_feed")
 def video_feed():
@@ -133,5 +135,5 @@ def stats():
     with lock: return jsonify(current_stats)
 
 if __name__ == "__main__":
-    threading.Thread(target=processing_loop, daemon=True).start()
+    threading.Thread(target=start_engine, daemon=True).start()
     app.run(host="0.0.0.0", port=5000)
