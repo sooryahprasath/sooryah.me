@@ -13,17 +13,13 @@ const ui = {
         const btn = document.getElementById('view-btn-text');
         
         if (body.classList.contains('tactical-active')) {
-            // EXIT
             body.classList.remove('tactical-active', 'ui-hidden'); 
             btn.innerText = "LIVE TELEMETRY VIEW";
-            // FIX: Disable scroll zoom when in portfolio mode to prevent scroll-jacking
             map.scrollWheelZoom.disable();
             map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
         } else {
-            // ENTER
             body.classList.add('tactical-active', 'ui-hidden'); 
             btn.innerText = "EXIT TELEMETRY VIEW";
-            // FIX: Enable zoom for map work
             map.dragging.enable(); 
             map.scrollWheelZoom.enable();
             map.invalidateSize(); 
@@ -98,10 +94,10 @@ const ui = {
     openAnalyticsModal: () => { document.getElementById('analytics-modal').classList.remove('hidden'); charts.loadAll(); },
     closeAnalyticsModal: () => { document.getElementById('analytics-modal').classList.add('hidden'); },
 
-    // APPENDED LOGIC: Traffic Mission Control
+    // APPENDED ONLY
     openTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.remove('hidden'); 
-        // FIX: Using your setup HTTPS Cloudflare URL
+        // Use your public HTTPS domain for secure iframe loading
         document.getElementById('traffic-stream').src = "https://traffic.sooryah.me/api/intersection";
         charts.loadTrafficHistory(); 
     },
@@ -251,31 +247,33 @@ const charts = {
         }
     },
 
-    // APPENDED ONLY: Traffic Analysis Chart
+    // APPENDED ONLY
     loadTrafficHistory: async () => {
-        const d = await (await fetch('/api/traffic/history')).json();
-        const ctx = document.getElementById('chart-traffic-history');
-        if(chartInstances.traffic) chartInstances.traffic.destroy();
-        chartInstances.traffic = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: d.labels,
-                datasets: [{
-                    data: d.data,
-                    borderColor: '#f59e0b',
-                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 0
-                }]
-            },
-            options: commonOpts 
-        });
+        try {
+            const d = await (await fetch('/api/traffic/history')).json();
+            const ctx = document.getElementById('chart-traffic-history');
+            if(chartInstances.traffic) chartInstances.traffic.destroy();
+            chartInstances.traffic = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: d.labels,
+                    datasets: [{
+                        data: d.data,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: commonOpts 
+            });
+        } catch(e) {}
     }
 };
 
-// APPENDED ONLY: Global Polling for Count
-async function syncTrafficCount() {
+// APPENDED ONLY
+async function updateRealtimeTraffic() {
     try {
         const res = await fetch('/api/traffic');
         const data = await res.json();
@@ -283,7 +281,7 @@ async function syncTrafficCount() {
         if (el) el.innerText = data.cars || 0;
     } catch (e) {}
 }
-setInterval(syncTrafficCount, 5000);
+setInterval(updateRealtimeTraffic, 5000);
 
 const PROJECT_DATA = {
     adsb: { 

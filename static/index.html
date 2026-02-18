@@ -111,8 +111,8 @@
 
         <section class="flex flex-col gap-6">
             <div class="flex items-center justify-between px-2"><h2 class="text-sm font-mono font-bold text-muted uppercase tracking-widest">DEPLOYED INFRASTRUCTURE</h2></div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div onclick="ui.openProjectSidebar('adsb')" class="glass-panel project-card rounded-2xl p-8 group flex flex-col justify-between">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+                <div onclick="ui.openProjectSidebar('adsb')" class="glass-panel project-card rounded-2xl p-8 group flex flex-col justify-between h-full">
                     <div>
                         <div class="flex justify-between items-start mb-6"><div class="p-3 bg-green-500/10 rounded-xl text-green-500 border border-green-500/20"><i data-lucide="radio" class="w-6 h-6"></i></div><span class="flex items-center gap-2 px-2 py-1 rounded bg-green-500/10 text-[10px] font-mono font-bold text-green-600 dark:text-green-400 border border-green-500/20"><span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> LIVE</span></div>
                         <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition">RF & IoT Sensor Networks</h3>
@@ -121,7 +121,7 @@
                     <div class="flex gap-3 text-[10px] font-mono text-muted mt-6"><span>#SDR</span><span>#Linux</span></div>
                 </div>
 
-                <div onclick="ui.openTrafficModal()" class="glass-panel project-card rounded-2xl p-8 group flex flex-col justify-between border-l-4 border-l-orange-500">
+                <div onclick="ui.openTrafficModal()" class="glass-panel project-card rounded-2xl p-8 group flex flex-col justify-between h-full border-l-4 border-l-orange-500">
                     <div>
                         <div class="flex justify-between items-start mb-6">
                             <div class="p-3 bg-orange-500/10 rounded-xl text-orange-500 border border-orange-500/20"><i data-lucide="video" class="w-6 h-6"></i></div>
@@ -133,7 +133,7 @@
                     <div class="flex gap-3 text-[10px] font-mono text-muted mt-6"><span>#OpenVINO</span><span>#CV</span></div>
                 </div>
 
-                <div onclick="ui.openAnalyticsModal()" class="glass-panel project-card rounded-2xl p-8 group flex flex-col justify-between">
+                <div onclick="ui.openAnalyticsModal()" class="glass-panel project-card rounded-2xl p-8 group flex flex-col justify-between h-full">
                     <div>
                         <div class="flex justify-between items-start mb-6"><div class="p-3 bg-blue-500/10 rounded-xl text-blue-500 border border-blue-500/20"><i data-lucide="bar-chart-2" class="w-6 h-6"></i></div><span class="flex items-center gap-2 px-2 py-1 rounded bg-blue-500/10 text-[10px] font-mono font-bold text-blue-600 dark:text-blue-400 border border-blue-500/20">BIG DATA</span></div>
                         <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition">Big Data Analytics</h3>
@@ -141,19 +141,24 @@
                     </div>
                     <div class="flex gap-3 text-[10px] font-mono text-muted mt-6"><span>#InfluxDB</span><span>#ChartJS</span></div>
                 </div>
-            </div>
-            
-            <div onclick="ui.openProjectSidebar('telemetry')" class="glass-panel project-card rounded-2xl p-10 group mt-6">
-                <div class="flex justify-between items-start mb-6"><div class="p-4 bg-purple-500/10 rounded-xl text-purple-500 border border-purple-500/20"><i data-lucide="activity" class="w-8 h-8"></i></div></div>
-                <h3 class="text-2xl font-bold mb-3 group-hover:text-accent transition">Enterprise Telemetry Pipeline</h3>
-                <p class="text-muted text-base leading-relaxed mb-6">Centralized pipeline utilizing Apache Airflow and Azure SQL to ingest real-time data from 150+ global sites.</p>
-                <div class="flex gap-4 text-xs font-mono text-muted"><span>#Python</span><span>#BigData</span><span>#PowerBI</span></div>
-            </div>
-            <div onclick="ui.openProjectSidebar('cloud')" class="glass-panel project-card rounded-2xl p-10 group mt-6">
-                <div class="flex justify-between items-start mb-6"><div class="p-4 bg-orange-500/10 rounded-xl text-orange-500 border border-orange-500/20"><i data-lucide="server" class="w-8 h-8"></i></div></div>
-                <h3 class="text-2xl font-bold mb-3 group-hover:text-accent transition">Private Cloud Cluster</h3>
-                <p class="text-muted text-base leading-relaxed mb-6">Production-grade home infrastructure. A 3-node Proxmox cluster running Kubernetes (K3s).</p>
-                <div class="flex gap-4 text-xs font-mono text-muted"><span>#Proxmox</span><span>#Kubernetes</span><span>#Ansible</span></div>
+
+                <div onclick="ui.openProjectSidebar('telemetry')" class="glass-panel project-card rounded-2xl p-8 group flex flex-col justify-between h-full">
+                    <div>
+                        <div class="flex justify-between items-start mb-6"><div class="p-3 bg-purple-500/10 rounded-xl text-purple-500 border border-purple-500/20"><i data-lucide="activity" class="w-6 h-6"></i></div></div>
+                        <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition">Enterprise Telemetry Pipeline</h3>
+                        <p class="text-muted text-sm leading-relaxed">Centralized pipeline utilizing Apache Airflow and Azure SQL to ingest real-time data from 150+ global sites.</p>
+                    </div>
+                    <div class="flex gap-3 text-[10px] font-mono text-muted mt-6"><span>#Python</span><span>#BigData</span><span>#PowerBI</span></div>
+                </div>
+
+                <div onclick="ui.openProjectSidebar('cloud')" class="glass-panel project-card rounded-2xl p-8 group flex flex-col justify-between h-full md:col-span-2 lg:col-span-2">
+                    <div>
+                        <div class="flex justify-between items-start mb-6"><div class="p-3 bg-orange-500/10 rounded-xl text-orange-500 border border-orange-500/20"><i data-lucide="server" class="w-6 h-6"></i></div></div>
+                        <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition">Private Cloud Cluster</h3>
+                        <p class="text-muted text-sm leading-relaxed">Production-grade home infrastructure. A 3-node Proxmox cluster running Kubernetes (K3s).</p>
+                    </div>
+                    <div class="flex gap-3 text-[10px] font-mono text-muted mt-6"><span>#Proxmox</span><span>#Kubernetes</span><span>#Ansible</span></div>
+                </div>
             </div>
             <footer class="mt-8 text-center pb-8"><p class="text-xs font-mono text-muted">© 2026 Sooryah Prasath.</p></footer>
         </section>
@@ -179,7 +184,7 @@
                     <div class="glass-panel p-4 rounded-xl"><div class="text-[10px] font-mono text-muted uppercase">Max Altitude (Today)</div><div class="text-2xl font-bold" id="kpi-alt">--</div></div>
                     <div class="glass-panel p-4 rounded-xl border border-blue-500/30 bg-blue-500/5"><div class="text-[10px] font-mono text-blue-400 uppercase">Station Status</div><div class="text-sm font-bold text-blue-500 mt-1 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> RECORDING</div></div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="glass-panel p-6 rounded-xl flex flex-col md:col-span-1"><h4 class="text-xs font-mono font-bold text-muted uppercase mb-4">Traffic (Last 7 Days)</h4><div class="flex-grow min-h-[200px]"><canvas id="chart-daily"></canvas></div></div>
                     <div class="glass-panel p-6 rounded-xl flex flex-col md:col-span-2">
                         <div class="flex justify-between items-center mb-4">
@@ -189,13 +194,13 @@
                                 <button onclick="charts.changeResolution('15m')" class="px-2 py-1 text-[10px] font-bold border border-white/10 rounded hover:bg-white/10">15M</button>
                                 <button onclick="charts.changeResolution('3h')" class="px-2 py-1 text-[10px] font-bold border border-white/10 rounded hover:bg-white/10">3H</button>
                                 <button onclick="charts.changeResolution('24h')" class="px-2 py-1 text-[10px] font-bold border border-white/10 rounded hover:bg-white/10">24H</button>
-                                <button onclick="charts.changeResolution('7d')" class="px-2 py-1 text-[10px] font-bold border border-white/10 rounded hover:bg-white/10">7D</button>
-                                <button onclick="charts.changeResolution('14d')" class="px-2 py-1 text-[10px] font-bold border border-white/10 rounded hover:bg-white/10">14D</button>
-                                <button onclick="charts.changeResolution('30d')" class="px-2 py-1 text-[10px] font-bold border border-white/10 rounded hover:bg-white/10">30D</button>
                             </div>
                         </div>
                         <div class="flex-grow min-h-[250px]"><canvas id="chart-volume"></canvas></div>
                     </div>
+                    <div class="glass-panel p-6 rounded-xl flex flex-col md:col-span-1"><h4 class="text-xs font-mono font-bold text-muted uppercase mb-4">Altitude Dist.</h4><div class="flex-grow min-h-[200px]"><canvas id="chart-altitude"></canvas></div></div>
+                    <div class="glass-panel p-6 rounded-xl flex flex-col md:col-span-1"><h4 class="text-xs font-mono font-bold text-muted uppercase mb-4">Temp vs Altitude</h4><div class="flex-grow min-h-[200px]"><canvas id="chart-scatter"></canvas></div></div>
+                    <div class="glass-panel p-6 rounded-xl flex flex-col md:col-span-1"><h4 class="text-xs font-mono font-bold text-muted uppercase mb-4">Approach Direction</h4><div class="flex-grow min-h-[200px]"><canvas id="chart-polar"></canvas></div></div>
                 </div>
             </div>
         </div>
@@ -213,9 +218,9 @@
             </div>
             <div class="flex-grow p-6 overflow-y-auto bg-[var(--bg-solid)]">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
-                    <div class="md:col-span-2 glass-panel rounded-xl overflow-hidden relative bg-black aspect-video">
-                        <iframe id="traffic-stream" src="" class="w-full h-full border-0"></iframe>
-                        <div class="absolute top-4 left-4 px-3 py-1 bg-red-600/80 backdrop-blur-md text-white text-[10px] font-bold rounded flex items-center gap-2">
+                    <div class="md:col-span-2 glass-panel rounded-xl overflow-hidden relative bg-black min-h-[400px]">
+                        <iframe id="traffic-stream" src="" class="absolute inset-0 w-full h-full border-0" loading="lazy"></iframe>
+                        <div class="absolute top-4 left-4 px-3 py-1 bg-red-600/80 backdrop-blur-md text-white text-[10px] font-bold rounded flex items-center gap-2 z-10">
                             <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span> LIVE ANALYTIC FEED
                         </div>
                     </div>
@@ -223,11 +228,11 @@
                         <div class="glass-panel p-6 rounded-xl">
                             <h4 class="text-xs font-mono font-bold text-muted uppercase mb-4">Real-time Count</h4>
                             <div class="text-4xl font-bold text-orange-500 font-mono" id="modal-live-cars">0</div>
-                            <div class="text-[10px] text-muted font-mono mt-1 uppercase">Active Objects</div>
+                            <div class="text-[10px] text-muted font-mono mt-1 uppercase">Active Tracks in Frame</div>
                         </div>
                         <div class="glass-panel p-6 rounded-xl flex-grow">
-                            <h4 class="text-xs font-mono font-bold text-muted uppercase mb-4">Volume (24h)</h4>
-                            <div class="h-full min-h-[200px]"><canvas id="chart-traffic-history"></canvas></div>
+                            <h4 class="text-xs font-mono font-bold text-muted uppercase mb-4">Traffic Volume (24h)</h4>
+                            <div class="h-full min-h-[250px]"><canvas id="chart-traffic-history"></canvas></div>
                         </div>
                     </div>
                 </div>
