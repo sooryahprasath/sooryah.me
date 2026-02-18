@@ -3,62 +3,115 @@ import time
 import os
 import threading
 import json
-import numpy as np
 import datetime
-from flask import Flask, Response, jsonify
+from flask import Flask, Response, jsonify, send_from_directory
 from ultralytics import YOLO
 
 app = Flask(__name__)
 
 # --- CONFIG ---
-FRAME_WIDTH = 640
-FRAME_HEIGHT = 360
-FPS_LIMIT = 15
+FRAME_WIDTH = 854
+FRAME_HEIGHT = 480
+FPS_LIMIT = 15          
+AI_INTERVAL_SEC = 0.5   
 HISTORY_FILE = "history.json"
+
+CLASS_NAMES = {
+    0: "PERSON", 1: "BICYCLE", 2: "CAR", 3: "MOTORCYCLE", 5: "BUS", 7: "TRUCK",
+    14: "BIRD", 15: "CAT", 16: "DOG", 17: "HORSE", 18: "SHEEP", 19: "COW"
+}
+TARGET_CLASSES = list(CLASS_NAMES.keys())
+
+# --- PERSISTENT HISTORY (Non-Blocking) ---
+class HistoryManager:
+    def __init__(self):
+        self.file = HISTORY_FILE
+        self.total_count = 0
+        self.load()
+
+    def load(self):
+        if os.path.exists(self.file):
+            try:
+                with open(self.file, 'r') as f:
+                    data = json.load(f)
+                    self.total_count = data.get("total", 0)
+            except:
+                self.total_count = 0
+
+    def save(self):
+        try:
+            with open(self.file, 'w') as f:
+                json.dump({"total": self.total_count}, f)
+        except:
+            pass
+
+    def increment(self, amount):
+        if amount > 0:
+            self.total_count += amount
+            threading.Thread(target=self.save).start() 
+
+history = HistoryManager()
 
 # --- GLOBAL STATE ---
 output_frame = None
-current_stats = {"status": "Initializing"}
+# Initialize with history so the dashboard isn't empty on first load
+current_stats = {"status": "Online", "total_all_time": history.total_count}
 lock = threading.Lock()
-total_all_time = 0
 
-# --- HISTORY LOADER ---
-if os.path.exists(HISTORY_FILE):
-    try:
-        with open(HISTORY_FILE, 'r') as f:
-            total_all_time = json.load(f).get("total", 0)
-    except: pass
+# --- CAMERA CLASS (Auto-Healing) ---
+class RobustCamera:
+    def __init__(self, src):
+        self.src = src
+        self.cap = None
+        self.frame = None
+        self.running = True
+        self.lock = threading.Lock()
+        self.thread = threading.Thread(target=self.update, daemon=True)
+        self.thread.start()
 
-def save_history():
-    try:
-        with open(HISTORY_FILE, 'w') as f:
-            json.dump({"total": total_all_time}, f)
-    except: pass
+    def update(self):
+        while self.running:
+            if self.cap is None or not self.cap.isOpened():
+                print("📷 Connecting to camera...")
+                self.cap = cv2.VideoCapture(self.src)
+                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                time.sleep(1)
+                
+                if not self.cap.isOpened():
+                    print("❌ Connection failed. Retrying in 5s...")
+                    time.sleep(5)
+                    continue
 
-# --- PLACEHOLDER GENERATOR ---
-def get_placeholder_frame(text="NO SIGNAL"):
-    """Generates a black frame with text so video never buffers"""
-    img = np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), dtype=np.uint8)
-    # Draw Blue Grid
-    for y in range(0, FRAME_HEIGHT, 40):
-        cv2.line(img, (0, y), (FRAME_WIDTH, y), (50, 50, 50), 1)
-    for x in range(0, FRAME_WIDTH, 40):
-        cv2.line(img, (x, 0), (x, FRAME_HEIGHT), (50, 50, 50), 1)
-    
-    # Draw Text
-    cv2.putText(img, text, (int(FRAME_WIDTH/2 - 100), int(FRAME_HEIGHT/2)), 
-                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
-    cv2.putText(img, datetime.datetime.now().strftime("%H:%M:%S"), 
-                (int(FRAME_WIDTH/2 - 60), int(FRAME_HEIGHT/2 + 40)), 
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 1)
-    
-    return cv2.imencode('.jpg', img)[1].tobytes()
+            success, frame = self.cap.read()
+            if success:
+                with self.lock:
+                    self.frame = frame
+                time.sleep(1.0 / FPS_LIMIT)
+            else:
+                print("⚠️ Lost stream signal. Reconnecting...")
+                if self.cap: self.cap.release()
+                time.sleep(1)
+
+    def get_frame(self):
+        with self.lock:
+            return self.frame
+
+# --- UI ROUTES (Serves Dashboard & Assets) ---
+@app.route('/')
+def index():
+    # Serves the index.html from the same directory as this script
+    return send_from_directory('.', 'index.html')
+
+@app.route('/static/<path:path>')
+def send_static(path):
+    # Serves scripts/styles from the /static subfolder
+    return send_from_directory('static', path)
 
 # --- MAIN ENGINE ---
 def start_engine():
-    global output_frame, current_stats, total_all_time
+    global output_frame, current_stats
     
-    print("🚀 [SYSTEM] Loading AI...")
+    print("🚀 Loading AI Model...")
     model = YOLO("yolov8n.pt") 
     
     user = os.getenv('CAMERA_USER')
@@ -66,106 +119,91 @@ def start_engine():
     ip = os.getenv('CAMERA_IP')
     rtsp_url = f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=4&subtype=0"
     
-    cap = cv2.VideoCapture(rtsp_url)
-    
+    cam = RobustCamera(rtsp_url)
     last_ai_time = 0
-    last_boxes = []
-    
-    print("✅ [SYSTEM] Engine Started.")
+    last_boxes = [] 
+    last_seen_counts = {} 
+
+    print("✅ Engine Started. Waiting for video...")
 
     while True:
-        # 1. Camera Management
-        if not cap.isOpened():
-            with lock:
-                output_frame = get_placeholder_frame("CONNECTING...")
-                current_stats["status"] = "Connecting"
-            time.sleep(2)
-            cap = cv2.VideoCapture(rtsp_url)
-            continue
-
-        success, frame = cap.read()
+        frame = cam.get_frame()
         
-        if not success:
-            with lock:
-                output_frame = get_placeholder_frame("NO CAMERA FEED")
-                current_stats["status"] = "No Signal"
-            time.sleep(1)
-            # Reconnect logic
-            cap.release()
+        if frame is None:
+            time.sleep(0.1)
             continue
 
-        # 2. Resize & AI
+        # Resize for consistent AI and drawing
         frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         
         now = time.time()
-        if now - last_ai_time > 0.5:
+        if now - last_ai_time > AI_INTERVAL_SEC:
             last_ai_time = now
             try:
-                # Detect: Person(0), Car(2), Motorcycle(3), Bus(5), Truck(7)
-                results = model(frame, classes=[0, 2, 3, 5, 7], verbose=False)
+                results = model(frame, classes=TARGET_CLASSES, verbose=False)
                 
-                counts = {}
+                raw_counts = {}
                 temp_boxes = []
-                new_detections = 0
                 
                 for r in results:
                     for box in r.boxes:
                         x1, y1, x2, y2 = map(int, box.xyxy[0])
-                        label = model.names[int(box.cls[0])].upper()
+                        cls_id = int(box.cls[0])
+                        label = CLASS_NAMES.get(cls_id, "Unknown")
                         
                         temp_boxes.append((x1, y1, x2, y2, label))
-                        counts[label] = counts.get(label, 0) + 1
+                        raw_counts[label] = raw_counts.get(label, 0) + 1
                 
-                # Simple "All Time" Logic:
-                # If we see more cars now than 0.5s ago, assume they are new
-                # (This is basic but effective for now)
-                current_total_frame = sum(counts.values())
-                if current_total_frame > 0:
-                    # Just increment global counter slowly to simulate history for now
-                    # Real tracking requires ID matching, but this proves the concept
-                    pass 
-
-                # Update Global Stats
                 last_boxes = temp_boxes
                 
+                # --- LOGIC: COUNT NEW VEHICLES ---
+                new_vehicles = 0
+                for label, count in raw_counts.items():
+                    prev = last_seen_counts.get(label, 0)
+                    if count > prev:
+                        new_vehicles += (count - prev)
+                
+                if new_vehicles > 0:
+                    history.increment(new_vehicles)
+                
+                last_seen_counts = raw_counts
+                
+                # Update Global Stats for API (Always include critical keys)
                 with lock:
-                    stats = counts.copy()
-                    stats['total_all_time'] = total_all_time + current_total_frame # Temp visual fix
+                    payload = {"status": "Online", "total_all_time": history.total_count}
+                    payload.update(raw_counts)
                     
-                    if counts:
+                    if raw_counts:
                         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-                        details = ", ".join([f"{k}: {v}" for k,v in counts.items()])
-                        stats['log'] = f"[{timestamp}] DETECTED: {details}"
+                        details = ", ".join([f"{k}: {v}" for k,v in raw_counts.items()])
+                        payload['log'] = f"[{timestamp}] DETECTED: {details}"
+                    elif 'log' in current_stats:
+                        payload['log'] = current_stats['log'] # Keep last log visible
                     
-                    stats['status'] = "Online"
-                    current_stats = stats
-
+                    current_stats = payload
+                    
             except Exception as e:
                 print(f"AI Error: {e}")
 
-        # 3. Draw & Encode
+        # --- DRAWING ---
         for (x1, y1, x2, y2, label) in last_boxes:
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
+        # --- ENCODING ---
         with lock:
-            (flag, encodedImage) = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
-            if flag:
-                output_frame = bytearray(encodedImage)
+            (_, encodedImage) = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
+            output_frame = bytearray(encodedImage)
         
-        time.sleep(0.05)
+        time.sleep(0.01)
 
 def generate():
     while True:
         with lock:
-            if output_frame is None:
-                # Send placeholder if nothing else exists
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + get_placeholder_frame("BOOTING...") + b'\r\n')
-            else:
+            if output_frame is not None:
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + output_frame + b'\r\n')
-        time.sleep(0.1)
+        time.sleep(1.0 / FPS_LIMIT)
 
 @app.route("/video_feed")
 def video_feed():
@@ -179,4 +217,5 @@ def stats():
 if __name__ == "__main__":
     t = threading.Thread(target=start_engine, daemon=True)
     t.start()
+    # Runs on port 5000, consistent with your Cloudflare Tunnel
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
