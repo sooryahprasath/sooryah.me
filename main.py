@@ -9,7 +9,7 @@ from datetime import timedelta
 
 app = FastAPI()
 
-# CONFIG
+# CONFIG - Pulled from environment variables
 RADAR_IP = os.getenv("RADAR_IP")
 INFLUX_URL = os.getenv("INFLUX_URL")
 INFLUX_TOKEN = os.getenv("INFLUX_TOKEN")
@@ -60,17 +60,25 @@ def get_history(range_type: str = "24h"):
         query_api = client.query_api()
         config = {"5m": ("-5m", "10s"), "15m": ("-15m", "30s"), "3h": ("-3h", "5m"), "24h": ("-24h", "30m"), "7d": ("-7d", "3h"), "14d": ("-14d", "6h"), "30d": ("-30d", "12h")}
         start, window = config.get(range_type, ("-24h", "30m"))
-        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: {start}) |> filter(fn: (r) => r["_measurement"] == "airspace_metrics") |> filter(fn: (r) => r["_field"] == "aircraft_count") |> aggregateWindow(every: {window}, fn: mean, createEmpty: false) |> yield(name: "mean")'
+        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: {start}) |> filter(fn: (r) => r["_measurement"] == "airspace_metrics") |> filter(fn: (r) => r["_field"] == "aircraft_count") |> aggregateWindow(every: {window}, fn: mean, createEmpty: false)'
         result = query_api.query(org=INFLUX_ORG, query=query)
         labels, data, ist_delta = [], [], timedelta(hours=5, minutes=30)
         for t in result:
             for r in t.records:
-                local_time = r.get_time() + ist_delta
-                fmt = "%d/%m %Hh" if range_type in ["7d", "14d", "30d"] else "%H:%M"
-                labels.append(local_time.strftime(fmt))
+                labels.append((r.get_time() + ist_delta).strftime("%H:%M"))
                 data.append(round(r.get_value(), 1))
         return {"labels": labels, "data": data}
     except: return {"labels": [], "data": []}
+
+@app.get("/api/scatter")
+def get_scatter():
+    try:
+        client = get_influx_client()
+        query_api = client.query_api()
+        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot") |> filter(fn: (r) => r["_field"] == "altitude" or r["_field"] == "temp_c") |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value") |> filter(fn: (r) => exists r.altitude and exists r.temp_c) |> limit(n: 500)'
+        result = query_api.query(org=INFLUX_ORG, query=query)
+        return [{"x": r["temp_c"], "y": r["altitude"]} for t in result for r in t.records]
+    except: return []
 
 # --- TRAFFIC PROXY ROUTES ---
 @app.get("/api/stats")
@@ -82,19 +90,29 @@ async def proxy_stats():
         except: return {"status": "Offline", "total_all_time": 0}
 
 @app.get("/video_feed")
-async def proxy_video():
-    """MJPEG Proxy Generator: Pipes the infinite stream from Port 5000 to Port 8090"""
+async def video_feed_proxy():
     async def stream_generator():
         async with httpx.AsyncClient() as client:
             try:
-                # timeout=None is critical for infinite streams
                 async with client.stream("GET", "http://localhost:5000/video_feed", timeout=None) as r:
                     async for chunk in r.aiter_bytes():
                         yield chunk
-            except Exception as e:
-                print(f"Proxy Stream Error: {e}")
+            except Exception: pass
+    return StreamingResponse(stream_generator(), media_type="multipart/x-mixed-replace; boundary=frame")
 
-    return StreamingResponse(
-        stream_generator(), 
-        media_type="multipart/x-mixed-replace; boundary=frame"
-    )
+# --- TRAFFIC HISTORY (For Chart) ---
+@app.get("/api/traffic/history")
+def get_traffic_history():
+    try:
+        client = get_influx_client()
+        query_api = client.query_api()
+        # Query the traffic_stats measurement written by traffic_ingest.py
+        query = f'from(bucket: "traffic") |> range(start: -24h) |> filter(fn: (r) => r["_measurement"] == "traffic_stats") |> filter(fn: (r) => r["_field"] == "total_detections") |> aggregateWindow(every: 30m, fn: max, createEmpty: false)'
+        result = query_api.query(org=INFLUX_ORG, query=query)
+        labels, data = [], []
+        for t in result:
+            for r in t.records:
+                labels.append(r.get_time().strftime("%H:%M"))
+                data.append(r.get_value())
+        return {"labels": labels, "data": data}
+    except: return {"labels": [], "data": []}
