@@ -7,102 +7,153 @@ from ultralytics import YOLO
 
 app = Flask(__name__)
 
-# Load the nano model (optimized for CPU)
-print("Loading AI Model...")
-model = YOLO("yolov8n.pt") 
-
-# Camera Config
-user = os.getenv('CAMERA_USER')
-pwd = os.getenv('CAMERA_PASS')
-ip = os.getenv('CAMERA_IP')
-RTSP_URL = f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=4&subtype=0"
-
-# Settings: 480p is a good balance of clarity vs CPU usage
+# --- CONFIGURATION ---
 FRAME_WIDTH = 854
 FRAME_HEIGHT = 480
+CONFIDENCE_THRESHOLD = 0.45
+# Only run AI every X frames (higher = less CPU, lower = smoother tracking)
+AI_INTERVAL = 3 
 
-# Detection Classes (COCO Dataset IDs)
-# 0:person, 1:bicycle, 2:car, 3:motorcycle, 5:bus, 7:truck, 
-# 14:bird, 15:cat, 16:dog, 17:horse, 18:sheep, 19:cow
-TARGET_CLASSES = [0, 1, 2, 3, 5, 7, 14, 15, 16, 17, 18, 19]
+# Mapping COCO Class IDs to Human Readable Names
+CLASS_NAMES = {
+    0: "person", 1: "bicycle", 2: "car", 3: "motorcycle", 5: "bus", 7: "truck",
+    14: "bird", 15: "cat", 16: "dog", 17: "horse", 18: "sheep", 19: "cow"
+}
+TARGET_CLASSES = list(CLASS_NAMES.keys())
 
-# Global State
+# --- GLOBAL STATE ---
 output_frame = None
-current_count = 0
+current_stats = {name: 0 for name in CLASS_NAMES.values()}
 lock = threading.Lock()
 
-def process_stream():
-    global output_frame, current_count
+# --- 1. THREADED CAMERA CLASS (The Speed Booster) ---
+class ThreadedCamera:
+    def __init__(self, src):
+        self.capture = cv2.VideoCapture(src)
+        # Set small buffer to prevent lag
+        self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        self.thread = threading.Thread(target=self.update, args=())
+        self.thread.daemon = True
+        self.started = False
+        self.status = False
+        self.frame = None
+
+    def start(self):
+        if self.started: return None
+        self.started = True
+        self.thread.start()
+        return self
+
+    def update(self):
+        while self.started:
+            if self.capture.isOpened():
+                (self.status, self.frame) = self.capture.read()
+            time.sleep(0.01) # Small sleep to prevent locking CPU
+
+    def get_frame(self):
+        return self.frame
+
+# --- MAIN PROCESSING ENGINE ---
+def start_engine():
+    global output_frame, current_stats
     
-    # We will store the boxes from the last "detection frame" 
-    # and draw them on the "skipped frames" to keep video smooth.
-    last_boxes = []
+    print("🚀 Loading AI Model...")
+    # Load model and export to OpenVINO for 2x CPU Speed
+    # usage: 'yolov8n.pt' -> auto-export -> 'yolov8n_openvino_model/'
+    model = YOLO("yolov8n.pt")
+    
+    # Check if OpenVINO export exists, if not, create it
+    if not os.path.exists("yolov8n_openvino_model"):
+        print("⚙️ Optimizing model for Intel CPU (OpenVINO)... This takes 1 min...")
+        model.export(format="openvino")
+        print("✅ Optimization Complete!")
+    
+    # Load the optimized model
+    ov_model = YOLO("yolov8n_openvino_model/", task="detect")
+
+    # Camera Setup
+    user = os.getenv('CAMERA_USER')
+    pwd = os.getenv('CAMERA_PASS')
+    ip = os.getenv('CAMERA_IP')
+    rtsp_url = f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=4&subtype=0"
+    
+    print(f"📡 Connecting to Camera stream...")
+    cam = ThreadedCamera(rtsp_url).start()
+    
+    # Wait for first frame
+    time.sleep(2)
+    
     frame_counter = 0
+    last_boxes = [] # To draw on skipped frames
 
     while True:
-        cap = cv2.VideoCapture(RTSP_URL)
-        # Set buffer size to 1 to reduce latency
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        frame = cam.get_frame()
         
-        while cap.isOpened():
-            success, frame = cap.read()
-            if not success:
-                break
+        if frame is None:
+            # If camera disconnects, wait and retry
+            time.sleep(1)
+            continue
 
-            # 1. Resize Frame
-            frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
-
-            # 2. INTELLIGENT SKIPPING
-            # We display every frame (smooth video), but only run AI every 4th frame (saves CPU)
-            if frame_counter % 4 == 0:
-                results = model(frame, classes=TARGET_CLASSES, verbose=False)
-                
-                # Reset boxes for this new detection
-                last_boxes = [] 
-                count = 0
-                
-                for r in results:
-                    boxes = r.boxes
-                    count = len(boxes)
-                    for box in boxes:
-                        x1, y1, x2, y2 = map(int, box.xyxy[0])
-                        # Store box coordinates to draw later
-                        last_boxes.append((x1, y1, x2, y2))
-                
-                # Update global stats
-                with lock:
-                    current_count = count
+        # Resize for performance
+        frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
+        
+        # --- AI INFERENCE (Skipped frames for speed) ---
+        if frame_counter % AI_INTERVAL == 0:
+            # Run Inference on the optimized model
+            results = ov_model(frame, classes=TARGET_CLASSES, conf=CONFIDENCE_THRESHOLD, verbose=False)
             
-            # 3. Draw the boxes (even on skipped frames)
-            for (x1, y1, x2, y2) in last_boxes:
-                # Green Box with slight transparency effect
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            # Reset stats
+            new_stats = {name: 0 for name in CLASS_NAMES.values()}
+            last_boxes = []
 
-            frame_counter += 1
-
-            # 4. Update the Web Stream
+            for r in results:
+                for box in r.boxes:
+                    # Get coordinates
+                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+                    cls_id = int(box.cls[0])
+                    
+                    # Store box for drawing
+                    label = CLASS_NAMES.get(cls_id, "Unknown")
+                    last_boxes.append((x1, y1, x2, y2, label))
+                    
+                    # Update Count
+                    if label in new_stats:
+                        new_stats[label] += 1
+            
+            # Update global stats safely
             with lock:
-                # Compression quality 70 is indistinguishable from 100 but much faster
-                (flag, encodedImage) = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
-                if flag:
-                    output_frame = bytearray(encodedImage)
-            
-            # Target ~20 FPS for the stream (Smooth enough, low CPU)
-            time.sleep(0.05)
+                current_stats = new_stats
 
-        cap.release()
-        print("Stream disconnected. Retrying in 5s...")
-        time.sleep(5)
+        # --- DRAWING (Happens every frame for smoothness) ---
+        for (x1, y1, x2, y2, label) in last_boxes:
+            # Draw Green Box
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            # Draw Label Background
+            cv2.rectangle(frame, (x1, y1-20), (x1+100, y1), (0, 255, 0), -1)
+            # Draw Label Text
+            cv2.putText(frame, label, (x1+5, y1-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1)
 
+        frame_counter += 1
+
+        # --- STREAM ENCODING ---
+        with lock:
+            # Quality 80 is the sweet spot for Stream vs CPU
+            (_, encodedImage) = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+            output_frame = bytearray(encodedImage)
+        
+        # Cap logic loop at ~30 FPS to prevent CPU waste
+        time.sleep(0.03)
+
+# --- FLASK SERVER ---
 def generate():
     while True:
         with lock:
             if output_frame is None:
+                time.sleep(0.1)
                 continue
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + output_frame + b'\r\n')
-        # Stream FPS control
-        time.sleep(0.05)
+        time.sleep(0.04) # 25 FPS Stream Limit
 
 @app.route("/video_feed")
 def video_feed():
@@ -111,10 +162,13 @@ def video_feed():
 @app.route("/api/stats")
 def stats():
     with lock:
-        return jsonify({"cars": current_count})
+        return jsonify(current_stats)
 
 if __name__ == "__main__":
-    t = threading.Thread(target=process_stream)
+    # Start engine in background
+    t = threading.Thread(target=start_engine)
     t.daemon = True
     t.start()
+    
+    # Run server
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)

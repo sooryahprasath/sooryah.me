@@ -235,14 +235,49 @@ const charts = {
 // APPENDED: Traffic Polling
 async function syncTrafficStats() {
     try {
-        // Note: "/api/stats" is the new endpoint
         const res = await fetch('https://traffic.sooryah.me/api/stats');
         const data = await res.json();
-        const el = document.getElementById('modal-live-cars');
-        if (el) el.innerText = data.cars || 0;
-    } catch (e) {}
+        
+        let total = 0;
+        let breakdownHTML = '';
+        
+        // Loop through data (e.g., car: 2, person: 1)
+        for (const [key, value] of Object.entries(data)) {
+            if (value > 0) {
+                total += value;
+                
+                // Create a mini-stat card for this category
+                // Uses Tailwind for styling: glass effect, rounded corners
+                breakdownHTML += `
+                    <div class="bg-white/5 border border-white/10 rounded-lg p-2 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300">
+                        <span class="text-xl font-bold text-emerald-400 leading-none">${value}</span>
+                        <span class="text-[9px] uppercase tracking-wider text-gray-400 mt-1">${key}</span>
+                    </div>
+                `;
+            }
+        }
+
+        // 1. Update the Big Total Number
+        const totalEl = document.getElementById('modal-live-cars');
+        if (totalEl) totalEl.innerText = total;
+
+        // 2. Update the Detailed Grid
+        const breakdownEl = document.getElementById('traffic-breakdown');
+        if (breakdownEl) {
+            if (total === 0) {
+                // Show "Clear" message if nothing is detected
+                breakdownEl.innerHTML = `<div class="col-span-3 text-xs text-emerald-500/50 font-mono py-2">-- ROAD CLEAR --</div>`;
+            } else {
+                breakdownEl.innerHTML = breakdownHTML;
+            }
+        }
+        
+    } catch (e) {
+        // console.error("Stats sync error", e); // Silence errors to keep console clean
+    }
 }
-setInterval(syncTrafficStats, 2000);
+// Increase poll rate slightly for snappier feel
+setInterval(syncTrafficStats, 1000);
 
 const PROJECT_DATA = {
     adsb: { 
