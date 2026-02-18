@@ -35,11 +35,12 @@ services:
       - "5000:5000" # Map Frigate Web UI
       - "8554:8554" # RTSP restream
     restart: always
-    shm_size: "128mb"
+    shm_size: "256mb"
     devices:
       - /dev/dri/renderD128:/dev/dri/renderD128
     volumes:
       - ./frigate/config.yml:/config/config.yml:ro
+    network_mode: "host"
     environment:
       - FRIGATE_CAMERA_USER=${CAMERA_USER}
       - FRIGATE_CAMERA_PASS=${CAMERA_PASS}
