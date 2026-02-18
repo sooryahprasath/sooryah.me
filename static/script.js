@@ -217,6 +217,12 @@ const charts = {
         }
     },
 
+
+    loadTrafficHistory: async () => {
+        console.log("Traffic history chart loading...");
+        // You can implement the actual chart logic here later
+    },
+
     changeResolution: (range) => { charts.currentRange = range; charts.loadVolume(range); },
 
     loadVolume: async (range) => {
@@ -237,7 +243,7 @@ let lastLogTimestamp = "";
 async function syncTrafficStats() {
     try {
         // We use a relative path + a timestamp to prevent the browser from caching old 'zero' data
-        const res = await fetch('/api/stats');
+        const res = await fetch('https://traffic.sooryah.me/api/stats');
         
         if (!res.ok) throw new Error('Network response was not ok');
         
