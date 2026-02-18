@@ -1,7 +1,8 @@
 lucide.createIcons();
 
 // --- CONFIGURATION ---
-const TRAFFIC_URL = ""; // Proxy via sooryah.me (main.py)
+// Empty string ensures we use the same domain (sooryah.me) for all calls via main.py proxy
+const TRAFFIC_URL = ""; 
 
 const ui = {
     toggleTheme: () => {
@@ -109,7 +110,7 @@ const ui = {
 };
 
 // --- MAP ENGINE ---
-const DEFAULT_CENTER = [12.98, 77.6];
+const DEFAULT_CENTER = [13.19, 77.6];
 const DEFAULT_ZOOM = 8.4;
 const map = L.map('map-container', { 
     zoomControl: false, attributionControl: false, zoomSnap: 0.1, boxZoom: false, 
@@ -134,15 +135,23 @@ async function fetchRadar() {
         
         const statusText = document.getElementById('status-text');
         const statusDot = document.getElementById('status-dot');
-        if (planes.length > 0) { statusText.innerText = "SYSTEM ONLINE"; statusDot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse"; } 
-        else { statusText.innerText = "WAITING FOR TRAFFIC"; statusDot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse"; }
+        if (planes.length > 0) { 
+            statusText.innerText = "SYSTEM ONLINE"; 
+            statusDot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse"; 
+        } else { 
+            statusText.innerText = "WAITING FOR TRAFFIC"; 
+            statusDot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse"; 
+        }
 
         const msgRate = (planes.length * 1.8).toFixed(1);
         document.getElementById('net-rate').innerText = `${msgRate} msg/s`;
         document.getElementById('net-bw').innerText = `${(msgRate * 0.12).toFixed(2)} KB/s`;
         
         const counts = {};
-        planes.forEach(p => { let c = (p.flightno || p.callsign || '').substring(0,3); if (c && c.length === 3) counts[c] = (counts[c]||0)+1; });
+        planes.forEach(p => { 
+            let c = (p.flightno || p.callsign || '').substring(0,3); 
+            if (c && c.length === 3) counts[c] = (counts[c]||0)+1; 
+        });
         const top = Object.keys(counts).length > 0 ? Object.keys(counts).reduce((a,b)=>counts[a]>counts[b]?a:b) : "WAITING...";
         document.getElementById('insight-carrier').innerText = top;
         
@@ -168,8 +177,14 @@ async function fetchRadar() {
             if (polylines[p.hex]) polylines[p.hex].setLatLngs(trails[p.hex]); 
             else polylines[p.hex] = L.polyline(trails[p.hex], { color: '#3b82f6', weight: 1, opacity: 0.3 }).addTo(map);
             
-            if (markers[p.hex]) { markers[p.hex].setLatLng(latlng); markers[p.hex].setIcon(getIcon(p.heading, name, p.route, p.altitude, p.speed)); }
-            else { const m = L.marker(latlng, { icon: getIcon(p.heading, name, p.route, p.altitude, p.speed) }).addTo(map); m.on('click', () => ui.openFlightSidebar(p)); markers[p.hex] = m; }
+            if (markers[p.hex]) { 
+                markers[p.hex].setLatLng(latlng); 
+                markers[p.hex].setIcon(getIcon(p.heading, name, p.route, p.altitude, p.speed)); 
+            } else { 
+                const m = L.marker(latlng, { icon: getIcon(p.heading, name, p.route, p.altitude, p.speed) }).addTo(map); 
+                m.on('click', () => ui.openFlightSidebar(p)); 
+                markers[p.hex] = m; 
+            }
         });
         Object.keys(markers).forEach(hex => { if(!currentHexes.has(hex)) { map.removeLayer(markers[hex]); delete markers[hex]; } });
     } catch (e) {}
@@ -190,54 +205,56 @@ const charts = {
     currentRange: '24h',
 
     loadAll: async () => {
-        const getData = async (ep) => (await fetch(ep)).json();
+        const getData = async (ep) => {
+            const res = await fetch(ep);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+        };
         
-        // Load KPIs
-        const kpi = await getData('/api/kpi');
-        document.getElementById('kpi-unique').innerText = kpi.unique || '--';
-        document.getElementById('kpi-speed').innerText = kpi.speed || '--';
-        document.getElementById('kpi-alt').innerText = kpi.alt || '--';
+        try {
+            // Load KPIs
+            const kpi = await getData('/api/kpi');
+            document.getElementById('kpi-unique').innerText = kpi.unique || '0';
+            document.getElementById('kpi-speed').innerText = kpi.speed || '--';
+            document.getElementById('kpi-alt').innerText = kpi.alt || '--';
 
-        // History Chart (Radar Volume)
-        charts.loadVolume('24h');
+            // Airspace Volume (Timeline: 5m to 30d)
+            charts.loadVolume(charts.currentRange);
 
-        // Daily (Last 7 Days)
-        if(!chartInstances.daily) {
+            // Daily (Last 7 Days)
             const d = await getData('/api/daily');
+            if(chartInstances.daily) chartInstances.daily.destroy();
             chartInstances.daily = new Chart(document.getElementById('chart-daily'), { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#3b82f6', borderRadius: 4 }] }, options: commonOpts });
-        }
-        // Altitude Dist
-        if(!chartInstances.altitude) {
-            const d = await getData('/api/altitude');
-            chartInstances.altitude = new Chart(document.getElementById('chart-altitude'), { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#8b5cf6', borderRadius: 4 }] }, options: commonOpts });
-        }
-        // Physics Scatter
-        if(!chartInstances.scatter) {
-            const d = await getData('/api/scatter');
-            chartInstances.scatter = new Chart(document.getElementById('chart-scatter'), { type: 'scatter', data: { datasets: [{ data: d, backgroundColor: 'rgba(245, 158, 11, 0.6)' }] }, options: commonOpts });
-        }
-        // Approach direction
-        if(!chartInstances.polar) {
-            const d = await getData('/api/direction');
-            chartInstances.polar = new Chart(document.getElementById('chart-polar'), { type: 'polarArea', data: { labels: ['N','NE','E','SE','S','SW','W','NW'], datasets: [{ data: d.data, backgroundColor: ['#ef4444','#3b82f6','#eab308','#10b981','#8b5cf6','#f97316','#9ca3af','#6366f1'] }] }, options: commonOpts });
-        }
-        // Vehicle History (Traffic Mission Control)
-        charts.loadTrafficHistory();
+
+            // Altitude Distribution
+            const alt = await getData('/api/altitude');
+            if(chartInstances.altitude) chartInstances.altitude.destroy();
+            chartInstances.altitude = new Chart(document.getElementById('chart-altitude'), { type: 'bar', data: { labels: alt.labels, datasets: [{ data: alt.data, backgroundColor: '#8b5cf6', borderRadius: 4 }] }, options: commonOpts });
+
+            // Physics Correlation Scatter
+            const sc = await getData('/api/scatter');
+            if(chartInstances.scatter) chartInstances.scatter.destroy();
+            chartInstances.scatter = new Chart(document.getElementById('chart-scatter'), { type: 'scatter', data: { datasets: [{ data: sc, backgroundColor: 'rgba(245, 158, 11, 0.6)' }] }, options: commonOpts });
+
+            // Approach Direction Polar
+            const dir = await getData('/api/direction');
+            if(chartInstances.polar) chartInstances.polar.destroy();
+            chartInstances.polar = new Chart(document.getElementById('chart-polar'), { type: 'polarArea', data: { labels: ['N','NE','E','SE','S','SW','W','NW'], datasets: [{ data: dir.data, backgroundColor: ['#ef4444','#3b82f6','#eab308','#10b981','#8b5cf6','#f97316','#9ca3af','#6366f1'] }] }, options: commonOpts });
+
+            // Traffic Engine History
+            charts.loadTrafficHistory();
+        } catch (err) { console.error("Chart Load Failed:", err); }
     },
 
     loadTrafficHistory: async () => {
-        const res = await fetch('/api/traffic/history');
-        const d = await res.json();
-        const ctx = document.getElementById('chart-traffic');
-        if(!ctx) return;
-
-        if(!chartInstances.traffic) {
+        try {
+            const res = await fetch('/api/traffic/history');
+            const d = await res.json();
+            const ctx = document.getElementById('chart-traffic');
+            if(!ctx) return;
+            if(chartInstances.traffic) chartInstances.traffic.destroy();
             chartInstances.traffic = new Chart(ctx, { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#10b981', borderRadius: 4 }] }, options: commonOpts });
-        } else {
-            chartInstances.traffic.data.labels = d.labels;
-            chartInstances.traffic.data.datasets[0].data = d.data;
-            chartInstances.traffic.update();
-        }
+        } catch (e) { console.error("Traffic Chart Error:", e); }
     },
 
     changeResolution: (range) => { 
@@ -246,22 +263,19 @@ const charts = {
     },
 
     loadVolume: async (range) => {
-        const res = await fetch(`/api/history?range_type=${range}`);
-        const d = await res.json();
-        const title = document.getElementById('volume-title');
-        if (title) title.innerText = `Traffic Volume (${range})`;
-        
-        if(!chartInstances.volume) {
+        try {
+            const res = await fetch(`/api/history?range_type=${range}`);
+            const d = await res.json();
+            const title = document.getElementById('volume-title');
+            if (title) title.innerText = `Airspace Traffic Volume (${range})`;
+            
+            if(chartInstances.volume) chartInstances.volume.destroy();
             chartInstances.volume = new Chart(document.getElementById('chart-volume'), { 
                 type: 'line', 
                 data: { labels: d.labels, datasets: [{ data: d.data, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.4, pointRadius: 0 }] }, 
                 options: commonOpts 
             });
-        } else {
-            chartInstances.volume.data.labels = d.labels;
-            chartInstances.volume.data.datasets[0].data = d.data;
-            chartInstances.volume.update();
-        }
+        } catch (e) { console.error("Volume Chart Error:", e); }
     }
 };
 
@@ -300,7 +314,7 @@ async function syncTrafficStats() {
             else gridEl.innerHTML = `<div class="col-span-2 flex flex-col items-center justify-center bg-white/5 rounded-xl border border-white/5 border-dashed p-6 opacity-60"><span class="text-xs text-gray-500 font-mono uppercase tracking-widest">Scanning...</span></div>`;
         }
 
-        // 3. Event Log
+        // 3. Matrix Style Event Log
         if (data.log && data.log !== lastLogTimestamp) {
             lastLogTimestamp = data.log;
             const logContainer = document.getElementById('traffic-log');
@@ -327,45 +341,22 @@ const PROJECT_DATA = {
     adsb: { 
         title: "RF & IoT Sensor Networks", 
         subtitle: "Station ID: CustardLev | Bengaluru", 
-        description: `
-            <p class="mb-4"><strong>Operational since 2016.</strong> My journey into RF started with a generic DVB-T dongle and a 6.9cm quarter-wave antenna (my first attempt at tuning). Over the years, I iterated through Spider and Cantenna designs to optimize gain.</p>
-            <p class="mb-4">Today, the station runs on a custom-built <strong>2ft Collinear Coaxial (CoCo)</strong> antenna mounted 50ft AGL on my roof, providing 360° horizon visibility.</p>
-            <p>It feeds real-time flight data to FlightRadar24, FlightAware, and this portfolio.</p>
-        `, 
-        specs: [
-            { label: "Host", value: "Raspberry Pi 2 Model B" }, 
-            { label: "Radio", value: "RTL-SDR Blog V3 TCXO" },
-            { label: "LNA / Filter", value: "Nooelec ADS-B (SAW+LNA)" },
-            { label: "Antenna", value: "Custom 2ft Coaxial Collinear" },
-            { label: "Software", value: "Dump1090-fa, Piaware" },
-            { label: "Range", value: "~180 Nautical Miles" }
-        ], 
+        description: `<p class="mb-4"><strong>Operational since 2016.</strong> Station runs on a custom-built 2ft Collinear Coaxial antenna mounted 50ft AGL.</p>`, 
+        specs: [{ label: "Host", value: "Raspberry Pi 2B" }, { label: "Radio", value: "RTL-SDR V3" }], 
         link: "https://planes.custardlev.uk" 
     },
     telemetry: { 
         title: "Enterprise Telemetry Pipeline", 
         subtitle: "Data Engineering", 
-        description: "Centralized pipeline utilizing Apache Airflow and Azure SQL to ingest real-time data from 150+ global sites, feeding dynamic Power BI dashboards.", 
-        specs: [
-            { label: "Orchestration", value: "Apache Airflow" },
-            { label: "Database", value: "Azure SQL (Managed Instance)" },
-            { label: "Language", value: "Python (Pandas, PyODBC)" },
-            { label: "Visualization", value: "Power BI Pro" },
-            { label: "Latency", value: "< 2 Minutes End-to-End" }
-        ], 
+        description: "Centralized pipeline utilizing Apache Airflow and Azure SQL.", 
+        specs: [{ label: "Orchestration", value: "Apache Airflow" }, { label: "Language", value: "Python" }], 
         link: null 
     },
     cloud: { 
         title: "Private Cloud Cluster", 
         subtitle: "Homelab", 
-        description: "Production-grade home infrastructure. A 3-node Proxmox cluster running Kubernetes (K3s), automation pools, and storage nodes.", 
-        specs: [
-            { label: "Hypervisor", value: "Proxmox VE 8.1" }, 
-            { label: "Orchestrator", value: "Kubernetes (K3s)" },
-            { label: "Storage", value: "ZFS RaidZ1 Pool" },
-            { label: "Networking", value: "Tailscale Mesh VPN" },
-            { label: "Ingress", value: "Traefik + Cloudflare Tunnel" }
-        ], 
+        description: "3-node Proxmox cluster running Kubernetes (K3s).", 
+        specs: [{ label: "Hypervisor", value: "Proxmox VE 8.1" }, { label: "Ingress", value: "Cloudflare Tunnel" }], 
         link: null 
     }
 };
