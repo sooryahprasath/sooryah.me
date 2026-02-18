@@ -19,14 +19,6 @@
             theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] }, colors: { } } }
         }
     </script>
-    <style>
-        /* Force iframe content to fill the actual black box area */
-        #traffic-stream {
-            object-fit: cover;
-            width: 100%;
-            height: 100%;
-        }
-    </style>
 </head>
 <body class="min-h-screen">
 
@@ -136,7 +128,7 @@
                             <span class="flex items-center gap-2 px-2 py-1 rounded bg-orange-500/10 text-[10px] font-mono font-bold text-orange-600 dark:text-orange-400 border border-orange-500/20"><span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span> AI ACTIVE</span>
                         </div>
                         <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition">Traffic Mission Control</h3>
-                        <p class="text-muted text-sm leading-relaxed">Edge AI pipeline for real-time intersection analytics. OpenVINO accelerated tracking and HD monitoring.</p>
+                        <p class="text-muted text-sm leading-relaxed">Computer vision pipeline for intersection analytics. OpenVINO accelerated vehicle tracking and 25fps monitoring.</p>
                     </div>
                     <div class="flex gap-3 text-[10px] font-mono text-muted mt-6"><span>#OpenVINO</span><span>#CV</span></div>
                 </div>
@@ -152,18 +144,18 @@
 
                 <div onclick="ui.openProjectSidebar('telemetry')" class="glass-panel project-card rounded-2xl p-8 group flex flex-col justify-between h-full">
                     <div>
-                        <div class="flex justify-between items-start mb-6"><div class="p-3 bg-purple-500/10 rounded-xl text-purple-500 border border-purple-500/20"><i data-lucide="activity" class="w-6 h-6"></i></div></div>
+                        <div class="flex justify-between items-start mb-6"><div class="p-3 bg-purple-500/10 rounded-xl text-purple-500 border border-purple-500/20"><i data-lucide="activity" class="w-8 h-8"></i></div></div>
                         <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition">Enterprise Telemetry Pipeline</h3>
                         <p class="text-muted text-sm leading-relaxed">Centralized pipeline utilizing Apache Airflow and Azure SQL to ingest real-time data from 150+ global sites.</p>
                     </div>
                     <div class="flex gap-3 text-[10px] font-mono text-muted mt-6"><span>#Python</span><span>#BigData</span><span>#PowerBI</span></div>
                 </div>
 
-                <div onclick="ui.openProjectSidebar('cloud')" class="glass-panel project-card rounded-2xl p-8 group flex flex-col justify-between h-full md:col-span-2">
+                <div onclick="ui.openProjectSidebar('cloud')" class="glass-panel project-card rounded-2xl p-8 group flex flex-col justify-between h-full md:col-span-2 lg:col-span-2">
                     <div>
                         <div class="flex justify-between items-start mb-6"><div class="p-3 bg-zinc-500/10 rounded-xl text-zinc-500 border border-zinc-500/20"><i data-lucide="server" class="w-6 h-6"></i></div></div>
                         <h3 class="text-xl font-bold mb-2 group-hover:text-accent transition">Private Cloud Cluster</h3>
-                        <p class="text-muted text-sm leading-relaxed">Production-grade home infrastructure. A 3-node Proxmox cluster running Kubernetes (K3s), automation pools, and storage nodes.</p>
+                        <p class="text-muted text-sm leading-relaxed">Production-grade home infrastructure. A 3-node Proxmox cluster running Kubernetes (K3s).</p>
                     </div>
                     <div class="flex gap-3 text-[10px] font-mono text-muted mt-6"><span>#Proxmox</span><span>#Kubernetes</span><span>#Ansible</span></div>
                 </div>
@@ -232,14 +224,10 @@
                         </div>
                     </div>
                     <div class="flex flex-col gap-6">
-                        <div class="glass-panel p-6 rounded-xl">
-                            <h4 class="text-xs font-mono font-bold text-muted uppercase mb-4">Real-time Count</h4>
-                            <div class="text-4xl font-bold text-orange-500 font-mono" id="modal-live-cars">0</div>
-                            <div class="text-[10px] text-muted font-mono mt-1 uppercase">Active Tracks in Frame</div>
-                        </div>
                         <div class="glass-panel p-6 rounded-xl flex-grow">
-                            <h4 class="text-xs font-mono font-bold text-muted uppercase mb-4">Traffic History (3h)</h4>
-                            <div class="h-full min-h-[250px]"><canvas id="chart-traffic-history"></canvas></div>
+                            <h4 class="text-xs font-mono font-bold text-muted uppercase mb-4">Real-time Volume</h4>
+                            <div class="text-6xl font-bold text-orange-500 font-mono text-center my-10" id="modal-live-cars">0</div>
+                            <div class="text-[10px] text-muted font-mono text-center uppercase tracking-widest">Currently Detected in Frame</div>
                         </div>
                     </div>
                 </div>

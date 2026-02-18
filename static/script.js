@@ -58,15 +58,6 @@ const ui = {
                     <div class="tech-item p-3"><div class="tech-label">Lat/Lon</div><div class="tech-val text-sm">${val(data.lat).substring(0,6)} / ${val(data.lon).substring(0,6)}</div></div>
                 </div>
             </div>
-            <div class="space-y-2 mt-2">
-                <h3 class="text-xs font-bold text-muted uppercase tracking-widest">Sensors</h3>
-                <div class="tech-grid gap-3">
-                    <div class="tech-item p-3"><div class="tech-label">Squawk</div><div class="tech-val text-accent text-lg">${val(data.squawk)}</div></div>
-                    <div class="tech-item p-3"><div class="tech-label">Category</div><div class="tech-val text-lg">${val(data.category)}</div></div>
-                    <div class="tech-item p-3"><div class="tech-label">Air Temp</div><div class="tech-val text-lg">${val(data.oat, '°C')}</div></div>
-                    <div class="tech-item p-3"><div class="tech-label">Wind</div><div class="tech-val text-lg">${val(data.wind_speed, ' kts')}</div></div>
-                </div>
-            </div>
             <div class="p-3 bg-black/5 dark:bg-white/5 rounded border border-theme text-[10px] font-mono text-muted text-center mt-4">HEX: ${data.hex} | MSG AGE: ${data.age || 0}s</div>
         `;
     },
@@ -97,9 +88,8 @@ const ui = {
     // APPENDED ONLY: Traffic
     openTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.remove('hidden'); 
-        // Use direct HTTPS domain
+        // Direct HTTPS Cloudflare URL
         document.getElementById('traffic-stream').src = "https://traffic.sooryah.me/api/intersection";
-        charts.loadTrafficHistory(); 
     },
     closeTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.add('hidden'); 
@@ -161,7 +151,7 @@ async function fetchRadar() {
             const latlng = [p.lat, p.lon];
             const name = p.flightno || p.callsign || p.hex;
             
-            // MEMORY LIMIT: 3-minute limit for map trails (90 points @ 2s interval)
+            // MEMORY LIMIT: Use 90 points (~3 mins at 2s interval) instead of 60 to prevent slow browser
             if (!trails[p.hex]) trails[p.hex] = []; 
             trails[p.hex].push(latlng); 
             if (trails[p.hex].length > 90) trails[p.hex].shift(); 
@@ -180,8 +170,7 @@ setInterval(fetchRadar, 2000); fetchRadar();
 // --- CHART ENGINE ---
 let chartInstances = {};
 const commonOpts = { 
-    responsive: true, 
-    maintainAspectRatio: false, 
+    responsive: true, maintainAspectRatio: false, 
     plugins: { legend: { display: false } }, 
     interaction: { mode: 'index', intersect: false }, 
     scales: { y: { grid: { color: 'rgba(255,255,255,0.05)' } }, x: { grid: { display: false } } } 
@@ -228,21 +217,11 @@ const charts = {
             chartInstances.volume.data.datasets[0].data = d.data;
             chartInstances.volume.update();
         }
-    },
-
-    // APPENDED ONLY: Fetch last 3 hours for the modal chart
-    loadTrafficHistory: async () => {
-        try {
-            const d = await (await fetch('/api/traffic/history?limit=3h')).json();
-            const ctx = document.getElementById('chart-traffic-history');
-            if(chartInstances.traffic) chartInstances.traffic.destroy();
-            chartInstances.traffic = new Chart(ctx, { type: 'line', data: { labels: d.labels, datasets: [{ data: d.data, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.4, pointRadius: 0 }] }, options: commonOpts });
-        } catch(e) {}
     }
 };
 
-// APPENDED ONLY: Traffic polling
-async function syncTrafficStats() {
+// APPENDED ONLY
+async function updateTrafficPoll() {
     try {
         const res = await fetch('/api/traffic');
         const data = await res.json();
@@ -250,10 +229,26 @@ async function syncTrafficStats() {
         if (el) el.innerText = data.cars || 0;
     } catch (e) {}
 }
-setInterval(syncTrafficStats, 5000);
+setInterval(updateTrafficPoll, 5000);
 
 const PROJECT_DATA = {
-    adsb: { title: "RF & IoT Sensor Networks", subtitle: "Station ID: CustardLev", description: `<p>Real-time flight telemetry via SDR.</p>`, specs: [{ label: "Host", value: "Raspberry Pi 2B" }], link: "https://planes.custardlev.uk" },
-    telemetry: { title: "Enterprise Telemetry Pipeline", subtitle: "Data Engineering", description: "Azure SQL & Airflow pipeline.", specs: [{ label: "Latency", value: "< 2 Mins" }] },
-    cloud: { title: "Private Cloud Cluster", subtitle: "Homelab", description: "Proxmox cluster running Kubernetes.", specs: [{ label: "Hypervisor", value: "Proxmox VE" }] }
+    adsb: { 
+        title: "RF & IoT Sensor Networks", 
+        subtitle: "Station ID: CustardLev | Bengaluru", 
+        description: `<p class="mb-4">Operational since 2016. Feeds real-time flight telemetry.</p>`, 
+        specs: [{ label: "Host", value: "Raspberry Pi 2B" }], 
+        link: "https://planes.custardlev.uk" 
+    },
+    telemetry: { 
+        title: "Enterprise Telemetry Pipeline", 
+        subtitle: "Data Engineering", 
+        description: "Apache Airflow and Azure SQL pipeline.", 
+        specs: [{ label: "Latency", value: "< 2 Mins" }] 
+    },
+    cloud: { 
+        title: "Private Cloud Cluster", 
+        subtitle: "Homelab", 
+        description: "3-node Proxmox cluster running Kubernetes.", 
+        specs: [{ label: "Hypervisor", value: "Proxmox VE" }] 
+    }
 };
