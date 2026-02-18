@@ -48,3 +48,13 @@ services:
       - INFLUX_ORG=${INFLUX_ORG}
       - INFLUX_BUCKET=${INFLUX_BUCKET}
     restart: always
+  # --- ADD THIS SECTION ---
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: always
+    network_mode: "host"
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=73378dfa-1a27-4897-8d03-fc93f7ee5009
+
