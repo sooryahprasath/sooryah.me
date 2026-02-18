@@ -11,10 +11,11 @@ RUN apt-get update && apt-get install -y \
 # 1. Install CPU-only PyTorch (Saves ~5GB of download)
 RUN pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
-# 2. Install Ultralytics (Will skip GPU libs since torch is already installed)
-RUN pip install flask opencv-python-headless ultralytics
+# 2. Install Dependencies (ADDED influxdb-client here)
+RUN pip install flask opencv-python-headless ultralytics influxdb-client
 
-# Copy application
-COPY traffic.py .
+# 3. Copy ALL application files (FIXED: Copies traffic_ingest.py too)
+COPY . .
 
+# Default command (can be overridden by docker-compose)
 CMD ["python", "traffic.py"]

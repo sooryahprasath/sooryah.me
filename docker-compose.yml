@@ -38,14 +38,14 @@ services:
       - CAMERA_IP=${CAMERA_IP}
 
   traffic-ingest:
-    build: ./traffic_engine  # Points to folder with requirements.txt
+    build: ./traffic_engine
     container_name: traffic-ingest
-    network_mode: "host"     # Crucial: Allows it to see localhost:5000 and localhost:8086
+    network_mode: "host"
     restart: always
     environment:
       - INFLUX_URL=${INFLUX_URL}
-      - INFLUX_TOKEN=${INFLUX_TOKEN}  # <--- PASTE TOKEN FROM STEP 1
-      - INFLUX_ORG=${INFLUX_ORG}         # <--- Check Influx UI (usually 'primary' or your username)
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
+      - INFLUX_ORG=${INFLUX_ORG}
       - INFLUX_BUCKET=traffic
     command: python traffic_ingest.py
 
