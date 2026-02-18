@@ -6,9 +6,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Explicitly copy static to ensure it exists
-COPY static ./static
+# REMOVE the explicit COPY static line that is causing the error
+# The 'COPY . .' below will handle everything if files exist, 
+# but if you moved everything to traffic_engine, this container might be empty.
 COPY . .
 
-# Run on Port 8090 to avoid conflict with Portainer/System
+# Run on Port 8090
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8090"]
