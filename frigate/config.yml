@@ -1,7 +1,8 @@
 mqtt:
   enabled: False
 
-# High-Performance Restreaming (required for 25fps stable stream)
+# High-Performance Restreaming
+# Since we are on CPU, go2rtc will handle the stream redistribution to save resources
 go2rtc:
   streams:
     intersection:
@@ -10,13 +11,13 @@ go2rtc:
 detectors:
   ov:
     type: openvino
-    device: GPU
+    device: CPU # <--- CHANGED: Forces AI to run on your CPU
 
 cameras:
   intersection:
     ffmpeg:
       inputs:
-        # Connect to the internal restream to save camera bandwidth
+        # Connect to the internal restream to save bandwidth
         - path: rtsp://127.0.0.1:8554/intersection
           roles:
             - detect
@@ -24,7 +25,7 @@ cameras:
       enabled: True
       width: 1280
       height: 720
-      fps: 10 # Detection at 10fps is best for AI; visual stream stays native 25fps
+      fps: 5 # Keep this at 5 to prevent maxing out your CPU
     objects:
       track:
         - car
@@ -34,6 +35,4 @@ cameras:
     snapshots:
       enabled: False
 
-# Enable Hardware Acceleration for Intel iGPU
-ffmpeg:
-  hwaccel_args: preset-vaapi
+# REMOVED: ffmpeg hwaccel_args (This was causing the crash)
