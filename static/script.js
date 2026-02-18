@@ -94,16 +94,13 @@ const ui = {
     openAnalyticsModal: () => { document.getElementById('analytics-modal').classList.remove('hidden'); charts.loadAll(); },
     closeAnalyticsModal: () => { document.getElementById('analytics-modal').classList.add('hidden'); },
 
-    // APPENDED: Traffic Modal
     openTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.remove('hidden'); 
-        // This sets the src of our new <img> tag
-        document.getElementById('traffic-stream').src = "https://traffic.sooryah.me/video_feed";
+        document.getElementById('traffic-stream').src = "/video_feed";
         charts.loadTrafficHistory(); 
     },
     closeTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.add('hidden'); 
-        // clear src to save bandwidth when closed
         document.getElementById('traffic-stream').src = ""; 
     }
 };
@@ -162,7 +159,6 @@ async function fetchRadar() {
             const latlng = [p.lat, p.lon];
             const name = p.flightno || p.callsign || p.hex;
             
-            // MEMORY LIMIT: 3-minute limit for map trails (90 points @ 2s interval)
             if (!trails[p.hex]) trails[p.hex] = []; 
             trails[p.hex].push(latlng); 
             if (trails[p.hex].length > 90) trails[p.hex].shift(); 
@@ -217,10 +213,8 @@ const charts = {
         }
     },
 
-
     loadTrafficHistory: async () => {
         console.log("Traffic history chart loading...");
-        // You can implement the actual chart logic here later
     },
 
     changeResolution: (range) => { charts.currentRange = range; charts.loadVolume(range); },
@@ -237,32 +231,27 @@ const charts = {
         }
     }
 };
-// Variable to track the last log message so we don't duplicate it
+
 let lastLogTimestamp = "";
 
 async function syncTrafficStats() {
     try {
-        // We use a relative path + a timestamp to prevent the browser from caching old 'zero' data
-        const res = await fetch('https://traffic.sooryah.me/api/stats');
+        const res = await fetch('/api/stats');
         
         if (!res.ok) throw new Error('Network response was not ok');
         
         const data = await res.json();
-        console.log("Traffic Data Received:", data); // Check your Browser Console (F12) to see this!
+        console.log("Traffic Data Received:", data);
 
-        // 1. Update the Big "All Time" Counter
         const totalEl = document.getElementById('total-all-time');
         if (totalEl) {
-            // Your API sends 'total_all_time'. If it's missing, we show 0.
             totalEl.innerText = data.total_all_time !== undefined ? data.total_all_time : "0";
         }
 
-        // 2. Generate the "Active Target" Tiles
         let gridHTML = '';
         let hasActiveTargets = false;
 
         for (const [key, value] of Object.entries(data)) {
-            // Filter out system strings
             if (['log', 'status', 'total_all_time'].includes(key)) continue;
 
             if (typeof value === 'number' && value > 0) {
@@ -293,7 +282,6 @@ async function syncTrafficStats() {
             }
         }
 
-        // 3. Update the Matrix Event Log
         if (data.log && data.log !== lastLogTimestamp) {
             lastLogTimestamp = data.log;
             const logContainer = document.getElementById('traffic-log');
@@ -311,10 +299,7 @@ async function syncTrafficStats() {
     }
 }
 
-// Poll every 1 second for live updates
 setInterval(syncTrafficStats, 1000);
-
-
 
 const PROJECT_DATA = {
     adsb: { 
