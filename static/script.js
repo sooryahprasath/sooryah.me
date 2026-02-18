@@ -13,17 +13,13 @@ const ui = {
         const btn = document.getElementById('view-btn-text');
         
         if (body.classList.contains('tactical-active')) {
-            // EXIT
             body.classList.remove('tactical-active', 'ui-hidden'); 
             btn.innerText = "LIVE TELEMETRY VIEW";
-            // FIX: Disable scroll zoom when in portfolio mode to prevent scroll-jacking
             map.scrollWheelZoom.disable();
             map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
         } else {
-            // ENTER
             body.classList.add('tactical-active', 'ui-hidden'); 
             btn.innerText = "EXIT TELEMETRY VIEW";
-            // FIX: Enable zoom for map work
             map.dragging.enable(); 
             map.scrollWheelZoom.enable();
             map.invalidateSize(); 
@@ -95,14 +91,26 @@ const ui = {
         if(data.link) { footer.innerHTML = `<a href="${data.link}" target="_blank" class="w-full btn-glass py-3 rounded-lg flex justify-center items-center gap-2 font-bold hover:bg-accent hover:text-white transition">OPEN LIVE VIEW <i data-lucide="external-link" class="w-4 h-4"></i></a>`; footer.classList.remove('hidden'); } else { footer.classList.add('hidden'); }
         document.getElementById('detail-sidebar').classList.add('open');
     },
+
     openAnalyticsModal: () => { document.getElementById('analytics-modal').classList.remove('hidden'); charts.loadAll(); },
-    closeAnalyticsModal: () => { document.getElementById('analytics-modal').classList.add('hidden'); }
+    closeAnalyticsModal: () => { document.getElementById('analytics-modal').classList.add('hidden'); },
+
+    // ADD-ON ONLY: Traffic Management
+    openTrafficModal: () => { 
+        document.getElementById('traffic-modal').classList.remove('hidden'); 
+        // CLOUDFLARE FIX: Point this to your public sub-path set in the Tunnel
+        document.getElementById('traffic-stream').src = "/frigate/api/intersection";
+        charts.loadTrafficHistory(); 
+    },
+    closeTrafficModal: () => { 
+        document.getElementById('traffic-modal').classList.add('hidden'); 
+        document.getElementById('traffic-stream').src = "";
+    }
 };
 
 // --- MAP ENGINE ---
 const DEFAULT_CENTER = [12.98, 77.6];
 const DEFAULT_ZOOM = 8.4;
-// FIX: ENABLE ZOOM
 const map = L.map('map-container', { 
     zoomControl: false, attributionControl: false, zoomSnap: 0.1, boxZoom: false, 
     doubleClickZoom: true, dragging: true, scrollWheelZoom: true 
@@ -165,7 +173,6 @@ setInterval(fetchRadar, 2000); fetchRadar();
 
 // --- CHART ENGINE ---
 let chartInstances = {};
-// FIX: ENABLE HOVER TOOLTIPS
 const commonOpts = { 
     responsive: true, 
     maintainAspectRatio: false, 
@@ -225,7 +232,6 @@ const charts = {
     },
 
     loadVolume: async (range) => {
-        // FIX: Send correct 'range_type' parameter
         const d = await (await fetch(`/api/history?range_type=${range}`)).json();
         document.getElementById('volume-title').innerText = `Traffic Volume (${range})`;
         
@@ -240,8 +246,41 @@ const charts = {
             chartInstances.volume.data.datasets[0].data = d.data;
             chartInstances.volume.update();
         }
+    },
+
+    // ADD-ON: Traffic Analysis Chart
+    loadTrafficHistory: async () => {
+        const d = await (await fetch('/api/traffic/history')).json();
+        const ctx = document.getElementById('chart-traffic-history');
+        if(chartInstances.traffic) chartInstances.traffic.destroy();
+        chartInstances.traffic = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: d.labels,
+                datasets: [{
+                    data: d.data,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0
+                }]
+            },
+            options: commonOpts 
+        });
     }
 };
+
+// ADD-ON: Real-time In-frame Updates
+async function updateRealtimeTraffic() {
+    try {
+        const res = await fetch('/api/traffic');
+        const data = await res.json();
+        const el = document.getElementById('modal-live-cars');
+        if (el) el.innerText = data.cars || 0;
+    } catch (e) {}
+}
+setInterval(updateRealtimeTraffic, 5000);
 
 const PROJECT_DATA = {
     adsb: { 
