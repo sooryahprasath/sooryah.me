@@ -9,6 +9,13 @@ jobs:
     name: Production Deployment
     runs-on: self-hosted
     steps:
+      # --- NEW STEP: Fix Permissions First ---
+      - name: 🔧 Fix Workspace Permissions
+        run: |
+          echo "Runnning cleanup as root..."
+          sudo chown -R $USER:$USER $GITHUB_WORKSPACE
+          sudo rm -rf $GITHUB_WORKSPACE/*
+
       - name: Checkout Code
         uses: actions/checkout@v4
 
