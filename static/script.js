@@ -97,7 +97,8 @@ const ui = {
     // APPENDED: Traffic Modal
     openTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.remove('hidden'); 
-        document.getElementById('traffic-stream').src = "https://traffic.sooryah.me/api/intersection";
+        // Point to the new lightweight MJPEG stream
+        document.getElementById('traffic-stream').src = "https://traffic.sooryah.me/video_feed";
     },
     closeTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.add('hidden'); 
@@ -232,13 +233,14 @@ const charts = {
 // APPENDED: Traffic Polling
 async function syncTrafficStats() {
     try {
-        const res = await fetch('/api/traffic');
+        // Note: "/api/stats" is the new endpoint
+        const res = await fetch('https://traffic.sooryah.me/api/stats');
         const data = await res.json();
         const el = document.getElementById('modal-live-cars');
         if (el) el.innerText = data.cars || 0;
     } catch (e) {}
 }
-setInterval(syncTrafficStats, 5000);
+setInterval(syncTrafficStats, 2000);
 
 const PROJECT_DATA = {
     adsb: { 

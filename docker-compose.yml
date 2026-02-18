@@ -26,20 +26,16 @@ services:
       - RADAR_IP=${RADAR_IP}
     restart: always
 
-  frigate:
-    container_name: frigate
-    image: ghcr.io/blakeblackshear/frigate:stable
-    privileged: true
+  # --- NEW TRAFFIC ENGINE (Replaces Frigate) ---
+  traffic-engine:
+    build: ./traffic_engine
+    container_name: traffic-engine
+    network_mode: "host"  # Uses port 5000, same as Frigate did
     restart: always
-    shm_size: "256mb" # Critical for stream stability
-    # REMOVED: devices section (No GPU present)
-    volumes:
-      - ./frigate/config.yml:/config/config.yml:ro
-    network_mode: "host"
     environment:
-      - FRIGATE_CAMERA_USER=${CAMERA_USER}
-      - FRIGATE_CAMERA_PASS=${CAMERA_PASS}
-      - FRIGATE_CAMERA_IP=${CAMERA_IP}
+      - CAMERA_USER=${CAMERA_USER}
+      - CAMERA_PASS=${CAMERA_PASS}
+      - CAMERA_IP=${CAMERA_IP}
 
   traffic-ingest:
     build: .
