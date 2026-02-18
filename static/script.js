@@ -239,20 +239,26 @@ async function syncTrafficStats() {
         const res = await fetch('https://traffic.sooryah.me/api/stats');
         const data = await res.json();
         
-        let liveTotal = 0;
         let gridHTML = '';
-        
-        // 1. PROCESS COUNTS (Generate Tiles)
+        let hasActiveTargets = false;
+
+        // 1. UPDATE ALL-TIME COUNTER (Top Card)
+        // Checks for 'total_all_time' sent by Python
+        const totalEl = document.getElementById('total-all-time');
+        if (totalEl) {
+            // Default to 0 if undefined
+            totalEl.innerText = data.total_all_time !== undefined ? data.total_all_time : "0";
+        }
+
+        // 2. GENERATE LIVE TILES (Middle Grid)
         for (const [key, value] of Object.entries(data)) {
-            // Skip the log text field
-            if (key === 'log') continue;
+            // Skip special keys
+            if (key === 'log' || key === 'total_all_time') continue;
 
             if (value > 0) {
-                liveTotal += value;
-                
-                // GENERATE SEPARATED TILE (Big Number + Label)
+                hasActiveTargets = true;
                 gridHTML += `
-                    <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center hover:bg-white/10 transition-all group min-h-[100px]">
+                    <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center hover:bg-white/10 transition-all group min-h-[100px] animate-in zoom-in duration-300">
                         <span class="text-4xl font-black text-white mb-2 group-hover:scale-110 transition-transform drop-shadow-md">${value}</span>
                         <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest border-t border-white/10 pt-2 w-full text-center">${key}</span>
                     </div>
@@ -260,19 +266,10 @@ async function syncTrafficStats() {
             }
         }
 
-        // 2. UPDATE TOTAL COUNTER (Targets the ID from your HTML)
-        // This will update the big number at the top
-        const totalEl = document.getElementById('total-all-time') || document.getElementById('modal-live-cars');
-        if (totalEl) {
-            // If total is 0, show "--" or "0"
-            totalEl.innerText = liveTotal > 0 ? liveTotal : "0";
-        }
-
-        // 3. INJECT TILES INTO GRID
+        // 3. INJECT TILES
         const gridEl = document.getElementById('traffic-breakdown');
         if (gridEl) {
-            if (liveTotal === 0) {
-                // Show "Scanning" placeholder if no cars detected
+            if (!hasActiveTargets) {
                 gridEl.innerHTML = `
                     <div class="col-span-2 flex flex-col items-center justify-center bg-white/5 rounded-xl border border-white/5 border-dashed p-6 h-full min-h-[100px]">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping mb-2"></span>
@@ -283,16 +280,13 @@ async function syncTrafficStats() {
             }
         }
 
-        // 4. UPDATE MATRIX CHAT LOG
+        // 4. UPDATE CHAT LOG
         if (data.log && data.log !== lastLogTimestamp) {
-            lastLogTimestamp = data.log; // Prevent duplicates
+            lastLogTimestamp = data.log;
             
             const logContainer = document.getElementById('traffic-log');
             if (logContainer) {
                 const newEntry = document.createElement('div');
-                
-                // Format: "[13:00] DETECTED: CAR: 1"
-                // Split it to style the timestamp differently
                 const parts = data.log.split('] '); 
                 const time = parts[0] ? parts[0] + ']' : '';
                 const msg = parts[1] || data.log;
@@ -300,22 +294,15 @@ async function syncTrafficStats() {
                 newEntry.innerHTML = `<span class="text-gray-500 opacity-70 mr-2">${time}</span><span class="text-emerald-400 font-bold">${msg}</span>`;
                 newEntry.className = "border-b border-white/5 pb-1 mb-1 text-left opacity-0 animate-in fade-in slide-in-from-left-2 duration-300";
                 
-                // Add new message to the TOP
                 logContainer.prepend(newEntry);
                 
-                // Keep history clean (Max 50 items)
-                if (logContainer.children.length > 50) {
-                    logContainer.lastChild.remove();
-                }
+                if (logContainer.children.length > 50) logContainer.lastChild.remove();
             }
         }
 
-    } catch (e) {
-        // console.error("Sync Error", e); 
-    }
+    } catch (e) { }
 }
 
-// Poll every 1 second
 setInterval(syncTrafficStats, 1000);
 
 
