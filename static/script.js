@@ -233,6 +233,9 @@ const charts = {
 };
 
 // APPENDED: Traffic Polling
+// Global variable to store last log so we don't repeat
+let lastLogMsg = "";
+
 async function syncTrafficStats() {
     try {
         const res = await fetch('https://traffic.sooryah.me/api/stats');
@@ -241,43 +244,51 @@ async function syncTrafficStats() {
         let total = 0;
         let breakdownHTML = '';
         
-        // Loop through data (e.g., car: 2, person: 1)
+        // 1. Handle Counts
         for (const [key, value] of Object.entries(data)) {
+            if (key === 'log') continue; // Skip the log field for the grid
+            
             if (value > 0) {
                 total += value;
-                
-                // Create a mini-stat card for this category
-                // Uses Tailwind for styling: glass effect, rounded corners
                 breakdownHTML += `
-                    <div class="bg-white/5 border border-white/10 rounded-lg p-2 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300">
-                        <span class="text-xl font-bold text-emerald-400 leading-none">${value}</span>
-                        <span class="text-[9px] uppercase tracking-wider text-gray-400 mt-1">${key}</span>
+                    <div class="bg-white/5 border border-white/10 rounded px-2 py-1 text-center">
+                        <span class="block text-lg font-bold text-white">${value}</span>
+                        <span class="block text-[8px] text-gray-400 uppercase">${key}</span>
                     </div>
                 `;
             }
         }
 
-        // 1. Update the Big Total Number
+        // Update Total
         const totalEl = document.getElementById('modal-live-cars');
         if (totalEl) totalEl.innerText = total;
 
-        // 2. Update the Detailed Grid
+        // Update Grid
         const breakdownEl = document.getElementById('traffic-breakdown');
-        if (breakdownEl) {
-            if (total === 0) {
-                // Show "Clear" message if nothing is detected
-                breakdownEl.innerHTML = `<div class="col-span-3 text-xs text-emerald-500/50 font-mono py-2">-- ROAD CLEAR --</div>`;
-            } else {
-                breakdownEl.innerHTML = breakdownHTML;
+        if (breakdownEl) breakdownEl.innerHTML = total === 0 ? '<div class="col-span-3 text-center text-xs text-gray-600">NO TRAFFIC</div>' : breakdownHTML;
+
+        // 2. Handle The "Chat" Log
+        if (data.log && data.log !== lastLogMsg) {
+            lastLogMsg = data.log;
+            const logContainer = document.getElementById('traffic-log');
+            if (logContainer) {
+                // Add new line at the TOP
+                const newLog = document.createElement('div');
+                newLog.className = "border-b border-white/5 py-1";
+                newLog.innerText = data.log;
+                logContainer.prepend(newLog);
+                
+                // Keep only last 20 lines to save memory
+                if (logContainer.children.length > 20) {
+                    logContainer.removeChild(logContainer.lastChild);
+                }
             }
         }
         
-    } catch (e) {
-        // console.error("Stats sync error", e); // Silence errors to keep console clean
-    }
+    } catch (e) {}
 }
-// Increase poll rate slightly for snappier feel
 setInterval(syncTrafficStats, 1000);
+
 
 const PROJECT_DATA = {
     adsb: { 
