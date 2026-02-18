@@ -236,57 +236,77 @@ const charts = {
 // Global variable to store last log so we don't repeat
 let lastLogMsg = "";
 
+let lastLogMsg = ""; // Keep track of the last log to avoid duplicates
+
 async function syncTrafficStats() {
     try {
+        // 1. Fetch the data
         const res = await fetch('https://traffic.sooryah.me/api/stats');
         const data = await res.json();
         
-        let total = 0;
-        let breakdownHTML = '';
+        let totalCount = 0;
+        let gridHTML = '';
         
-        // 1. Handle Counts
+        // 2. Loop through the JSON data
         for (const [key, value] of Object.entries(data)) {
-            if (key === 'log') continue; // Skip the log field for the grid
             
-            if (value > 0) {
-                total += value;
-                breakdownHTML += `
-                    <div class="bg-white/5 border border-white/10 rounded px-2 py-1 text-center">
-                        <span class="block text-lg font-bold text-white">${value}</span>
-                        <span class="block text-[8px] text-gray-400 uppercase">${key}</span>
+            // SKIP the "log" key (it's text, not a count)
+            if (key === 'log') continue;
+
+            // Process Numbers (CAR: 1, PERSON: 2)
+            if (typeof value === 'number' && value > 0) {
+                totalCount += value;
+                
+                // Create a glass-morphism box for each detection
+                gridHTML += `
+                    <div class="bg-emerald-900/30 border border-emerald-500/30 rounded px-2 py-2 flex flex-col items-center justify-center animate-pulse">
+                        <span class="text-xl font-bold text-white leading-none">${value}</span>
+                        <span class="text-[8px] font-bold text-emerald-400 uppercase mt-1 tracking-wider">${key}</span>
                     </div>
                 `;
             }
         }
 
-        // Update Total
+        // 3. Update the Big Total Number
         const totalEl = document.getElementById('modal-live-cars');
-        if (totalEl) totalEl.innerText = total;
+        if (totalEl) totalEl.innerText = totalCount;
 
-        // Update Grid
-        const breakdownEl = document.getElementById('traffic-breakdown');
-        if (breakdownEl) breakdownEl.innerHTML = total === 0 ? '<div class="col-span-3 text-center text-xs text-gray-600">NO TRAFFIC</div>' : breakdownHTML;
+        // 4. Update the Breakdown Grid
+        const gridEl = document.getElementById('traffic-breakdown');
+        if (gridEl) {
+            if (totalCount === 0) {
+                gridEl.innerHTML = `<div class="col-span-3 text-center text-[10px] text-gray-500 font-mono py-2">-- SCANNING SECTOR --</div>`;
+            } else {
+                gridEl.innerHTML = gridHTML;
+            }
+        }
 
-        // 2. Handle The "Chat" Log
+        // 5. Update the "Chat" Log (Only if it changed)
         if (data.log && data.log !== lastLogMsg) {
             lastLogMsg = data.log;
             const logContainer = document.getElementById('traffic-log');
             if (logContainer) {
-                // Add new line at the TOP
-                const newLog = document.createElement('div');
-                newLog.className = "border-b border-white/5 py-1";
-                newLog.innerText = data.log;
-                logContainer.prepend(newLog);
+                const newEntry = document.createElement('div');
+                // Matrix style green text
+                newEntry.className = "text-emerald-400/90 border-b border-emerald-500/10 py-1 truncate hover:whitespace-normal transition-all";
+                newEntry.innerText = `> ${data.log}`;
                 
-                // Keep only last 20 lines to save memory
-                if (logContainer.children.length > 20) {
+                // Add to top
+                logContainer.prepend(newEntry);
+                
+                // Keep history clean (max 10 items)
+                if (logContainer.children.length > 10) {
                     logContainer.removeChild(logContainer.lastChild);
                 }
             }
         }
-        
-    } catch (e) {}
+
+    } catch (e) {
+        // console.error("Sync Error:", e); // Uncomment for debugging
+    }
 }
+
+// Poll every 1 second (1000ms)
 setInterval(syncTrafficStats, 1000);
 
 

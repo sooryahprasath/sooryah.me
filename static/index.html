@@ -228,12 +228,13 @@
                             <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Total Activity</p>
                             <h3 id="modal-live-cars" class="text-6xl font-black text-white mb-4 drop-shadow-lg">0</h3>
                             
-                            <div id="traffic-breakdown" class="grid grid-cols-3 gap-2 w-full max-w-[300px] mx-auto mb-4">
+                            <div id="traffic-breakdown" class="grid grid-cols-3 gap-2 w-full max-w-[300px] mx-auto mb-4 min-h-[50px]">
                                 </div>
 
-                            <div class="w-full max-w-[300px] mx-auto bg-black/40 rounded border border-white/10 p-2 h-24 overflow-y-auto font-mono text-[10px] text-emerald-400/80">
-                                <div id="traffic-log" class="flex flex-col-reverse">
-                                    <span>Waiting for data...</span>
+                            <div class="w-full max-w-[300px] mx-auto bg-black/80 rounded border border-emerald-500/20 p-2 h-32 overflow-hidden relative">
+                                <div class="absolute top-0 left-0 w-full h-4 bg-gradient-to-b from-black to-transparent z-10"></div>
+                                <div id="traffic-log" class="flex flex-col font-mono text-[10px] h-full overflow-y-auto pt-2">
+                                    <div class="text-gray-600 italic">Awaiting data stream..</div>
                                 </div>
                             </div>
                         </div>
