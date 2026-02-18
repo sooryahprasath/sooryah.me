@@ -97,12 +97,14 @@ const ui = {
     // APPENDED: Traffic Modal
     openTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.remove('hidden'); 
-        // Point to the new lightweight MJPEG stream
+        // This sets the src of our new <img> tag
         document.getElementById('traffic-stream').src = "https://traffic.sooryah.me/video_feed";
+        charts.loadTrafficHistory(); 
     },
     closeTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.add('hidden'); 
-        document.getElementById('traffic-stream').src = "";
+        // clear src to save bandwidth when closed
+        document.getElementById('traffic-stream').src = ""; 
     }
 };
 
