@@ -237,7 +237,7 @@ let lastLogTimestamp = "";
 async function syncTrafficStats() {
     try {
         // We use a relative path + a timestamp to prevent the browser from caching old 'zero' data
-        const res = await fetch(`/api/stats?t=${new Date().getTime()}`);
+        const res = await fetch('/api/stats');
         
         if (!res.ok) throw new Error('Network response was not ok');
         
