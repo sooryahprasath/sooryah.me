@@ -109,7 +109,7 @@ const ui = {
 };
 
 // --- MAP ENGINE ---
-const DEFAULT_CENTER = [13.52, 77.6];
+const DEFAULT_CENTER = [13.55, 77.6];
 const DEFAULT_ZOOM = 8.4;
 const map = L.map('map-container', { 
     zoomControl: false, attributionControl: false, zoomSnap: 0.1, boxZoom: false, 
