@@ -236,73 +236,94 @@ let lastLogTimestamp = "";
 
 async function syncTrafficStats() {
     try {
-        const res = await fetch('https://traffic.sooryah.me/api/stats');
+        // 1. Fetch Data
+        const res = await fetch('/api/stats');
         const data = await res.json();
         
         let gridHTML = '';
+        let liveTotal = 0;
         let hasActiveTargets = false;
 
-        // 1. UPDATE ALL-TIME COUNTER (Top Card)
-        // Checks for 'total_all_time' sent by Python
+        // --- TOP: UPDATE TOTAL COUNT ---
         const totalEl = document.getElementById('total-all-time');
         if (totalEl) {
-            // Default to 0 if undefined
-            totalEl.innerText = data.total_all_time !== undefined ? data.total_all_time : "0";
+            // If the python script sends 'total_all_time', use it. Otherwise show live total.
+            totalEl.innerText = (data.total_all_time !== undefined) ? data.total_all_time : "--";
         }
 
-        // 2. GENERATE LIVE TILES (Middle Grid)
+        // --- MIDDLE: GENERATE BOXES (The Tiles) ---
         for (const [key, value] of Object.entries(data)) {
-            // Skip special keys
-            if (key === 'log' || key === 'total_all_time') continue;
+            // Skip system keys
+            if (['log', 'status', 'total_all_time'].includes(key)) continue;
 
-            if (value > 0) {
+            if (typeof value === 'number' && value > 0) {
+                liveTotal += value;
                 hasActiveTargets = true;
+                
+                // GENERATE THE "BOX"
                 gridHTML += `
-                    <div class="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 flex flex-col items-center justify-center hover:bg-white/10 transition-all group min-h-[100px] animate-in zoom-in duration-300">
-                        <span class="text-4xl font-black text-white mb-2 group-hover:scale-110 transition-transform drop-shadow-md">${value}</span>
-                        <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest border-t border-white/10 pt-2 w-full text-center">${key}</span>
+                    <div class="bg-emerald-900/30 border border-emerald-500/30 backdrop-blur-md rounded-xl p-4 flex flex-col items-center justify-center shadow-lg shadow-emerald-900/20 animate-in zoom-in duration-300">
+                        <span class="text-3xl font-black text-white mb-1 drop-shadow-md">${value}</span>
+                        <div class="w-full border-t border-emerald-500/30 my-1"></div>
+                        <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">${key}</span>
                     </div>
                 `;
             }
         }
 
-        // 3. INJECT TILES
+        // --- INJECT BOXES INTO HTML ---
         const gridEl = document.getElementById('traffic-breakdown');
         if (gridEl) {
             if (!hasActiveTargets) {
+                // Keep the "Scanning" placeholder if empty
                 gridEl.innerHTML = `
-                    <div class="col-span-2 flex flex-col items-center justify-center bg-white/5 rounded-xl border border-white/5 border-dashed p-6 h-full min-h-[100px]">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping mb-2"></span>
-                        <span class="text-xs text-gray-500 font-mono uppercase tracking-widest">Scanning Sector...</span>
+                    <div class="col-span-2 flex flex-col items-center justify-center bg-white/5 rounded-xl border border-white/5 border-dashed p-6 opacity-60">
+                         <div class="flex gap-1 mb-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce delay-100"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce delay-200"></span>
+                        </div>
+                        <span class="text-[10px] text-gray-500 font-mono uppercase tracking-widest">Scanning Sector...</span>
                     </div>`;
             } else {
+                // Show the boxes
                 gridEl.innerHTML = gridHTML;
             }
         }
 
-        // 4. UPDATE CHAT LOG
+        // --- BOTTOM: UPDATE CHAT LOG ---
         if (data.log && data.log !== lastLogTimestamp) {
             lastLogTimestamp = data.log;
             
             const logContainer = document.getElementById('traffic-log');
             if (logContainer) {
                 const newEntry = document.createElement('div');
+                
+                // Format: "[12:00:00] DETECTED: CAR: 1"
                 const parts = data.log.split('] '); 
-                const time = parts[0] ? parts[0] + ']' : '';
+                const time = parts[0] ? parts[0] + ']' : '[LOG]';
                 const msg = parts[1] || data.log;
 
-                newEntry.innerHTML = `<span class="text-gray-500 opacity-70 mr-2">${time}</span><span class="text-emerald-400 font-bold">${msg}</span>`;
-                newEntry.className = "border-b border-white/5 pb-1 mb-1 text-left opacity-0 animate-in fade-in slide-in-from-left-2 duration-300";
+                newEntry.innerHTML = `
+                    <div class="flex gap-2 items-start border-b border-white/5 pb-1 mb-1">
+                        <span class="text-gray-500 opacity-60 font-mono text-[9px] whitespace-nowrap mt-0.5">${time}</span>
+                        <span class="text-emerald-400 font-bold font-mono text-[10px] leading-tight">${msg}</span>
+                    </div>`;
+                newEntry.className = "opacity-0 animate-in fade-in slide-in-from-left-2 duration-300";
                 
                 logContainer.prepend(newEntry);
                 
+                // Limit to 50 lines to keep it fast
                 if (logContainer.children.length > 50) logContainer.lastChild.remove();
             }
         }
 
-    } catch (e) { }
+    } catch (e) {
+        // console.error("API Fetch Error:", e);
+    }
 }
 
+// Run every 1 second
 setInterval(syncTrafficStats, 1000);
 
 
