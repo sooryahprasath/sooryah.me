@@ -8,11 +8,11 @@ from ultralytics import YOLO
 
 app = Flask(__name__)
 
-# --- CONFIGURATION ---
+# --- MIDDLE GROUND CONFIGURATION ---
 FRAME_WIDTH = 854
 FRAME_HEIGHT = 480
-CONFIDENCE_THRESHOLD = 0.45
-AI_INTERVAL = 3 
+FPS_LIMIT = 15          # Locks video to 15 FPS (Quiet CPU)
+AI_INTERVAL_SEC = 0.5   # Run AI only once every 0.5 seconds (Very Stable)
 
 CLASS_NAMES = {
     0: "PERSON", 1: "BICYCLE", 2: "CAR", 3: "MOTORCYCLE", 5: "BUS", 7: "TRUCK",
@@ -23,133 +23,143 @@ TARGET_CLASSES = list(CLASS_NAMES.keys())
 # --- GLOBAL STATE ---
 output_frame = None
 current_stats = {}
-last_log_entry = "" # To avoid spamming the log
 lock = threading.Lock()
 
 # --- ROBUST CAMERA CLASS ---
-class ThreadedCamera:
+class RobustCamera:
     def __init__(self, src):
         self.src = src
-        self.capture = cv2.VideoCapture(self.src)
-        self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Low latency
-        self.thread = threading.Thread(target=self.update, args=())
-        self.thread.daemon = True
-        self.started = False
+        self.cap = None
         self.frame = None
-        self.last_read_time = time.time()
-
-    def start(self):
-        if self.started: return None
-        self.started = True
+        self.running = True
+        self.last_frame_time = time.time()
+        self.lock = threading.Lock()
+        
+        # Start the background thread
+        self.thread = threading.Thread(target=self.update, daemon=True)
         self.thread.start()
-        return self
 
     def update(self):
-        while self.started:
-            if self.capture.isOpened():
-                (status, frame) = self.capture.read()
-                if status:
-                    self.frame = frame
-                    self.last_read_time = time.time()
-                else:
-                    # Stream broken? Reconnect.
-                    self.reconnect()
-            else:
-                self.reconnect()
+        while self.running:
+            # 1. Connect if not connected
+            if self.cap is None or not self.cap.isOpened():
+                print(f"🔄 Connecting to camera...")
+                self.cap = cv2.VideoCapture(self.src)
+                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Reduce latency
+                time.sleep(1) # Give it a moment to stabilize
+                if not self.cap.isOpened():
+                    print("❌ Connection failed. Retrying in 5s...")
+                    time.sleep(5)
+                    continue
             
-            # Watchdog: If no new frame for 5 seconds, force reconnect
-            if time.time() - self.last_read_time > 5:
-                print("❌ Camera frozen. Forcing restart...")
-                self.reconnect()
+            # 2. Read Frame
+            success, frame = self.cap.read()
+            
+            # 3. Handle Success/Failure
+            if success:
+                with self.lock:
+                    self.frame = frame
+                    self.last_frame_time = time.time()
                 
-            time.sleep(0.01)
-
-    def reconnect(self):
-        print("🔄 Reconnecting to camera...")
-        self.capture.release()
-        time.sleep(2) # Wait before retry
-        self.capture = cv2.VideoCapture(self.src)
-        self.capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-        self.last_read_time = time.time() # Reset watchdog
+                # FPS LIMITER: Sleep to match target FPS
+                time.sleep(1.0 / FPS_LIMIT)
+            else:
+                print("⚠️ Stream packet dropped/empty.")
+                time.sleep(0.5)
+                # If no frames for 5 seconds, force reconnect
+                if time.time() - self.last_frame_time > 5:
+                    print("❌ Watchdog: Camera frozen. Restarting...")
+                    self.cap.release()
+                    self.cap = None
 
     def get_frame(self):
-        return self.frame
+        with self.lock:
+            return self.frame
 
 # --- MAIN ENGINE ---
 def start_engine():
-    global output_frame, current_stats, last_log_entry
+    global output_frame, current_stats
     
-    print("🚀 Loading AI Model...")
+    print("🚀 Loading AI Model (Standard Mode)...")
+    # Using standard model is safer for stability than custom OpenVINO export sometimes
     model = YOLO("yolov8n.pt") 
-    
-    # Check for OpenVINO export (Auto-Use if exists)
-    if os.path.exists("yolov8n_openvino_model"):
-        print("✅ Using OpenVINO Optimized Model")
-        model = YOLO("yolov8n_openvino_model/", task="detect")
     
     user = os.getenv('CAMERA_USER')
     pwd = os.getenv('CAMERA_PASS')
     ip = os.getenv('CAMERA_IP')
     rtsp_url = f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=4&subtype=0"
     
-    cam = ThreadedCamera(rtsp_url).start()
+    cam = RobustCamera(rtsp_url)
     
-    frame_counter = 0
-    last_boxes = []
+    # State for visuals
+    last_ai_time = 0
+    last_boxes = [] # Persist boxes between AI runs
+    
+    print("✅ Engine Started. Waiting for frames...")
 
     while True:
         frame = cam.get_frame()
+        
         if frame is None:
-            time.sleep(0.5)
+            time.sleep(0.1)
             continue
 
+        # Resize first (Saves CPU on drawing/encoding)
         frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         
-        # --- AI INFERENCE ---
-        if frame_counter % AI_INTERVAL == 0:
-            results = model(frame, classes=TARGET_CLASSES, conf=CONFIDENCE_THRESHOLD, verbose=False)
+        # --- AI INFERENCE (Time Controlled) ---
+        now = time.time()
+        if now - last_ai_time > AI_INTERVAL_SEC:
+            last_ai_time = now
             
-            new_stats = {}
-            last_boxes = []
-            log_buffer = []
+            # Run Inference in a separate try/except block so it never crashes video
+            try:
+                results = model(frame, classes=TARGET_CLASSES, verbose=False)
+                
+                temp_stats = {}
+                temp_boxes = []
+                
+                for r in results:
+                    for box in r.boxes:
+                        x1, y1, x2, y2 = map(int, box.xyxy[0])
+                        cls_id = int(box.cls[0])
+                        label = CLASS_NAMES.get(cls_id, "Unknown")
+                        
+                        temp_boxes.append((x1, y1, x2, y2, label))
+                        
+                        if label in temp_stats: temp_stats[label] += 1
+                        else: temp_stats[label] = 1
+                
+                # Update global state
+                last_boxes = temp_boxes
+                with lock:
+                    # Add timestamp for the "Chat Log" feature
+                    if temp_stats:
+                        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+                        details = ", ".join([f"{k}: {v}" for k,v in temp_stats.items()])
+                        log_msg = f"[{timestamp}] DETECTED: {details}"
+                        temp_stats['log'] = log_msg
+                    
+                    current_stats = temp_stats
+                    
+            except Exception as e:
+                print(f"⚠️ AI Error: {e}")
 
-            for r in results:
-                for box in r.boxes:
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    cls_id = int(box.cls[0])
-                    label = CLASS_NAMES.get(cls_id, "Unknown")
-                    
-                    last_boxes.append((x1, y1, x2, y2, label))
-                    
-                    if label in new_stats: new_stats[label] += 1
-                    else: new_stats[label] = 1
-            
-            with lock:
-                current_stats = new_stats
-                # Create a log entry string if something was found
-                if new_stats:
-                    timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-                    # Format: "CAR: 2, PERSON: 1"
-                    details = ", ".join([f"{k}: {v}" for k,v in new_stats.items()])
-                    new_entry = f"[{timestamp}] DETECTED: {details}"
-                    
-                    # Only update log if it CHANGED (prevents spamming "Car: 1" 100 times)
-                    if new_entry != last_log_entry:
-                        current_stats['log'] = new_entry
-                        last_log_entry = new_entry
-
-        # --- DRAWING ---
+        # --- DRAWING (Draws every frame for smoothness) ---
         for (x1, y1, x2, y2, label) in last_boxes:
+            # Draw Box
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            # Draw Label
             cv2.putText(frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-        frame_counter += 1
-
+        # --- ENCODING ---
         with lock:
-            (_, encodedImage) = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+            # Quality 60 is perfectly fine for monitoring and saves bandwidth/CPU
+            (_, encodedImage) = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
             output_frame = bytearray(encodedImage)
         
-        time.sleep(0.03)
+        # Main loop sleep (Just a tiny bit to prevent CPU spinning)
+        time.sleep(0.01)
 
 def generate():
     while True:
@@ -159,7 +169,8 @@ def generate():
                 continue
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + output_frame + b'\r\n')
-        time.sleep(0.04)
+        # Stream at same rate as Capture (15 FPS)
+        time.sleep(1.0 / FPS_LIMIT)
 
 @app.route("/video_feed")
 def video_feed():
@@ -171,7 +182,6 @@ def stats():
         return jsonify(current_stats)
 
 if __name__ == "__main__":
-    t = threading.Thread(target=start_engine)
-    t.daemon = True
+    t = threading.Thread(target=start_engine, daemon=True)
     t.start()
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
