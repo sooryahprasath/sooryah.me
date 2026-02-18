@@ -12,7 +12,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # --- NEW STEP: Database Health Check ---
       - name: Pre-flight Check (InfluxDB)
         run: |
           echo "🔍 Checking InfluxDB status..."
@@ -22,8 +21,6 @@ jobs:
               echo "⚠️ InfluxDB is DOWN. Attempting to auto-start..."
               docker start influxdb
               sleep 5
-              
-              # Double check
               if [ "$(docker inspect -f '{{.State.Running}}' influxdb)" = "true" ]; then
                   echo "✅ InfluxDB restarted successfully."
               else
@@ -54,7 +51,6 @@ jobs:
           sleep 10
           if [ "$(docker inspect -f '{{.State.Running}}' portfolio-web)" = "true" ]; then
               echo "✅ Container is online."
-              docker exec portfolio-web ls -l /app/static/index.html
           else
               echo "❌ CRITICAL: Container crashed. Fetching logs..."
               docker logs --tail 20 portfolio-web

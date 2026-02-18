@@ -94,10 +94,9 @@ const ui = {
     openAnalyticsModal: () => { document.getElementById('analytics-modal').classList.remove('hidden'); charts.loadAll(); },
     closeAnalyticsModal: () => { document.getElementById('analytics-modal').classList.add('hidden'); },
 
-    // APPENDED ONLY: Traffic
+    // APPENDED: Traffic Modal
     openTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.remove('hidden'); 
-        // Force the direct sub-stream link for 25fps and less buffering
         document.getElementById('traffic-stream').src = "https://traffic.sooryah.me/api/intersection";
     },
     closeTrafficModal: () => { 
@@ -160,7 +159,7 @@ async function fetchRadar() {
             const latlng = [p.lat, p.lon];
             const name = p.flightno || p.callsign || p.hex;
             
-            // MEMORY LIMIT: Use 90 points (~3 mins at 2s interval) instead of infinity to prevent slow browser
+            // MEMORY LIMIT: 3-minute limit for map trails (90 points @ 2s interval)
             if (!trails[p.hex]) trails[p.hex] = []; 
             trails[p.hex].push(latlng); 
             if (trails[p.hex].length > 90) trails[p.hex].shift(); 
@@ -198,8 +197,7 @@ const charts = {
 
         if(!chartInstances.daily) {
             const d = await getData('/api/daily');
-            const ctx = document.getElementById('chart-daily');
-            chartInstances.daily = new Chart(ctx, { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#3b82f6', borderRadius: 4 }] }, options: commonOpts });
+            chartInstances.daily = new Chart(document.getElementById('chart-daily'), { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#3b82f6', borderRadius: 4 }] }, options: commonOpts });
         }
         charts.loadVolume('24h');
         if(!chartInstances.altitude) {
@@ -231,7 +229,7 @@ const charts = {
     }
 };
 
-// APPENDED ONLY: Live Poll
+// APPENDED: Traffic Polling
 async function syncTrafficStats() {
     try {
         const res = await fetch('/api/traffic');
@@ -246,22 +244,45 @@ const PROJECT_DATA = {
     adsb: { 
         title: "RF & IoT Sensor Networks", 
         subtitle: "Station ID: CustardLev | Bengaluru", 
-        description: `<p class="mb-4">Operational since 2016. Feeds real-time flight telemetry.</p>`, 
-        specs: [{ label: "Host", value: "Raspberry Pi 2 Model B" }, { label: "Radio", value: "RTL-SDR V3" }], 
+        description: `
+            <p class="mb-4"><strong>Operational since 2016.</strong> My journey into RF started with a generic DVB-T dongle and a 6.9cm quarter-wave antenna (my first attempt at tuning). Over the years, I iterated through Spider and Cantenna designs to optimize gain.</p>
+            <p class="mb-4">Today, the station runs on a custom-built <strong>2ft Collinear Coaxial (CoCo)</strong> antenna mounted 50ft AGL on my roof, providing 360° horizon visibility.</p>
+            <p>It feeds real-time flight data to FlightRadar24, FlightAware, and this portfolio.</p>
+        `, 
+        specs: [
+            { label: "Host", value: "Raspberry Pi 2 Model B" }, 
+            { label: "Radio", value: "RTL-SDR Blog V3 TCXO" },
+            { label: "LNA / Filter", value: "Nooelec ADS-B (SAW+LNA)" },
+            { label: "Antenna", value: "Custom 2ft Coaxial Collinear" },
+            { label: "Software", value: "Dump1090-fa, Piaware" },
+            { label: "Range", value: "~180 Nautical Miles" }
+        ], 
         link: "https://planes.custardlev.uk" 
     },
     telemetry: { 
         title: "Enterprise Telemetry Pipeline", 
         subtitle: "Data Engineering", 
-        description: "Centralized pipeline utilizing Apache Airflow and Azure SQL.", 
-        specs: [{ label: "Language", value: "Python" }], 
+        description: "Centralized pipeline utilizing Apache Airflow and Azure SQL to ingest real-time data from 150+ global sites, feeding dynamic Power BI dashboards.", 
+        specs: [
+            { label: "Orchestration", value: "Apache Airflow" },
+            { label: "Database", value: "Azure SQL (Managed Instance)" },
+            { label: "Language", value: "Python (Pandas, PyODBC)" },
+            { label: "Visualization", value: "Power BI Pro" },
+            { label: "Latency", value: "< 2 Minutes End-to-End" }
+        ], 
         link: null 
     },
     cloud: { 
         title: "Private Cloud Cluster", 
         subtitle: "Homelab", 
-        description: "Production-grade 3-node Proxmox cluster.", 
-        specs: [{ label: "Hypervisor", value: "Proxmox VE 8.1" }], 
+        description: "Production-grade home infrastructure. A 3-node Proxmox cluster running Kubernetes (K3s), automation pools, and storage nodes.", 
+        specs: [
+            { label: "Hypervisor", value: "Proxmox VE 8.1" }, 
+            { label: "Orchestrator", value: "Kubernetes (K3s)" },
+            { label: "Storage", value: "ZFS RaidZ1 Pool" },
+            { label: "Networking", value: "Tailscale Mesh VPN" },
+            { label: "Ingress", value: "Traefik + Cloudflare Tunnel" }
+        ], 
         link: null 
     }
 };

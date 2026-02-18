@@ -26,16 +26,12 @@ services:
       - RADAR_IP=${RADAR_IP}
     restart: always
 
-  # Move these inside the services block
   frigate:
     container_name: frigate
     image: ghcr.io/blakeblackshear/frigate:stable
     privileged: true
-    ports:
-      - "5000:5000" # Map Frigate Web UI
-      - "8554:8554" # RTSP restream
     restart: always
-    shm_size: "256mb"
+    shm_size: "256mb" # CRITICAL: Prevents 5-second buffer crash
     devices:
       - /dev/dri/renderD128:/dev/dri/renderD128
     volumes:
