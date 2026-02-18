@@ -38,19 +38,17 @@ services:
       - CAMERA_IP=${CAMERA_IP}
 
   traffic-ingest:
-    build: 
-      context: .
-      dockerfile: Dockerfile  # Or wherever you put the python script
+    build: ./traffic_engine  # Points to folder with requirements.txt
     container_name: traffic-ingest
-    network_mode: "host"
+    network_mode: "host"     # Crucial: Allows it to see localhost:5000 and localhost:8086
+    restart: always
     environment:
       - INFLUX_URL=${INFLUX_URL}
-      - INFLUX_TOKEN=${INFLUX_TOKEN}
-      - INFLUX_ORG=${INFLUX_ORG}
-      - INFLUX_BUCKET=${INFLUX_BUCKET}
+      - INFLUX_TOKEN=${INFLUX_TOKEN}  # <--- PASTE TOKEN FROM STEP 1
+      - INFLUX_ORG=${INFLUX_ORG}         # <--- Check Influx UI (usually 'primary' or your username)
+      - INFLUX_BUCKET=traffic
     command: python traffic_ingest.py
-    restart: always
-    
+
   # --- ADD THIS SECTION ---
   cloudflared:
     image: cloudflare/cloudflared:latest
