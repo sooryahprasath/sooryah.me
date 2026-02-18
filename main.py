@@ -40,6 +40,7 @@ def get_kpi():
     try:
         client = get_influx_client()
         query_api = client.query_api()
+        # KPI queries are light, no sampling needed
         q1 = f'from(bucket:"{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn:(r)=>r._measurement=="aircraft_snapshot" and r._field=="speed") |> group(columns: ["icao_hex"]) |> distinct(column: "icao_hex") |> group() |> count()'
         q2 = f'from(bucket:"{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn:(r)=>r._measurement=="aircraft_snapshot" and (r._field=="speed" or r._field=="altitude")) |> max()'
         res1, res2 = query_api.query(org=INFLUX_ORG, query=q1), query_api.query(org=INFLUX_ORG, query=q2)
@@ -75,8 +76,8 @@ def get_scatter():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # FIXED: Reduced range to -6h for density, added aggregation to fix missing points
-        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -6h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot") |> filter(fn: (r) => r["_field"] == "altitude" or r["_field"] == "speed") |> aggregateWindow(every: 1m, fn: mean, createEmpty: false) |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value") |> filter(fn: (r) => exists r.altitude and exists r.speed) |> limit(n: 500)'
+        # CRITICAL FIX: Limit to 1000 points to prevent backend crash
+        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -12h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot") |> filter(fn: (r) => r["_field"] == "altitude" or r["_field"] == "speed") |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value") |> filter(fn: (r) => exists r.altitude and exists r.speed) |> limit(n: 1000)'
         result = query_api.query(org=INFLUX_ORG, query=query)
         return [{"x": r["speed"], "y": r["altitude"]} for t in result for r in t.records]
     except: return []
@@ -101,8 +102,8 @@ def get_altitude():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # FIXED: Removed sample() and used 6h range to ensure buckets are filled
-        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -6h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "altitude") |> limit(n: 2000)'
+        # CRITICAL FIX: sample(n:2000) prevents timeout
+        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "altitude") |> sample(n: 2000)'
         result = query_api.query(org=INFLUX_ORG, query=query)
         buckets = {"0-10k": 0, "10k-20k": 0, "20k-30k": 0, "30k-40k": 0, "40k+": 0}
         for t in result:
@@ -121,8 +122,8 @@ def get_direction():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # FIXED: Removed sample() and used 6h range
-        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -6h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "bearing") |> limit(n: 2000)'
+        # CRITICAL FIX: sample(n:2000) prevents timeout
+        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "bearing") |> sample(n: 2000)'
         result = query_api.query(org=INFLUX_ORG, query=query)
         counts = [0]*8
         for t in result:

@@ -12,14 +12,12 @@ from ultralytics import YOLO
 app = Flask(__name__)
 CORS(app)
 
-# CONFIG - BALANCED MODE
 FRAME_WIDTH, FRAME_HEIGHT = 854, 480
-FPS_LIMIT = 12           # Smooth video, not cinematic
-AI_INTERVAL_SEC = 2.0    # Check traffic every 2s (Saves massive CPU)
+FPS_LIMIT = 12
+AI_INTERVAL_SEC = 2.0
 HISTORY_FILE = "history.json"
 CLASS_NAMES = {0: "PERSON", 1: "BICYCLE", 2: "CAR", 3: "MOTORCYCLE", 5: "BUS", 7: "TRUCK"}
 
-# GLOBAL STATE
 output_frame = cv2.imencode('.jpg', np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8))[1].tobytes()
 lock = threading.Lock()
 
@@ -45,18 +43,15 @@ current_stats = {"status": "Starting", "total_all_time": history.total_count}
 
 def start_engine():
     global output_frame, current_stats
-    
     try:
         model = YOLO("yolov8n.pt") 
-    except Exception as e:
-        print(f"Model Error: {e}")
-        return
+    except: return
 
     user, pwd, ip = os.getenv('CAMERA_USER'), os.getenv('CAMERA_PASS'), os.getenv('CAMERA_IP')
     rtsp_url = f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=4&subtype=0"
     
     cap = cv2.VideoCapture(rtsp_url)
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Anti-lag buffer
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Anti-lag
     
     last_ai_time = 0
     last_seen_counts = {}
@@ -74,11 +69,10 @@ def start_engine():
         draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         now = time.time()
         
-        # AI INFERENCE (Every 2 seconds)
         if now - last_ai_time > AI_INTERVAL_SEC:
             last_ai_time = now
             try:
-                # imgsz=320 is the key to low CPU usage
+                # Reduced image size for low CPU
                 results = model(draw_frame, classes=list(CLASS_NAMES.keys()), verbose=False, imgsz=320)
                 raw_counts = {}
                 new_boxes = []
@@ -90,7 +84,6 @@ def start_engine():
                         raw_counts[label] = raw_counts.get(label, 0) + 1
                 
                 temp_boxes = new_boxes
-                
                 new_v = sum([max(0, raw_counts.get(l, 0) - last_seen_counts.get(l, 0)) for l in raw_counts])
                 if new_v > 0: history.increment(new_v)
                 last_seen_counts = raw_counts
@@ -102,26 +95,23 @@ def start_engine():
                         current_stats['log'] = f"[{ts}] DETECTED: {raw_counts}"
             except: pass
 
-        # Draw Overlay
         for (x1, y1, x2, y2, label) in temp_boxes:
             cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(draw_frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
         with lock:
-            # Quality 65 is the sweet spot for speed vs look
             _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 65])
             output_frame = bytearray(encoded)
         
-        # Sleep exactly enough to maintain target FPS without maxing CPU
-        time.sleep(1.0 / FPS_LIMIT) 
+        # 0.05 sleep = 20FPS cap, leaves CPU breathing room
+        time.sleep(0.05)
 
 @app.route("/video_feed")
 def video_feed():
     def generate():
         while True:
             with lock:
-                if output_frame:
-                    yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + output_frame + b'\r\n')
+                if output_frame: yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + output_frame + b'\r\n')
             time.sleep(1.0 / FPS_LIMIT)
     return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
 

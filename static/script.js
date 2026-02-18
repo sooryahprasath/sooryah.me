@@ -109,7 +109,7 @@ const ui = {
 };
 
 // --- MAP ENGINE ---
-const DEFAULT_CENTER = [13.73, 77.6];
+const DEFAULT_CENTER = [13.43, 77.6];
 const DEFAULT_ZOOM = 8.4;
 const map = L.map('map-container', { 
     zoomControl: false, attributionControl: false, zoomSnap: 0.1, boxZoom: false, 
@@ -169,18 +169,19 @@ async function fetchRadar() {
             if (polylines[p.hex]) polylines[p.hex].setLatLngs(trails[p.hex]); 
             else polylines[p.hex] = L.polyline(trails[p.hex], { color: '#3b82f6', weight: 1, opacity: 0.3 }).addTo(map);
             
-            if (markers[p.hex]) { markers[p.hex].setLatLng(latlng); markers[p.hex].setIcon(getIcon(p.heading, name, p.route, p.altitude, p.speed)); }
-            else { 
+            if (markers[p.hex]) { 
+                markers[p.hex].setLatLng(latlng); 
+                markers[p.hex].setIcon(getIcon(p.heading, name, p.route, p.altitude, p.speed)); 
+            } else { 
                 const m = L.marker(latlng, { icon: getIcon(p.heading, name, p.route, p.altitude, p.speed) }).addTo(map); 
                 m.on('click', () => {
-                    // --- CLICK DISABLE FIX ---
-                    // Only allow clicks if the body has the 'tactical-active' class (Live View)
+                    // --- DISABLE CLICK UNLESS IN TACTICAL MODE ---
                     if (document.body.classList.contains('tactical-active')) {
                         ui.openFlightSidebar(p);
                     }
                 }); 
                 markers[p.hex] = m; 
-            }
+            }   
         });
         Object.keys(markers).forEach(hex => { if(!currentHexes.has(hex)) { map.removeLayer(markers[hex]); delete markers[hex]; } });
     } catch (e) {}
