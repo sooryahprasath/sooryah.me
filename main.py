@@ -9,7 +9,7 @@ from datetime import timedelta
 
 app = FastAPI()
 
-# CONFIG - Environment variables
+# CONFIG
 RADAR_IP = os.getenv("RADAR_IP")
 INFLUX_URL = os.getenv("INFLUX_URL")
 INFLUX_TOKEN = os.getenv("INFLUX_TOKEN")
@@ -26,7 +26,7 @@ def get_influx_client():
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-# --- RADAR LIVE DATA ---
+# --- RADAR APIS ---
 @app.get("/api/live")
 async def get_live_radar():
     async with httpx.AsyncClient() as client:
@@ -35,7 +35,6 @@ async def get_live_radar():
             return resp.json()
         except: return {"aircraft": {}}
 
-# --- RADAR ANALYTICS ---
 @app.get("/api/kpi")
 def get_kpi():
     try:
@@ -58,10 +57,7 @@ def get_history(range_type: str = "24h"):
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        config = {
-            "5m": ("-5m", "10s"), "15m": ("-15m", "30s"), "3h": ("-3h", "5m"), 
-            "24h": ("-24h", "30m"), "7d": ("-7d", "3h"), "14d": ("-14d", "6h"), "30d": ("-30d", "12h")
-        }
+        config = {"5m": ("-5m", "10s"), "15m": ("-15m", "30s"), "3h": ("-3h", "5m"), "24h": ("-24h", "30m"), "7d": ("-7d", "3h"), "14d": ("-14d", "6h"), "30d": ("-30d", "12h")}
         start, window = config.get(range_type, ("-24h", "30m"))
         query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: {start}) |> filter(fn: (r) => r["_measurement"] == "airspace_metrics") |> filter(fn: (r) => r["_field"] == "aircraft_count") |> aggregateWindow(every: {window}, fn: mean, createEmpty: false)'
         result = query_api.query(org=INFLUX_ORG, query=query)
@@ -79,8 +75,8 @@ def get_scatter():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # FIXED: Changed temp_c to speed to ensure data always exists
-        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot") |> filter(fn: (r) => r["_field"] == "altitude" or r["_field"] == "speed") |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value") |> filter(fn: (r) => exists r.altitude and exists r.speed) |> limit(n: 500)'
+        # FIX: Added aggregation window to align timestamps of speed and altitude
+        query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot") |> filter(fn: (r) => r["_field"] == "altitude" or r["_field"] == "speed") |> aggregateWindow(every: 1m, fn: mean, createEmpty: false) |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value") |> filter(fn: (r) => exists r.altitude and exists r.speed) |> limit(n: 500)'
         result = query_api.query(org=INFLUX_ORG, query=query)
         return [{"x": r["speed"], "y": r["altitude"]} for t in result for r in t.records]
     except: return []
@@ -105,17 +101,18 @@ def get_altitude():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # FIXED: Removed sample(n:1000) which can return empty on small datasets
+        # FIX: Removed sample() to capture all available data points
         query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "altitude")'
         result = query_api.query(org=INFLUX_ORG, query=query)
-        alts = [r.get_value() for t in result for r in t.records]
         buckets = {"0-10k": 0, "10k-20k": 0, "20k-30k": 0, "30k-40k": 0, "40k+": 0}
-        for a in alts:
-            if a < 10000: buckets["0-10k"] += 1
-            elif a < 20000: buckets["10k-20k"] += 1
-            elif a < 30000: buckets["20k-30k"] += 1
-            elif a < 40000: buckets["30k-40k"] += 1
-            else: buckets["40k+"] += 1
+        for t in result:
+            for r in t.records:
+                a = r.get_value()
+                if a < 10000: buckets["0-10k"] += 1
+                elif a < 20000: buckets["10k-20k"] += 1
+                elif a < 30000: buckets["20k-30k"] += 1
+                elif a < 40000: buckets["30k-40k"] += 1
+                else: buckets["40k+"] += 1
         return {"labels": list(buckets.keys()), "data": list(buckets.values())}
     except: return {"labels": [], "data": []}
 
@@ -124,7 +121,7 @@ def get_direction():
     try:
         client = get_influx_client()
         query_api = client.query_api()
-        # FIXED: Removed sample()
+        # FIX: Removed sample() to use all data
         query = f'from(bucket: "{INFLUX_BUCKET}") |> range(start: -24h) |> filter(fn: (r) => r["_measurement"] == "aircraft_snapshot" and r["_field"] == "bearing")'
         result = query_api.query(org=INFLUX_ORG, query=query)
         counts = [0]*8
