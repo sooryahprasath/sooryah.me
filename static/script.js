@@ -16,14 +16,12 @@ const ui = {
             // EXIT
             body.classList.remove('tactical-active', 'ui-hidden'); 
             btn.innerText = "LIVE TELEMETRY VIEW";
-            // FIX: Disable scroll zoom when in portfolio mode to prevent scroll-jacking
             map.scrollWheelZoom.disable();
             map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 1.5 });
         } else {
             // ENTER
             body.classList.add('tactical-active', 'ui-hidden'); 
             btn.innerText = "EXIT TELEMETRY VIEW";
-            // FIX: Enable zoom for map work
             map.dragging.enable(); 
             map.scrollWheelZoom.enable();
             map.invalidateSize(); 
@@ -95,9 +93,50 @@ const ui = {
         if(data.link) { footer.innerHTML = `<a href="${data.link}" target="_blank" class="w-full btn-glass py-3 rounded-lg flex justify-center items-center gap-2 font-bold hover:bg-accent hover:text-white transition">OPEN LIVE VIEW <i data-lucide="external-link" class="w-4 h-4"></i></a>`; footer.classList.remove('hidden'); } else { footer.classList.add('hidden'); }
         document.getElementById('detail-sidebar').classList.add('open');
     },
-    openAnalyticsModal: () => { document.getElementById('analytics-modal').classList.remove('hidden'); charts.loadAll(); },
-    closeAnalyticsModal: () => { document.getElementById('analytics-modal').classList.add('hidden'); }
+
+    openAnalyticsModal: () => { 
+        document.getElementById('analytics-modal').classList.remove('hidden'); 
+        charts.loadAll(); 
+    },
+
+    closeAnalyticsModal: () => { 
+        document.getElementById('analytics-modal').classList.add('hidden'); 
+    },
+
+    openTrafficModal: () => { 
+        document.getElementById('traffic-modal').classList.remove('hidden'); 
+        charts.loadTrafficHistory(); // Ensure this is implemented in your 'charts' object
+    },
+
+    closeTrafficModal: () => { 
+        document.getElementById('traffic-modal').classList.add('hidden'); 
+    }
 };
+
+// --- DATA UPDATES ---
+async function updateTraffic() {
+    try {
+        const res = await fetch('/api/traffic');
+        const data = await res.json();
+        const count = data.cars || 0;
+        
+        // Update sidebar
+        const sidebarLive = document.getElementById('live-cars');
+        if (sidebarLive) sidebarLive.innerText = count;
+        
+        // Update modal if open
+        const modalLive = document.getElementById('modal-live-cars');
+        if (modalLive) modalLive.innerText = count;
+    } catch (e) { 
+        console.error("Traffic Telemetry Sync Error:", e); 
+    }
+}
+
+// Initial update and interval sync
+setInterval(updateTraffic, 5000); 
+updateTraffic();
+
+
 
 // --- MAP ENGINE ---
 const DEFAULT_CENTER = [12.98, 77.6];
@@ -289,3 +328,4 @@ const PROJECT_DATA = {
         link: null 
     }
 };
+

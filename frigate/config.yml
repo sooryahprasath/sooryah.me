@@ -1,0 +1,26 @@
+detectors:
+  ov:
+    type: openvino
+    device: GPU # Uses your i5 Optiplex iGPU
+
+cameras:
+  intersection:
+    ffmpeg:
+      inputs:
+        # Uses the environment variables passed from docker-compose
+        - path: rtsp://{FRIGATE_CAMERA_USER}:{FRIGATE_CAMERA_PASS}@{FRIGATE_CAMERA_IP}:554/cam/realmonitor?channel=4&subtype=0
+          roles:
+            - detect
+    detect:
+      enabled: True
+      width: 1280
+      height: 720
+      fps: 5
+    objects:
+      track:
+        - car
+        - motorcycle
+    record:
+      enabled: False # No video recording to save disk space
+    snapshots:
+      enabled: False # No image snapshots

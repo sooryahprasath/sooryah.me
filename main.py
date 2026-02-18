@@ -170,3 +170,39 @@ def get_direction():
                 if b is not None: counts[int((b + 22.5) // 45) % 8] += 1
         return {"data": counts}
     except: return {"data": [0]*8}
+
+@app.get("/api/traffic")
+def get_live_traffic():
+    try:
+        client = get_influx_client()
+        query_api = client.query_api()
+        # Get the latest car count
+        query = f'from(bucket:"{INFLUX_BUCKET}") |> range(start: -5m) |> filter(fn:(r)=>r._measurement=="traffic_metrics") |> last()'
+        result = query_api.query(org=INFLUX_ORG, query=query)
+        val = result[0].records[0].get_value() if result else 0
+        return {"cars": int(val)}
+    except:
+        return {"cars": 0}
+    
+@app.get("/api/traffic/history")
+def get_traffic_history():
+    try:
+        client = get_influx_client()
+        query_api = client.query_api()
+        # Query the traffic_metrics measurement you created
+        query = f'''
+        from(bucket: "{INFLUX_BUCKET}")
+          |> range(start: -24h)
+          |> filter(fn: (r) => r["_measurement"] == "traffic_metrics")
+          |> filter(fn: (r) => r["_field"] == "car_count")
+          |> aggregateWindow(every: 30m, fn: max, createEmpty: false)
+        '''
+        result = query_api.query(org=INFLUX_ORG, query=query)
+        labels, data = [], []
+        for table in result:
+            for record in table.records:
+                labels.append(record.get_time().strftime("%H:%M"))
+                data.append(record.get_value())
+        return {"labels": labels, "data": data}
+    except:
+        return {"labels": [], "data": []}

@@ -39,6 +39,9 @@ jobs:
           echo "INFLUX_ORG=${{ secrets.INFLUX_ORG }}" >> .env
           echo "INFLUX_BUCKET=${{ secrets.INFLUX_BUCKET }}" >> .env
           echo "RADAR_IP=${{ secrets.RADAR_IP }}" >> .env
+          echo "CAMERA_USER=${{ secrets.CAMERA_USER }}" >> .env
+          echo "CAMERA_PASS=${{ secrets.CAMERA_PASS }}" >> .env
+          echo "CAMERA_IP=${{ secrets.CAMERA_IP }}" >> .env
 
       - name: Deploy Updates
         run: |
