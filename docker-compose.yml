@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # Main Portfolio Website & Radar API (Port 8090)
   portfolio-web:
     build: .
     container_name: portfolio-web
@@ -13,6 +14,7 @@ services:
       - RADAR_IP=${RADAR_IP}
     restart: always
 
+  # Radar Data Ingestion Service
   radar-ingest:
     build: .
     container_name: radar-ingest
@@ -26,17 +28,20 @@ services:
       - RADAR_IP=${RADAR_IP}
     restart: always
 
-  # --- NEW TRAFFIC ENGINE (Replaces Frigate) ---
+  # Traffic AI Engine & Video Stream (Port 5000)
   traffic-engine:
     build: ./traffic_engine
     container_name: traffic-engine
-    network_mode: "host"  # Uses port 5000, same as Frigate did
+    network_mode: "host"
     restart: always
     environment:
       - CAMERA_USER=${CAMERA_USER}
       - CAMERA_PASS=${CAMERA_PASS}
       - CAMERA_IP=${CAMERA_IP}
+    # Explicitly runs the independent AI script
+    command: python traffic.py
 
+  # Traffic Data Ingestion Service (to InfluxDB)
   traffic-ingest:
     build: ./traffic_engine
     container_name: traffic-ingest
@@ -49,7 +54,7 @@ services:
       - INFLUX_BUCKET=traffic
     command: python traffic_ingest.py
 
-  # --- ADD THIS SECTION ---
+  # Cloudflare Tunnel for External Access
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared
@@ -57,4 +62,4 @@ services:
     network_mode: "host"
     command: tunnel run
     environment:
-      - TUNNEL_TOKEN=eyJhIjoiZGE5NGE1MzRiMzY2ZDk1Zjc4ODliZjkzZjA1MzkxMWIiLCJ0IjoiNzMzNzhkZmEtMWEyNy00ODk3LThkMDMtZmM5M2Y3ZWU1MDA5IiwicyI6Ik0yTTFNR05tWWpFdE5qUXhZeTAwTkRRMkxXRTRaalF0WVRaa1ptUTJOMk01TkRFMiJ9
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN:-eyJhIjoiZGE5NGE1MzRiMzY2ZDk1Zjc4ODliZjkzZjA1MzkxMWIiLCJ0IjoiNzMzNzhkZmEtMWEyNy00ODk3LThkMDMtZmM5M2Y3ZWU1MDA5IiwicyI6Ik0yTTFNR05tWWpFdE5qUXhZeTAwTkRRMkxXRTRaalF0WVRaa1ptUTJOMk01TkRFMiJ9}

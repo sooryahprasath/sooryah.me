@@ -4,11 +4,12 @@ import os
 import threading
 import json
 import datetime
-import requests
-from flask import Flask, Response, jsonify, send_from_directory, request
+from flask import Flask, Response, jsonify
+from flask_cors import CORS  # Required to allow port 8090 to talk to 5000
 from ultralytics import YOLO
 
 app = Flask(__name__)
+CORS(app) # Enable Cross-Origin Resource Sharing
 
 # --- CONFIG ---
 FRAME_WIDTH = 854
@@ -16,7 +17,6 @@ FRAME_HEIGHT = 480
 FPS_LIMIT = 15          
 AI_INTERVAL_SEC = 0.5   
 HISTORY_FILE = "history.json"
-PORTFOLIO_WEB_URL = "http://localhost:8090" # Source for Radar/KPI data
 
 CLASS_NAMES = {
     0: "PERSON", 1: "BICYCLE", 2: "CAR", 3: "MOTORCYCLE", 5: "BUS", 7: "TRUCK",
@@ -59,78 +59,16 @@ class HistoryManager:
 history = HistoryManager()
 current_stats = {"status": "Online", "total_all_time": history.total_count}
 
-# --- RADAR & BIG DATA PROXY ROUTES (Fixes 404s) ---
-@app.route("/api/live")
-def proxy_live():
-    try:
-        r = requests.get(f"{PORTFOLIO_WEB_URL}/api/live", timeout=2)
-        return jsonify(r.json())
-    except:
-        return jsonify({"aircraft": {}})
-
-@app.get("/api/kpi")
-def proxy_kpi():
-    try:
-        r = requests.get(f"{PORTFOLIO_WEB_URL}/api/kpi", timeout=2)
-        return jsonify(r.json())
-    except:
-        return jsonify({"unique": 0, "speed": "0 kts", "alt": "0 ft"})
-
-@app.get("/api/history")
-def proxy_history():
-    range_type = request.args.get('range_type', '24h')
-    try:
-        r = requests.get(f"{PORTFOLIO_WEB_URL}/api/history?range_type={range_type}", timeout=2)
-        return jsonify(r.json())
-    except:
-        return jsonify({"labels": [], "data": []})
-
-@app.get("/api/scatter")
-def proxy_scatter():
-    try:
-        r = requests.get(f"{PORTFOLIO_WEB_URL}/api/scatter", timeout=5)
-        return jsonify(r.json())
-    except:
-        return jsonify([])
-
-@app.get("/api/daily")
-def proxy_daily():
-    try:
-        r = requests.get(f"{PORTFOLIO_WEB_URL}/api/daily", timeout=2)
-        return jsonify(r.json())
-    except:
-        return jsonify({"labels": [], "data": []})
-
-@app.get("/api/altitude")
-def proxy_altitude():
-    try:
-        r = requests.get(f"{PORTFOLIO_WEB_URL}/api/altitude", timeout=2)
-        return jsonify(r.json())
-    except:
-        return jsonify({"labels": [], "data": []})
-
-@app.get("/api/direction")
-def proxy_direction():
-    try:
-        r = requests.get(f"{PORTFOLIO_WEB_URL}/api/direction", timeout=2)
-        return jsonify(r.json())
-    except:
-        return jsonify({"data": [0]*8})
-
-# --- UI SERVING ---
-@app.route('/')
-def index():
-    return send_from_directory('.', 'index.html')
-
-@app.route('/static/<path:path>')
-def send_static(path):
-    return send_from_directory('static', path)
-
 # --- AI ENGINE ---
 def start_engine():
     global output_frame, current_stats
+    
+    print("🚀 Loading AI Model...")
     model = YOLO("yolov8n.pt") 
-    user, pwd, ip = os.getenv('CAMERA_USER'), os.getenv('CAMERA_PASS'), os.getenv('CAMERA_IP')
+    
+    user = os.getenv('CAMERA_USER')
+    pwd = os.getenv('CAMERA_PASS')
+    ip = os.getenv('CAMERA_IP')
     rtsp_url = f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=4&subtype=0"
     
     cap = cv2.VideoCapture(rtsp_url)
@@ -140,12 +78,16 @@ def start_engine():
     last_boxes = [] 
     last_seen_counts = {}
 
+    print("✅ Engine Started. Processing stream...")
+
     while True:
         success, frame = cap.read()
         if not success:
+            print("⚠️ Stream lost. Reconnecting...")
             cap.release()
+            time.sleep(2)
             cap = cv2.VideoCapture(rtsp_url)
-            time.sleep(1)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             continue
 
         draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
@@ -165,6 +107,7 @@ def start_engine():
                     raw_counts[label] = raw_counts.get(label, 0) + 1
             
             last_boxes = temp_boxes
+            # Count only new entries to increment total
             new_v = sum([max(0, raw_counts.get(l, 0) - last_seen_counts.get(l, 0)) for l in raw_counts])
             if new_v > 0: history.increment(new_v)
             last_seen_counts = raw_counts
@@ -177,6 +120,7 @@ def start_engine():
                     payload['log'] = f"[{ts}] DETECTED: {', '.join([f'{k}: {v}' for k,v in raw_counts.items()])}"
                 current_stats = payload
 
+        # Draw detections on the frame
         for (x1, y1, x2, y2, label) in last_boxes:
             cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(draw_frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
@@ -184,6 +128,7 @@ def start_engine():
         with lock:
             _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
             output_frame = bytearray(encoded)
+        
         time.sleep(0.01)
 
 @app.route("/video_feed")
@@ -198,8 +143,11 @@ def video_feed():
 
 @app.route("/api/stats")
 def stats():
-    with lock: return jsonify(current_stats)
+    with lock:
+        return jsonify(current_stats)
 
 if __name__ == "__main__":
-    threading.Thread(target=start_engine, daemon=True).start()
+    t = threading.Thread(target=start_engine, daemon=True)
+    t.start()
+    # Runs on port 5000 as an independent AI service
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
