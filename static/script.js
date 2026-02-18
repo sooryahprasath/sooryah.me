@@ -1,8 +1,7 @@
 lucide.createIcons();
 
 // --- CONFIGURATION ---
-// Empty string ensures we use the same domain (sooryah.me) for all calls via main.py proxy
-const TRAFFIC_URL = ""; 
+const TRAFFIC_URL = ""; // Proxy via sooryah.me (main.py)
 
 const ui = {
     toggleTheme: () => {
@@ -110,7 +109,7 @@ const ui = {
 };
 
 // --- MAP ENGINE ---
-const DEFAULT_CENTER = [13.19, 77.6];
+const DEFAULT_CENTER = [13.70, 77.6];
 const DEFAULT_ZOOM = 8.4;
 const map = L.map('map-container', { 
     zoomControl: false, attributionControl: false, zoomSnap: 0.1, boxZoom: false, 
@@ -135,23 +134,15 @@ async function fetchRadar() {
         
         const statusText = document.getElementById('status-text');
         const statusDot = document.getElementById('status-dot');
-        if (planes.length > 0) { 
-            statusText.innerText = "SYSTEM ONLINE"; 
-            statusDot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse"; 
-        } else { 
-            statusText.innerText = "WAITING FOR TRAFFIC"; 
-            statusDot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse"; 
-        }
+        if (planes.length > 0) { statusText.innerText = "SYSTEM ONLINE"; statusDot.className = "w-2 h-2 rounded-full bg-green-500 animate-pulse"; } 
+        else { statusText.innerText = "WAITING FOR TRAFFIC"; statusDot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse"; }
 
         const msgRate = (planes.length * 1.8).toFixed(1);
         document.getElementById('net-rate').innerText = `${msgRate} msg/s`;
         document.getElementById('net-bw').innerText = `${(msgRate * 0.12).toFixed(2)} KB/s`;
         
         const counts = {};
-        planes.forEach(p => { 
-            let c = (p.flightno || p.callsign || '').substring(0,3); 
-            if (c && c.length === 3) counts[c] = (counts[c]||0)+1; 
-        });
+        planes.forEach(p => { let c = (p.flightno || p.callsign || '').substring(0,3); if (c && c.length === 3) counts[c] = (counts[c]||0)+1; });
         const top = Object.keys(counts).length > 0 ? Object.keys(counts).reduce((a,b)=>counts[a]>counts[b]?a:b) : "WAITING...";
         document.getElementById('insight-carrier').innerText = top;
         
@@ -170,6 +161,7 @@ async function fetchRadar() {
             currentHexes.add(p.hex);
             const latlng = [p.lat, p.lon];
             const name = p.flightno || p.callsign || p.hex;
+            
             if (!trails[p.hex]) trails[p.hex] = []; 
             trails[p.hex].push(latlng); 
             if (trails[p.hex].length > 90) trails[p.hex].shift(); 
@@ -177,19 +169,13 @@ async function fetchRadar() {
             if (polylines[p.hex]) polylines[p.hex].setLatLngs(trails[p.hex]); 
             else polylines[p.hex] = L.polyline(trails[p.hex], { color: '#3b82f6', weight: 1, opacity: 0.3 }).addTo(map);
             
-            if (markers[p.hex]) { 
-                markers[p.hex].setLatLng(latlng); 
-                markers[p.hex].setIcon(getIcon(p.heading, name, p.route, p.altitude, p.speed)); 
-            } else { 
-                const m = L.marker(latlng, { icon: getIcon(p.heading, name, p.route, p.altitude, p.speed) }).addTo(map); 
-                m.on('click', () => ui.openFlightSidebar(p)); 
-                markers[p.hex] = m; 
-            }
+            if (markers[p.hex]) { markers[p.hex].setLatLng(latlng); markers[p.hex].setIcon(getIcon(p.heading, name, p.route, p.altitude, p.speed)); }
+            else { const m = L.marker(latlng, { icon: getIcon(p.heading, name, p.route, p.altitude, p.speed) }).addTo(map); m.on('click', () => ui.openFlightSidebar(p)); markers[p.hex] = m; }
         });
         Object.keys(markers).forEach(hex => { if(!currentHexes.has(hex)) { map.removeLayer(markers[hex]); delete markers[hex]; } });
     } catch (e) {}
 }
-setInterval(fetchRadar, 2000);
+setInterval(fetchRadar, 2000); fetchRadar();
 
 // --- CHART ENGINE ---
 let chartInstances = {};
@@ -205,77 +191,65 @@ const charts = {
     currentRange: '24h',
 
     loadAll: async () => {
-        const getData = async (ep) => {
-            const res = await fetch(ep);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            return res.json();
-        };
+        const getData = async (ep) => (await fetch(ep)).json();
         
-        try {
-            // Load KPIs
-            const kpi = await getData('/api/kpi');
-            document.getElementById('kpi-unique').innerText = kpi.unique || '0';
-            document.getElementById('kpi-speed').innerText = kpi.speed || '--';
-            document.getElementById('kpi-alt').innerText = kpi.alt || '--';
+        // Load KPIs
+        const kpi = await getData('/api/kpi');
+        document.getElementById('kpi-unique').innerText = kpi.unique || '--';
+        document.getElementById('kpi-speed').innerText = kpi.speed || '--';
+        document.getElementById('kpi-alt').innerText = kpi.alt || '--';
 
-            // Airspace Volume (Timeline: 5m to 30d)
-            charts.loadVolume(charts.currentRange);
+        // Load History (Timeline)
+        charts.loadVolume('24h');
 
-            // Daily (Last 7 Days)
+        // Static Charts
+        if(!chartInstances.daily) {
             const d = await getData('/api/daily');
-            if(chartInstances.daily) chartInstances.daily.destroy();
             chartInstances.daily = new Chart(document.getElementById('chart-daily'), { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#3b82f6', borderRadius: 4 }] }, options: commonOpts });
-
-            // Altitude Distribution
-            const alt = await getData('/api/altitude');
-            if(chartInstances.altitude) chartInstances.altitude.destroy();
-            chartInstances.altitude = new Chart(document.getElementById('chart-altitude'), { type: 'bar', data: { labels: alt.labels, datasets: [{ data: alt.data, backgroundColor: '#8b5cf6', borderRadius: 4 }] }, options: commonOpts });
-
-            // Physics Correlation Scatter
-            const sc = await getData('/api/scatter');
-            if(chartInstances.scatter) chartInstances.scatter.destroy();
-            chartInstances.scatter = new Chart(document.getElementById('chart-scatter'), { type: 'scatter', data: { datasets: [{ data: sc, backgroundColor: 'rgba(245, 158, 11, 0.6)' }] }, options: commonOpts });
-
-            // Approach Direction Polar
-            const dir = await getData('/api/direction');
-            if(chartInstances.polar) chartInstances.polar.destroy();
-            chartInstances.polar = new Chart(document.getElementById('chart-polar'), { type: 'polarArea', data: { labels: ['N','NE','E','SE','S','SW','W','NW'], datasets: [{ data: dir.data, backgroundColor: ['#ef4444','#3b82f6','#eab308','#10b981','#8b5cf6','#f97316','#9ca3af','#6366f1'] }] }, options: commonOpts });
-
-            // Traffic Engine History
-            charts.loadTrafficHistory();
-        } catch (err) { console.error("Chart Load Failed:", err); }
+        }
+        if(!chartInstances.altitude) {
+            const d = await getData('/api/altitude');
+            chartInstances.altitude = new Chart(document.getElementById('chart-altitude'), { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#8b5cf6', borderRadius: 4 }] }, options: commonOpts });
+        }
+        if(!chartInstances.scatter) {
+            const d = await getData('/api/scatter');
+            chartInstances.scatter = new Chart(document.getElementById('chart-scatter'), { type: 'scatter', data: { datasets: [{ data: d, backgroundColor: 'rgba(245, 158, 11, 0.6)' }] }, options: commonOpts });
+        }
+        if(!chartInstances.polar) {
+            const d = await getData('/api/direction');
+            chartInstances.polar = new Chart(document.getElementById('chart-polar'), { type: 'polarArea', data: { labels: ['N','NE','E','SE','S','SW','W','NW'], datasets: [{ data: d.data, backgroundColor: ['#ef4444','#3b82f6','#eab308','#10b981','#8b5cf6','#f97316','#9ca3af','#6366f1'] }] }, options: commonOpts });
+        }
+        
+        charts.loadTrafficHistory();
     },
 
     loadTrafficHistory: async () => {
         try {
-            const res = await fetch('/api/traffic/history');
-            const d = await res.json();
+            const d = await (await fetch('/api/traffic/history')).json();
             const ctx = document.getElementById('chart-traffic');
             if(!ctx) return;
-            if(chartInstances.traffic) chartInstances.traffic.destroy();
-            chartInstances.traffic = new Chart(ctx, { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#10b981', borderRadius: 4 }] }, options: commonOpts });
-        } catch (e) { console.error("Traffic Chart Error:", e); }
+            if(!chartInstances.traffic) {
+                chartInstances.traffic = new Chart(ctx, { type: 'bar', data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: '#10b981', borderRadius: 4 }] }, options: commonOpts });
+            } else {
+                chartInstances.traffic.data.labels = d.labels;
+                chartInstances.traffic.data.datasets[0].data = d.data;
+                chartInstances.traffic.update();
+            }
+        } catch (e) { console.error("Traffic history error", e); }
     },
 
-    changeResolution: (range) => { 
-        charts.currentRange = range; 
-        charts.loadVolume(range); 
-    },
+    changeResolution: (range) => { charts.currentRange = range; charts.loadVolume(range); },
 
     loadVolume: async (range) => {
-        try {
-            const res = await fetch(`/api/history?range_type=${range}`);
-            const d = await res.json();
-            const title = document.getElementById('volume-title');
-            if (title) title.innerText = `Airspace Traffic Volume (${range})`;
-            
-            if(chartInstances.volume) chartInstances.volume.destroy();
-            chartInstances.volume = new Chart(document.getElementById('chart-volume'), { 
-                type: 'line', 
-                data: { labels: d.labels, datasets: [{ data: d.data, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.4, pointRadius: 0 }] }, 
-                options: commonOpts 
-            });
-        } catch (e) { console.error("Volume Chart Error:", e); }
+        const d = await (await fetch(`/api/history?range_type=${range}`)).json();
+        document.getElementById('volume-title').innerText = `Traffic Volume (${range})`;
+        if(!chartInstances.volume) {
+            chartInstances.volume = new Chart(document.getElementById('chart-volume'), { type: 'line', data: { labels: d.labels, datasets: [{ data: d.data, borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', fill: true, tension: 0.4, pointRadius: 0 }] }, options: commonOpts });
+        } else {
+            chartInstances.volume.data.labels = d.labels;
+            chartInstances.volume.data.datasets[0].data = d.data;
+            chartInstances.volume.update();
+        }
     }
 };
 
@@ -284,19 +258,20 @@ let lastLogTimestamp = "";
 async function syncTrafficStats() {
     try {
         const res = await fetch('/api/stats');
-        if (!res.ok) throw new Error('Network error');
+        if (!res.ok) throw new Error('Network response was not ok');
         const data = await res.json();
 
-        // 1. Update Counter
         const totalEl = document.getElementById('total-all-time');
-        if (totalEl) totalEl.innerText = data.total_all_time || "0";
+        if (totalEl) {
+            totalEl.innerText = data.total_all_time !== undefined ? data.total_all_time : "0";
+        }
 
-        // 2. Generate Active Target Tiles
         let gridHTML = '';
         let hasActiveTargets = false;
 
         for (const [key, value] of Object.entries(data)) {
             if (['log', 'status', 'total_all_time'].includes(key)) continue;
+
             if (typeof value === 'number' && value > 0) {
                 hasActiveTargets = true;
                 gridHTML += `
@@ -304,59 +279,90 @@ async function syncTrafficStats() {
                         <span class="text-3xl font-black text-white mb-1 drop-shadow-md">${value}</span>
                         <div class="w-full border-t border-emerald-500/30 my-1 opacity-30"></div>
                         <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">${key}</span>
-                    </div>`;
+                    </div>
+                `;
             }
         }
 
         const gridEl = document.getElementById('traffic-breakdown');
         if (gridEl) {
-            if (hasActiveTargets) gridEl.innerHTML = gridHTML;
-            else gridEl.innerHTML = `<div class="col-span-2 flex flex-col items-center justify-center bg-white/5 rounded-xl border border-white/5 border-dashed p-6 opacity-60"><span class="text-xs text-gray-500 font-mono uppercase tracking-widest">Scanning...</span></div>`;
+            if (hasActiveTargets) {
+                gridEl.innerHTML = gridHTML;
+            } else {
+                gridEl.innerHTML = `
+                    <div class="col-span-2 flex flex-col items-center justify-center bg-white/5 rounded-xl border border-white/5 border-dashed p-6 opacity-60">
+                         <div class="flex gap-1 mb-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce delay-100"></span>
+                            <span class="text-xs text-gray-500 font-mono uppercase tracking-widest ml-2">Scanning...</span>
+                        </div>
+                    </div>`;
+            }
         }
 
-        // 3. Matrix Style Event Log
         if (data.log && data.log !== lastLogTimestamp) {
             lastLogTimestamp = data.log;
             const logContainer = document.getElementById('traffic-log');
             if (logContainer) {
-                const entry = document.createElement('div');
-                entry.className = "flex gap-2 items-start border-b border-white/5 pb-1 mb-1 animate-in fade-in slide-in-from-left-2 duration-300";
-                entry.innerHTML = `<span class="text-emerald-400 font-mono text-[10px] leading-tight">> ${data.log}</span>`;
-                logContainer.prepend(entry);
+                const newEntry = document.createElement('div');
+                newEntry.className = "flex gap-2 items-start border-b border-white/5 pb-1 mb-1 animate-in fade-in slide-in-from-left-2 duration-300";
+                newEntry.innerHTML = `<span class="text-emerald-400 font-mono text-[10px] leading-tight">> ${data.log}</span>`;
+                logContainer.prepend(newEntry);
                 if (logContainer.children.length > 50) logContainer.lastChild.remove();
             }
         }
-    } catch (e) { console.error("Traffic Sync Error:", e); }
+
+    } catch (e) {
+        console.error("Traffic Sync Error:", e);
+    }
 }
 
-// --- INITIALIZE ---
-fetchRadar();
-syncTrafficStats();
-charts.loadAll();
-
-setInterval(fetchRadar, 2000);
 setInterval(syncTrafficStats, 1000);
+charts.loadAll();
 
 const PROJECT_DATA = {
     adsb: { 
         title: "RF & IoT Sensor Networks", 
         subtitle: "Station ID: CustardLev | Bengaluru", 
-        description: `<p class="mb-4"><strong>Operational since 2016.</strong> Station runs on a custom-built 2ft Collinear Coaxial antenna mounted 50ft AGL.</p>`, 
-        specs: [{ label: "Host", value: "Raspberry Pi 2B" }, { label: "Radio", value: "RTL-SDR V3" }], 
+        description: `
+            <p class="mb-4"><strong>Operational since 2016.</strong> My journey into RF started with a generic DVB-T dongle and a 6.9cm quarter-wave antenna (my first attempt at tuning). Over the years, I iterated through Spider and Cantenna designs to optimize gain.</p>
+            <p class="mb-4">Today, the station runs on a custom-built <strong>2ft Collinear Coaxial (CoCo)</strong> antenna mounted 50ft AGL on my roof, providing 360° horizon visibility.</p>
+            <p>It feeds real-time flight data to FlightRadar24, FlightAware, and this portfolio.</p>
+        `, 
+        specs: [
+            { label: "Host", value: "Raspberry Pi 2 Model B" }, 
+            { label: "Radio", value: "RTL-SDR Blog V3 TCXO" },
+            { label: "LNA / Filter", value: "Nooelec ADS-B (SAW+LNA)" },
+            { label: "Antenna", value: "Custom 2ft Coaxial Collinear" },
+            { label: "Software", value: "Dump1090-fa, Piaware" },
+            { label: "Range", value: "~180 Nautical Miles" }
+        ], 
         link: "https://planes.custardlev.uk" 
     },
     telemetry: { 
         title: "Enterprise Telemetry Pipeline", 
         subtitle: "Data Engineering", 
-        description: "Centralized pipeline utilizing Apache Airflow and Azure SQL.", 
-        specs: [{ label: "Orchestration", value: "Apache Airflow" }, { label: "Language", value: "Python" }], 
+        description: "Centralized pipeline utilizing Apache Airflow and Azure SQL to ingest real-time data from 150+ global sites, feeding dynamic Power BI dashboards.", 
+        specs: [
+            { label: "Orchestration", value: "Apache Airflow" },
+            { label: "Database", value: "Azure SQL (Managed Instance)" },
+            { label: "Language", value: "Python (Pandas, PyODBC)" },
+            { label: "Visualization", value: "Power BI Pro" },
+            { label: "Latency", value: "< 2 Minutes End-to-End" }
+        ], 
         link: null 
     },
     cloud: { 
         title: "Private Cloud Cluster", 
         subtitle: "Homelab", 
-        description: "3-node Proxmox cluster running Kubernetes (K3s).", 
-        specs: [{ label: "Hypervisor", value: "Proxmox VE 8.1" }, { label: "Ingress", value: "Cloudflare Tunnel" }], 
+        description: "Production-grade home infrastructure. A 3-node Proxmox cluster running Kubernetes (K3s), automation pools, and storage nodes.", 
+        specs: [
+            { label: "Hypervisor", value: "Proxmox VE 8.1" }, 
+            { label: "Orchestrator", value: "Kubernetes (K3s)" },
+            { label: "Storage", value: "ZFS RaidZ1 Pool" },
+            { label: "Networking", value: "Tailscale Mesh VPN" },
+            { label: "Ingress", value: "Traefik + Cloudflare Tunnel" }
+        ], 
         link: null 
     }
 };
