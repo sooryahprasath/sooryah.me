@@ -1,7 +1,8 @@
 lucide.createIcons();
 
-// --- INDEPENDENT SERVICE URL ---
-const TRAFFIC_URL = "https://traffic.sooryah.me";
+// --- CONFIGURATION ---
+// Empty string ensures we use the same domain (sooryah.me) for all calls
+const TRAFFIC_URL = ""; 
 
 const ui = {
     toggleTheme: () => {
@@ -99,12 +100,13 @@ const ui = {
 
     openTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.remove('hidden'); 
-        // FIX: Explicitly point to the independent Traffic Engine domain
-        document.getElementById('traffic-stream').src = `${TRAFFIC_URL}/video_feed`;
+        // Use relative path which main.py proxies to the traffic engine
+        document.getElementById('traffic-stream').src = "/video_feed";
         charts.loadTrafficHistory(); 
     },
     closeTrafficModal: () => { 
         document.getElementById('traffic-modal').classList.add('hidden'); 
+        // clear src to save bandwidth when closed
         document.getElementById('traffic-stream').src = ""; 
     }
 };
@@ -127,7 +129,6 @@ function getIcon(h, f, r, a, s) { return L.divIcon({ className: 'plane-icon-wrap
 
 async function fetchRadar() {
     try {
-        // Radar is served by the main website (8090), so relative path works
         const res = await fetch('/api/live');
         const data = await res.json();
         const aircraft = data.aircraft || {};
@@ -239,11 +240,10 @@ const charts = {
 
 let lastLogTimestamp = "";
 
-// UPDATED: Fetches stats from the independent Traffic Engine URL
 async function syncTrafficStats() {
     try {
-        // FIX: Explicitly target the TRAFFIC_URL instead of a relative path
-        const res = await fetch(`${TRAFFIC_URL}/api/stats`);
+        // Use relative path which main.py proxies to the traffic engine
+        const res = await fetch('/api/stats');
         
         if (!res.ok) throw new Error('Network response was not ok');
         

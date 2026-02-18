@@ -1,2 +1,6 @@
-influxdb-client
+flask
 flask-cors
+ultralytics
+opencv-python-headless
+influxdb-client
+requests
