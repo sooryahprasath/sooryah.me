@@ -47,6 +47,16 @@ jobs:
           echo "CAMERA_PASS=${{ secrets.CAMERA_PASS }}" >> .env
           echo "CAMERA_IP=${{ secrets.CAMERA_IP }}" >> .env
 
+      # --- NEW STEP: Generate MediaMTX Config ---
+      - name: Inject Secrets into MediaMTX Config
+        env: 
+          CAMERA_USER: ${{ secrets.CAMERA_USER }}
+          CAMERA_PASS: ${{ secrets.CAMERA_PASS }}
+          CAMERA_IP: ${{ secrets.CAMERA_IP }}
+        run: |
+          echo "⚙️ Generating mediamtx.yml from template..."
+          envsubst < mediamtx.template.yml > mediamtx.yml
+
       - name: Deploy Updates
         run: |
           docker compose build
