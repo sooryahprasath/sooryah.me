@@ -1,8 +1,9 @@
-# Disable HLS and enable MJPEG
-mjpegAddress: :5500
+# Disable HLS to save CPU since we only want images
+hls: no
 
+# Global server settings
 paths:
   video_feed:
     source: rtsp://${CAMERA_USER}:${CAMERA_PASS}@${CAMERA_IP}:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif
-    sourceOnDemand: no  # Keep it 'always on' so Windy/Browsers get an instant frame
+    sourceOnDemand: no
     sourceProtocol: tcp
