@@ -32,6 +32,11 @@ HISTORY_FILE = "history.json"
 output_frame = cv2.imencode('.jpg', np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8))[1].tobytes()
 lock = threading.Lock()
 
+# --- GLOBAL STATE FOR ASYNC AI ---
+latest_frame_for_ai = None
+boxes_to_draw = []
+ai_lock = threading.Lock()
+
 class HistoryManager:
     def __init__(self):
         self.file = HISTORY_FILE
@@ -92,25 +97,72 @@ class ThreadedCamera:
         self.thread.join()
         self.cap.release()
 
-def start_engine():
-    global output_frame, current_stats
+# --- BACKGROUND AI THREAD ---
+def ai_worker():
+    global latest_frame_for_ai, boxes_to_draw, current_stats, history
     try:
         model = YOLO("yolov8s.pt") 
     except Exception as e:
         print(f"Model error: {e}")
         return
 
-    # CRITICAL FIX: Because of network_mode: "host", we use localhost to reach MediaMTX
-    rtsp_url = "rtsp://127.0.0.1:8554/cam"
+    previous_raw_counts = {} 
+    last_valid_counts = {}   
+
+    while True:
+        # Grab the latest frame without blocking the video stream
+        with ai_lock:
+            frame_to_process = latest_frame_for_ai.copy() if latest_frame_for_ai is not None else None
+
+        if frame_to_process is None:
+            time.sleep(0.1)
+            continue
+
+        try:
+            results = model(frame_to_process, classes=list(CLASS_NAMES.keys()), verbose=False, imgsz=AI_RESOLUTION, conf=CONFIDENCE)
+            current_raw_counts = {}
+            new_boxes = []
+            
+            for r in results:
+                for box in r.boxes:
+                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+                    label = CLASS_NAMES.get(int(box.cls[0]), "Unknown")
+                    new_boxes.append((x1, y1, x2, y2, label))
+                    current_raw_counts[label] = current_raw_counts.get(label, 0) + 1
+            
+            smoothed_counts = {}
+            all_keys = set(current_raw_counts.keys()) | set(previous_raw_counts.keys())
+            for label in all_keys:
+                smoothed_counts[label] = max(current_raw_counts.get(label, 0), previous_raw_counts.get(label, 0))
+
+            new_v = sum([max(0, smoothed_counts.get(l, 0) - last_valid_counts.get(l, 0)) for l in smoothed_counts])
+            if new_v > 0: history.increment(new_v)
+            
+            previous_raw_counts = current_raw_counts 
+            last_valid_counts = smoothed_counts      
+            
+            # Update the global boxes for the video stream to draw
+            with ai_lock:
+                boxes_to_draw = new_boxes
+                current_stats = {"status": "Async AI Online", "total_all_time": history.total_count, **current_raw_counts}
+                if current_raw_counts:
+                    ts = datetime.datetime.now().strftime("%H:%M:%S")
+                    current_stats['log'] = f"[{ts}] DETECTED: {current_raw_counts}"
+        except: pass
+
+        time.sleep(AI_INTERVAL_SEC)
+
+# --- MAIN VIDEO STREAM THREAD ---
+def start_engine():
+    global output_frame, latest_frame_for_ai, boxes_to_draw
     
+    rtsp_url = "rtsp://127.0.0.1:8554/video_feed"
     os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
     
     cam = ThreadedCamera(rtsp_url).start()
     
-    last_ai_time = 0
-    previous_raw_counts = {} 
-    last_valid_counts = {}   
-    temp_boxes = []
+    # Start the AI brain in the background
+    threading.Thread(target=ai_worker, daemon=True).start()
 
     while True:
         success, frame = cam.read()
@@ -121,43 +173,13 @@ def start_engine():
         draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         draw_frame = cv2.convertScaleAbs(draw_frame, alpha=CONTRAST_ALPHA, beta=BRIGHTNESS_BETA)
 
-        now = time.time()
-        
-        if now - last_ai_time > AI_INTERVAL_SEC:
-            last_ai_time = now
-            try:
-                results = model(draw_frame, classes=list(CLASS_NAMES.keys()), verbose=False, imgsz=AI_RESOLUTION, conf=CONFIDENCE)
-                current_raw_counts = {}
-                new_boxes = []
-                
-                for r in results:
-                    for box in r.boxes:
-                        x1, y1, x2, y2 = map(int, box.xyxy[0])
-                        label = CLASS_NAMES.get(int(box.cls[0]), "Unknown")
-                        new_boxes.append((x1, y1, x2, y2, label))
-                        current_raw_counts[label] = current_raw_counts.get(label, 0) + 1
-                
-                temp_boxes = new_boxes
-                
-                smoothed_counts = {}
-                all_keys = set(current_raw_counts.keys()) | set(previous_raw_counts.keys())
-                for label in all_keys:
-                    smoothed_counts[label] = max(current_raw_counts.get(label, 0), previous_raw_counts.get(label, 0))
+        # Silently pass the frame to the AI
+        with ai_lock:
+            latest_frame_for_ai = draw_frame.copy()
+            current_boxes = boxes_to_draw.copy()
 
-                new_v = sum([max(0, smoothed_counts.get(l, 0) - last_valid_counts.get(l, 0)) for l in smoothed_counts])
-                if new_v > 0: history.increment(new_v)
-                
-                previous_raw_counts = current_raw_counts 
-                last_valid_counts = smoothed_counts      
-                
-                with lock:
-                    current_stats = {"status": "MediaMTX Backend Online", "total_all_time": history.total_count, **current_raw_counts}
-                    if current_raw_counts:
-                        ts = datetime.datetime.now().strftime("%H:%M:%S")
-                        current_stats['log'] = f"[{ts}] DETECTED: {current_raw_counts}"
-            except: pass
-
-        for (x1, y1, x2, y2, label) in temp_boxes:
+        # Draw the boxes (This is instant)
+        for (x1, y1, x2, y2, label) in current_boxes:
             cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(draw_frame, label, (x1, y1-15), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
@@ -165,7 +187,7 @@ def start_engine():
             _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
             output_frame = bytearray(encoded)
         
-        time.sleep(0.05)
+        time.sleep(0.02) # Fast, smooth rendering loop
 
 @app.route("/video_feed")
 def video_feed():

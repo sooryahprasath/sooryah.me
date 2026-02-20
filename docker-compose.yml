@@ -37,10 +37,10 @@ services:
     restart: always
     environment:
       - MTX_PROTOCOLS=tcp
-      - MTX_PATHS_CAM_SOURCE=rtsp://${CAMERA_USER}:${CAMERA_PASS}@${CAMERA_IP}:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif
-      - MTX_PATHS_CAM_SOURCEONDEMAND=yes
+      - MTX_PATHS_VIDEO_FEED_SOURCE=rtsp://${CAMERA_USER}:${CAMERA_PASS}@${CAMERA_IP}:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif
+      - MTX_PATHS_VIDEO_FEED_SOURCEONDEMAND=yes
       # CRITICAL FIX: Forces TCP to stop the gray/magenta smearing
-      - MTX_PATHS_CAM_SOURCEPROTOCOL=tcp
+      - MTX_PATHS_VIDEO_FEED_SOURCEPROTOCOL=tcp
       # Binds the HLS Web Player to Port 5500
       - MTX_HLSADDRESS=:5500
 
