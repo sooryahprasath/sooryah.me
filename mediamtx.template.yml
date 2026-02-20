@@ -1,4 +1,6 @@
 hlsAddress: :5500
+# Allows MediaMTX to generate a JPEG on the fly
+hlsAlwaysRemux: yes
 
 paths:
   video_feed:
