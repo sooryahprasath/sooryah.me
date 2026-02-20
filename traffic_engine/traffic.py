@@ -36,13 +36,13 @@ CLASS_NAMES = {
 last_access_time = 0 
 IDLE_TIMEOUT = 60 
 
-HISTORY_FILE = "history.json"
-MODEL_PATH = "best.pt" 
+# Paths updated for Docker environment
+HISTORY_FILE = "/app/history.json"
+MODEL_PATH = "/app/best.pt" 
 
 lock = threading.Lock()
 
 # --- STANDBY FRAME FOR MOBILE BROWSERS ---
-# This prevents the stream from timing out while the AI loads
 standby_img = np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8)
 cv2.putText(standby_img, "VM Waking Up... Connecting to RTSP...", (100, FRAME_HEIGHT//2), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
 _, standby_encoded = cv2.imencode('.jpg', standby_img, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
@@ -89,10 +89,16 @@ class OnDemandCamera:
     def start(self):
         if not self.is_running:
             self.is_running = True
+            os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;5000000"
             self.cap = cv2.VideoCapture(self.src, cv2.CAP_FFMPEG)
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            self.thread = threading.Thread(target=self.update, daemon=True)
-            self.thread.start()
+            
+            if self.cap.isOpened():
+                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                self.thread = threading.Thread(target=self.update, daemon=True)
+                self.thread.start()
+            else:
+                print("❌ FAILED to open RTSP stream.")
+                self.is_running = False
 
     def stop(self):
         self.is_running = False
@@ -109,10 +115,12 @@ class OnDemandCamera:
                 continue
             grabbed, frame = self.cap.read()
             if not grabbed:
+                print("⚠️ RTSP Stream dropped frame, reconnecting...")
                 self.cap.release()
-                time.sleep(1)
+                time.sleep(2)
                 self.cap = cv2.VideoCapture(self.src, cv2.CAP_FFMPEG)
-                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                if self.cap.isOpened():
+                    self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                 continue
             with self.read_lock:
                 self.frame = frame
@@ -197,17 +205,16 @@ def ai_worker():
 
 def start_engine():
     global output_frame, latest_frame_for_ai, boxes_to_draw
-    rtsp_url = "rtsp://127.0.0.1:8554/video_feed"
-    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
     
-    # Do not start camera immediately. Let OnDemand logic handle it.
+    # Using the Docker Host IP since mediamtx is running outside the container
+    rtsp_url = "rtsp://172.17.0.1:8554/video_feed" 
+    
     cam = OnDemandCamera(rtsp_url)
     threading.Thread(target=ai_worker, daemon=True).start()
 
     while True:
         is_active = (time.time() - last_access_time) < IDLE_TIMEOUT
         
-        # IDLE: Stop camera, release network, reset to Standby frame
         if not is_active:
             cam.stop()
             with lock:
@@ -215,12 +222,11 @@ def start_engine():
             time.sleep(1.0)
             continue
 
-        # ACTIVE: Start camera (only initializes if not running)
         cam.start()
 
         success, frame = cam.read()
         if not success or frame is None:
-            time.sleep(0.01)
+            time.sleep(0.5) 
             continue
 
         draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
@@ -247,7 +253,6 @@ def video_feed():
     
     def generate():
         global last_access_time
-        # Instantly send the standby frame so mobile browsers don't timeout the connection
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + STANDBY_FRAME + b'\r\n')
         
         while True:
@@ -268,4 +273,5 @@ def stats():
     with lock: return jsonify(current_stats)
 
 if __name__ == "__main__":
+    # Host is 0.0.0.0 so Docker can expose the port
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
