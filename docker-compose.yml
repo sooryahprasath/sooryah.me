@@ -28,21 +28,20 @@ services:
       - RADAR_IP=${RADAR_IP}
     restart: always
 
-  # --- NEW: Media Server (Splits the Stream) ---
-# --- Media Server (Splits the Stream) ---
+  # --- Media Server (Splits the Stream) ---
   mediamtx:
     image: bluenviron/mediamtx:latest
     container_name: mediamtx
     network_mode: "host"
     restart: always
     environment:
-      - MTX_PROTOCOLS=tcp
-      - MTX_PATHS_VIDEO_FEED_SOURCE=rtsp://${CAMERA_USER}:${CAMERA_PASS}@${CAMERA_IP}:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif
-      - MTX_PATHS_VIDEO_FEED_SOURCEONDEMAND=yes
-      # CRITICAL FIX: Forces TCP to stop the gray/magenta smearing
-      - MTX_PATHS_VIDEO_FEED_SOURCEPROTOCOL=tcp
-      # Binds the HLS Web Player to Port 5500
-      - MTX_HLSADDRESS=:5500
+      # Passes the credentials to the mediamtx.yml file
+      - CAMERA_USER=${CAMERA_USER}
+      - CAMERA_PASS=${CAMERA_PASS}
+      - CAMERA_IP=${CAMERA_IP}
+    volumes:
+      # Mounts your new configuration file into the container
+      - ./mediamtx.yml:/mediamtx.yml
 
   # Traffic AI Engine & Video Stream (Port 5000)
   traffic-engine:

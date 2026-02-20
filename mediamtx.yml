@@ -1,0 +1,7 @@
+hlsAddress: :5500
+
+paths:
+  video_feed:
+    source: rtsp://${CAMERA_USER}:${CAMERA_PASS}@${CAMERA_IP}:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif
+    sourceOnDemand: yes
+    sourceProtocol: tcp
