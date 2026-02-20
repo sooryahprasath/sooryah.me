@@ -30,7 +30,6 @@ services:
 
   # --- Media Server (Splits the Stream) ---
   mediamtx:
-    # Use the version that includes FFmpeg
     image: bluenviron/mediamtx:latest-ffmpeg 
     container_name: mediamtx
     network_mode: "host"
