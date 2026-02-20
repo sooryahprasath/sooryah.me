@@ -15,7 +15,7 @@ CORS(app)
 # --- PERFORMANCE & COMPRESSION ---
 FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080  
 FPS_LIMIT = 15                          
-AI_INTERVAL_SEC = 0.05 # Fast check for real-time tracking
+AI_INTERVAL_SEC = 0.05 
 JPEG_QUALITY = 35       
 
 # --- SOFTWARE COLOR CONTROL ---
@@ -24,8 +24,8 @@ BRIGHTNESS_BETA = -40
 
 # --- BENGALURU TRAFFIC TUNING ---
 AI_RESOLUTION = 640     
-CONFIDENCE = 0.25
-# 15 classes from UVH-26 + Custom Person class
+# Lowered from 0.25 to 0.15 to catch blurred moving objects at night
+CONFIDENCE = 0.15 
 CLASS_NAMES = {
     0: "Hatchback", 1: "Sedan", 2: "SUV", 3: "MUV", 4: "Bus", 
     5: "Truck", 6: "Three-wheeler", 7: "Two-wheeler", 8: "LCV", 
@@ -35,7 +35,7 @@ CLASS_NAMES = {
 
 # --- IDLE LOGIC CONFIG ---
 last_access_time = 0 
-IDLE_TIMEOUT = 60 # AI sleeps after 1 min of no website/API traffic
+IDLE_TIMEOUT = 60 # AI sleeps after 1 min of no website activity
 
 HISTORY_FILE = "history.json"
 MODEL_PATH = "best.pt" 
@@ -69,11 +69,10 @@ history = HistoryManager()
 current_stats = {"status": "Starting", "total_all_time": history.total_count}
 
 class ThreadedCamera:
-    """Threaded Camera with LIFO Buffer Flushing to eliminate stream lag"""
     def __init__(self, src):
         self.src = src
         self.cap = cv2.VideoCapture(self.src, cv2.CAP_FFMPEG)
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Low-latency buffer
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) 
         self.grabbed, self.frame = self.cap.read()
         self.started = False
         self.read_lock = threading.Lock()
@@ -96,14 +95,12 @@ class ThreadedCamera:
                 continue
             with self.read_lock:
                 self.grabbed = grabbed
-                # Overwrite old frames so the AI only sees the LATEST one
                 self.frame = frame
 
     def read(self):
         with self.read_lock:
             return self.grabbed, self.frame.copy() if self.frame is not None else None
 
-# --- BACKGROUND AI WORKER (TRACKING & UNIQUE COUNTING) ---
 def ai_worker():
     global latest_frame_for_ai, boxes_to_draw, current_stats, history, last_access_time
     try:
@@ -113,11 +110,10 @@ def ai_worker():
         print(f"❌ Model error: {e}")
         return
 
-    # Track unique vehicle IDs to prevent double-counting
     previous_ids = set()
 
     while True:
-        # 1. IDLE CHECK
+        # IDLE CHECK: AI only processes if someone is viewing sooryah.me
         if (time.time() - last_access_time) > IDLE_TIMEOUT:
             with ai_lock:
                 boxes_to_draw = []
@@ -133,22 +129,21 @@ def ai_worker():
             continue
 
         try:
-            # 2. RUN TRACKER: Persistent tracking sticks boxes to objects across frames
             results = model.track(
                 frame_to_process, 
-                persist=True, # Keeps IDs stable
+                persist=True, 
                 classes=list(CLASS_NAMES.keys()), 
                 conf=CONFIDENCE, 
                 imgsz=AI_RESOLUTION, 
                 verbose=False,
-                tracker="bytetrack.yaml" # Fast, high-performance tracking
+                agnostic_nms=True, # Improved handling of overlapping vehicles
+                tracker="bytetrack.yaml" 
             )
 
             current_raw_counts = {}
             new_boxes = []
             current_ids = set()
 
-            # 3. PROCESS TRACKER RESULTS
             if results[0].boxes.id is not None:
                 boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
                 ids = results[0].boxes.id.cpu().numpy().astype(int)
@@ -160,7 +155,6 @@ def ai_worker():
                     current_raw_counts[label] = current_raw_counts.get(label, 0) + 1
                     current_ids.add(obj_id)
 
-            # 4. UNIQUE COUNTING: Increment ONLY for new IDs
             newly_detected_objects = current_ids - previous_ids
             if len(newly_detected_objects) > 0:
                 history.increment(len(newly_detected_objects))
@@ -182,10 +176,8 @@ def ai_worker():
 
         time.sleep(AI_INTERVAL_SEC)
 
-# --- RENDERING LOOP ---
 def start_engine():
     global output_frame, latest_frame_for_ai, boxes_to_draw
-    
     rtsp_url = "rtsp://127.0.0.1:8554/video_feed"
     os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
     
@@ -198,7 +190,6 @@ def start_engine():
             time.sleep(0.01)
             continue
 
-        # Resize and color adjust
         draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         draw_frame = cv2.convertScaleAbs(draw_frame, alpha=CONTRAST_ALPHA, beta=BRIGHTNESS_BETA)
 
@@ -206,7 +197,6 @@ def start_engine():
             latest_frame_for_ai = draw_frame.copy()
             current_boxes = boxes_to_draw.copy()
 
-        # Instant drawing for low latency
         for (x1, y1, x2, y2, label) in current_boxes:
             cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(draw_frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
@@ -220,7 +210,8 @@ def start_engine():
 @app.route("/video_feed")
 def video_feed():
     global last_access_time
-    last_access_time = time.time() # Wake up AI
+    # AI wakes up when someone views the video feed on sooryah.me
+    last_access_time = time.time() 
     def generate():
         while True:
             with lock:
@@ -231,7 +222,8 @@ def video_feed():
 @app.route("/api/stats")
 def stats():
     global last_access_time
-    last_access_time = time.time() # Wake up AI
+    # AI wakes up when the website requests traffic stats
+    last_access_time = time.time() 
     with lock: return jsonify(current_stats)
 
 if __name__ == "__main__":
