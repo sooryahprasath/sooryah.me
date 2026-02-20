@@ -12,19 +12,19 @@ from ultralytics import YOLO
 app = Flask(__name__)
 CORS(app)
 
-# --- 1. PERFORMANCE SETTINGS ---
-FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080  # Crisp 1080p (Saves 70% bandwidth vs 3K)
-FPS_LIMIT = 12                          # Smooth enough for traffic, easy on the CPU
-AI_INTERVAL_SEC = 1.0                   # Check AI every 1 second
+# --- 1. PERFORMANCE & COMPRESSION ---
+FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080  
+FPS_LIMIT = 12                          
+AI_INTERVAL_SEC = 1.0                   
+JPEG_QUALITY = 35       # Highly compressed to stop the network/Flask stutter
 
 # --- 2. SOFTWARE COLOR CONTROL ---
-# Tweak these if the image is too washed out or too dark
-CONTRAST_ALPHA = 1.15  # 1.0 is original. 1.1 to 1.3 increases color pop/contrast
-BRIGHTNESS_BETA = -10  # 0 is original. Negative numbers darken the glaring sky
+CONTRAST_ALPHA = 1.1    # Slight contrast bump
+BRIGHTNESS_BETA = -40   # Aggressively darken the image to kill the sun glare
 
 # --- 3. TRAFFIC TUNING ---
-AI_RESOLUTION = 640    # 640px allows YOLO to see smaller, distant vehicles
-CONFIDENCE = 0.20      # Lower threshold (20%) catches more bikes and autos
+AI_RESOLUTION = 640    
+CONFIDENCE = 0.20      
 CLASS_NAMES = {0: "PERSON", 1: "BICYCLE", 2: "CAR", 3: "MOTORCYCLE", 5: "BUS", 7: "TRUCK"}
 
 HISTORY_FILE = "history.json"
@@ -52,7 +52,6 @@ class HistoryManager:
 history = HistoryManager()
 current_stats = {"status": "Starting", "total_all_time": history.total_count}
 
-# High-Speed Threaded Buffer (Prevents black screens)
 class ThreadedCamera:
     def __init__(self, src):
         self.src = src
@@ -96,8 +95,11 @@ class ThreadedCamera:
 def start_engine():
     global output_frame, current_stats
     try:
-        model = YOLO("yolov8n.pt") 
-    except: return
+        # UPGRADED AI: Using the 'Small' model instead of 'Nano' for better recognition
+        model = YOLO("yolov8s.pt") 
+    except Exception as e:
+        print(f"Model error: {e}")
+        return
 
     user, pwd, ip = os.getenv('CAMERA_USER'), os.getenv('CAMERA_PASS'), os.getenv('CAMERA_IP')
     rtsp_url = f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif"
@@ -117,19 +119,16 @@ def start_engine():
             time.sleep(0.05)
             continue
 
-        # 1. Resize to 1080p
         draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         
-        # 2. Apply Software Color & Brightness Fixes
+        # Apply Digital Sunglasses
         draw_frame = cv2.convertScaleAbs(draw_frame, alpha=CONTRAST_ALPHA, beta=BRIGHTNESS_BETA)
 
         now = time.time()
         
-        # 3. AI Inference
         if now - last_ai_time > AI_INTERVAL_SEC:
             last_ai_time = now
             try:
-                # Using custom CONFIDENCE and AI_RESOLUTION
                 results = model(draw_frame, classes=list(CLASS_NAMES.keys()), verbose=False, imgsz=AI_RESOLUTION, conf=CONFIDENCE)
                 current_raw_counts = {}
                 new_boxes = []
@@ -143,7 +142,6 @@ def start_engine():
                 
                 temp_boxes = new_boxes
                 
-                # Debounce logic
                 smoothed_counts = {}
                 all_keys = set(current_raw_counts.keys()) | set(previous_raw_counts.keys())
                 for label in all_keys:
@@ -156,7 +154,7 @@ def start_engine():
                 last_valid_counts = smoothed_counts      
                 
                 with lock:
-                    current_stats = {"status": "1080p Optimized", "total_all_time": history.total_count, **current_raw_counts}
+                    current_stats = {"status": "YOLOv8s Running", "total_all_time": history.total_count, **current_raw_counts}
                     if current_raw_counts:
                         ts = datetime.datetime.now().strftime("%H:%M:%S")
                         current_stats['log'] = f"[{ts}] DETECTED: {current_raw_counts}"
@@ -167,10 +165,10 @@ def start_engine():
             cv2.putText(draw_frame, label, (x1, y1-15), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
         with lock:
-            _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 65])
+            # Apply maximum compression
+            _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
             output_frame = bytearray(encoded)
         
-        # CPU BREATHING ROOM: Forces the loop to pause, killing the stuttering
         time.sleep(0.05)
 
 @app.route("/video_feed")
