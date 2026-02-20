@@ -24,17 +24,21 @@ BRIGHTNESS_BETA = -40
 
 # --- BENGALURU TRAFFIC TUNING ---
 AI_RESOLUTION = 640     
-CONFIDENCE = 0.25  # Slightly increased to reduce false positives
-# Updated to match the UVH-26 14-class taxonomy we trained
+CONFIDENCE = 0.25
+# Updated to 15 classes including the new 'Person' class
 CLASS_NAMES = {
     0: "Hatchback", 1: "Sedan", 2: "SUV", 3: "MUV", 4: "Bus", 
     5: "Truck", 6: "Three-wheeler", 7: "Two-wheeler", 8: "LCV", 
-    9: "Mini-bus", 10: "Tempo-traveller", 11: "Bicycle", 12: "Van", 13: "Other"
+    9: "Mini-bus", 10: "Tempo-traveller", 11: "Bicycle", 12: "Van", 13: "Other",
+    14: "Person" 
 }
 
+# --- IDLE LOGIC CONFIG ---
+last_access_time = 0 
+IDLE_TIMEOUT = 60 # Seconds until AI sleeps to save VM resources
+
 HISTORY_FILE = "history.json"
-# Ensure the weights file is in the same directory as this script
-MODEL_PATH = "best.pt" 
+MODEL_PATH = "best.pt" # Ensure this file is in your traffic_engine folder
 
 output_frame = cv2.imencode('.jpg', np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8))[1].tobytes()
 lock = threading.Lock()
@@ -106,11 +110,10 @@ class ThreadedCamera:
 
 # --- BACKGROUND AI THREAD ---
 def ai_worker():
-    global latest_frame_for_ai, boxes_to_draw, current_stats, history
+    global latest_frame_for_ai, boxes_to_draw, current_stats, history, last_access_time
     try:
-        # POINTING TO YOUR CUSTOM BEST.PT WEIGHTS
         model = YOLO(MODEL_PATH) 
-        print(f"✅ Successfully loaded custom model from {MODEL_PATH}")
+        print(f"✅ Loaded Bengaluru Traffic weights from {MODEL_PATH}")
     except Exception as e:
         print(f"❌ Model error: {e}")
         return
@@ -119,6 +122,14 @@ def ai_worker():
     last_valid_counts = {}   
 
     while True:
+        # IDLE CHECK: If no request in IDLE_TIMEOUT, skip inference
+        if (time.time() - last_access_time) > IDLE_TIMEOUT:
+            with ai_lock:
+                boxes_to_draw = []
+                current_stats["status"] = "AI Idle (Saving Resources)"
+            time.sleep(2) # Deep sleep while idle
+            continue
+
         with ai_lock:
             frame_to_process = latest_frame_for_ai.copy() if latest_frame_for_ai is not None else None
 
@@ -127,7 +138,6 @@ def ai_worker():
             continue
 
         try:
-            # Detection logic using your custom 14 classes
             results = model(frame_to_process, classes=list(CLASS_NAMES.keys()), verbose=False, imgsz=AI_RESOLUTION, conf=CONFIDENCE)
             current_raw_counts = {}
             new_boxes = []
@@ -135,7 +145,6 @@ def ai_worker():
             for r in results:
                 for box in r.boxes:
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    # Ensure we map custom IDs correctly to Bengaluru vehicle names
                     label = CLASS_NAMES.get(int(box.cls[0]), "Unknown")
                     new_boxes.append((x1, y1, x2, y2, label))
                     current_raw_counts[label] = current_raw_counts.get(label, 0) + 1
@@ -153,12 +162,12 @@ def ai_worker():
             
             with ai_lock:
                 boxes_to_draw = new_boxes
-                current_stats = {"status": "Bengaluru Traffic AI Online", "total_all_time": history.total_count, **current_raw_counts}
+                current_stats = {"status": "AI Live (Processing)", "total_all_time": history.total_count, **current_raw_counts}
                 if current_raw_counts:
                     ts = datetime.datetime.now().strftime("%H:%M:%S")
                     current_stats['log'] = f"[{ts}] DETECTED: {current_raw_counts}"
         except Exception as e:
-            print(f"AI Loop Error: {e}")
+            print(f"AI Processing Error: {e}")
 
         time.sleep(AI_INTERVAL_SEC)
 
@@ -166,7 +175,6 @@ def ai_worker():
 def start_engine():
     global output_frame, latest_frame_for_ai, boxes_to_draw
     
-    # Adjust RTSP URL if your streamer is running on a different port or VM
     rtsp_url = "rtsp://127.0.0.1:8554/video_feed"
     os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
     
@@ -186,7 +194,6 @@ def start_engine():
             latest_frame_for_ai = draw_frame.copy()
             current_boxes = boxes_to_draw.copy()
 
-        # Draw Bengaluru-specific labels (Three-wheeler, Tempo-traveller, etc.)
         for (x1, y1, x2, y2, label) in current_boxes:
             cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(draw_frame, label, (x1, y1-15), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
@@ -199,6 +206,8 @@ def start_engine():
 
 @app.route("/video_feed")
 def video_feed():
+    global last_access_time
+    last_access_time = time.time() # Wake up AI on feed request
     def generate():
         while True:
             with lock:
@@ -208,6 +217,8 @@ def video_feed():
 
 @app.route("/api/stats")
 def stats():
+    global last_access_time
+    last_access_time = time.time() # Wake up AI on API request
     with lock: return jsonify(current_stats)
 
 if __name__ == "__main__":
