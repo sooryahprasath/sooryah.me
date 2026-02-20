@@ -27,3 +27,5 @@ dist-ssr
 __pycache__/
 *.pyc
 .DS_Store
+
+mediamtx.yml
