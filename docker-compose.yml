@@ -29,8 +29,17 @@ services:
     restart: always
 
   # --- Media Server (Splits the Stream) ---
+# --- RAW IMAGE STREAM FOR WINDY ---
+  windy-bridge:
+    build: ./traffic_engine
+    container_name: windy-bridge
+    network_mode: "host"
+    restart: always
+    command: python windy_bridge.py
+
+  # --- Media Server ---
   mediamtx:
-    image: bluenviron/mediamtx:latest-ffmpeg 
+    image: bluenviron/mediamtx:latest
     container_name: mediamtx
     network_mode: "host"
     restart: always
@@ -41,12 +50,7 @@ services:
     volumes:
       - ./mediamtx.yml:/mediamtx.yml
 
-  mjpeg-bridge:
-    build: ./traffic_engine
-    container_name: mjpeg-bridge
-    network_mode: "host"
-    restart: always
-    command: python mjpeg_bridge.py
+
 
   # Traffic AI Engine & Video Stream (Port 5000)
   traffic-engine:

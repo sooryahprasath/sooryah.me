@@ -1,12 +1,7 @@
-# Use standard port for your AI/Internal needs
 rtspAddress: :8554
+hls: no  # We don't need HLS anymore
 
 paths:
   video_feed:
     source: rtsp://${CAMERA_USER}:${CAMERA_PASS}@${CAMERA_IP}:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif
     rtspTransport: tcp
-    
-    # Start the MJPEG streamer immediately on startup
-    # It takes the RTSP feed and creates a MJPEG server on port 8083
-    runOnInit: ffmpeg -re -i rtsp://localhost:8554/video_feed -c:v mjpeg -f mpjpeg -q:v 5 listen://0.0.0.0:8083
-    runOnInitRestart: yes
