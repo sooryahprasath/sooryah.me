@@ -15,8 +15,7 @@ CORS(app)
 # --- PERFORMANCE & COMPRESSION ---
 FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080  
 FPS_LIMIT = 15                          
-# AI_INTERVAL_SEC is reduced for more frequent "checks", but Tracker handles the gaps
-AI_INTERVAL_SEC = 0.05 
+AI_INTERVAL_SEC = 0.05 # Fast check for real-time tracking
 JPEG_QUALITY = 35       
 
 # --- SOFTWARE COLOR CONTROL ---
@@ -26,7 +25,7 @@ BRIGHTNESS_BETA = -40
 # --- BENGALURU TRAFFIC TUNING ---
 AI_RESOLUTION = 640     
 CONFIDENCE = 0.25
-# 15 classes including 'Person'
+# 15 classes from UVH-26 + Custom Person class
 CLASS_NAMES = {
     0: "Hatchback", 1: "Sedan", 2: "SUV", 3: "MUV", 4: "Bus", 
     5: "Truck", 6: "Three-wheeler", 7: "Two-wheeler", 8: "LCV", 
@@ -36,7 +35,7 @@ CLASS_NAMES = {
 
 # --- IDLE LOGIC CONFIG ---
 last_access_time = 0 
-IDLE_TIMEOUT = 60 
+IDLE_TIMEOUT = 60 # AI sleeps after 1 min of no website/API traffic
 
 HISTORY_FILE = "history.json"
 MODEL_PATH = "best.pt" 
@@ -74,8 +73,7 @@ class ThreadedCamera:
     def __init__(self, src):
         self.src = src
         self.cap = cv2.VideoCapture(self.src, cv2.CAP_FFMPEG)
-        # Force smallest possible buffer at the OS level
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) 
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Low-latency buffer
         self.grabbed, self.frame = self.cap.read()
         self.started = False
         self.read_lock = threading.Lock()
@@ -98,7 +96,7 @@ class ThreadedCamera:
                 continue
             with self.read_lock:
                 self.grabbed = grabbed
-                # BUFFER FLUSHING: Overwrite old frames so we only process the LATEST packet
+                # Overwrite old frames so the AI only sees the LATEST one
                 self.frame = frame
 
     def read(self):
@@ -115,11 +113,11 @@ def ai_worker():
         print(f"❌ Model error: {e}")
         return
 
-    # To track unique vehicle IDs and prevent double-counting
+    # Track unique vehicle IDs to prevent double-counting
     previous_ids = set()
 
     while True:
-        # IDLE CHECK
+        # 1. IDLE CHECK
         if (time.time() - last_access_time) > IDLE_TIMEOUT:
             with ai_lock:
                 boxes_to_draw = []
@@ -135,22 +133,22 @@ def ai_worker():
             continue
 
         try:
-            # TRACKING ENGINE: Persistent tracking sticks boxes to objects across frames
+            # 2. RUN TRACKER: Persistent tracking sticks boxes to objects across frames
             results = model.track(
                 frame_to_process, 
-                persist=True, # Critical: Keeps IDs stable
+                persist=True, # Keeps IDs stable
                 classes=list(CLASS_NAMES.keys()), 
                 conf=CONFIDENCE, 
                 imgsz=AI_RESOLUTION, 
                 verbose=False,
-                tracker="bytetrack.yaml" # Fast, efficient tracker
+                tracker="bytetrack.yaml" # Fast, high-performance tracking
             )
 
             current_raw_counts = {}
             new_boxes = []
             current_ids = set()
 
-            # Process tracker results
+            # 3. PROCESS TRACKER RESULTS
             if results[0].boxes.id is not None:
                 boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
                 ids = results[0].boxes.id.cpu().numpy().astype(int)
@@ -158,23 +156,21 @@ def ai_worker():
 
                 for box, obj_id, cls in zip(boxes, ids, clss):
                     label = CLASS_NAMES.get(cls, "Unknown")
-                    # Display label with the unique ID
                     new_boxes.append((*box, f"{label} #{obj_id}"))
                     current_raw_counts[label] = current_raw_counts.get(label, 0) + 1
                     current_ids.add(obj_id)
 
-            # UNIQUE COUNTING: Only increment for NEW vehicle IDs seen for the first time
+            # 4. UNIQUE COUNTING: Increment ONLY for new IDs
             newly_detected_objects = current_ids - previous_ids
             if len(newly_detected_objects) > 0:
                 history.increment(len(newly_detected_objects))
             
-            # Update history of seen IDs
             previous_ids = current_ids
 
             with ai_lock:
                 boxes_to_draw = new_boxes
                 current_stats = {
-                    "status": "AI Live (Tracking Mode)", 
+                    "status": "AI Live (Tracking)", 
                     "total_all_time": history.total_count, 
                     **current_raw_counts
                 }
@@ -186,7 +182,7 @@ def ai_worker():
 
         time.sleep(AI_INTERVAL_SEC)
 
-# --- RENDERING & SYNC ---
+# --- RENDERING LOOP ---
 def start_engine():
     global output_frame, latest_frame_for_ai, boxes_to_draw
     
@@ -202,16 +198,15 @@ def start_engine():
             time.sleep(0.01)
             continue
 
-        # Resize and adjust colors
+        # Resize and color adjust
         draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         draw_frame = cv2.convertScaleAbs(draw_frame, alpha=CONTRAST_ALPHA, beta=BRIGHTNESS_BETA)
 
-        # Pass frame to AI and grab the most recent tracker boxes
         with ai_lock:
             latest_frame_for_ai = draw_frame.copy()
             current_boxes = boxes_to_draw.copy()
 
-        # LATENCY SYNC: Drawing boxes directly onto the frame
+        # Instant drawing for low latency
         for (x1, y1, x2, y2, label) in current_boxes:
             cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(draw_frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
@@ -220,13 +215,12 @@ def start_engine():
             _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
             output_frame = bytearray(encoded)
         
-        # Tighter sleep (0.01s) for 100fps rendering potential (syncs boxes better)
         time.sleep(0.01)
 
 @app.route("/video_feed")
 def video_feed():
     global last_access_time
-    last_access_time = time.time()
+    last_access_time = time.time() # Wake up AI
     def generate():
         while True:
             with lock:
@@ -237,7 +231,7 @@ def video_feed():
 @app.route("/api/stats")
 def stats():
     global last_access_time
-    last_access_time = time.time()
+    last_access_time = time.time() # Wake up AI
     with lock: return jsonify(current_stats)
 
 if __name__ == "__main__":
