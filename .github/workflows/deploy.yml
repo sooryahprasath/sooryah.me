@@ -9,10 +9,10 @@ jobs:
     name: Production Deployment
     runs-on: self-hosted
     steps:
-      # --- NEW STEP: Fix Permissions First ---
+      # --- Fix Workspace Permissions ---
       - name: 🔧 Fix Workspace Permissions
         run: |
-          echo "Runnning cleanup as root..."
+          echo "Running cleanup as root..."
           sudo chown -R $USER:$USER $GITHUB_WORKSPACE
           sudo rm -rf $GITHUB_WORKSPACE/*
 
@@ -47,7 +47,6 @@ jobs:
           echo "CAMERA_PASS=${{ secrets.CAMERA_PASS }}" >> .env
           echo "CAMERA_IP=${{ secrets.CAMERA_IP }}" >> .env
 
-      # --- NEW STEP: Generate MediaMTX Config ---
       - name: Inject Secrets into MediaMTX Config
         env: 
           CAMERA_USER: ${{ secrets.CAMERA_USER }}
@@ -57,12 +56,12 @@ jobs:
           echo "⚙️ Generating mediamtx.yml from template..."
           envsubst < mediamtx.template.yml > mediamtx.yml
 
-      - name: Deploy Updates
+      - name: Deploy Updates (Main Stack)
         run: |
           docker compose build
           docker compose up -d --force-recreate
 
-      - name: Verification
+      - name: Verification (Main Stack)
         run: |
           echo "⏳ Waiting 10s for application boot..."
           sleep 10
@@ -71,5 +70,42 @@ jobs:
           else
               echo "❌ CRITICAL: Container crashed. Fetching logs..."
               docker logs --tail 20 portfolio-web
+              exit 1
+          fi
+
+      # --- NEW STEPS: TRAFFIC AI ENGINE DEPLOYMENT ---
+      - name: 🤖 Deploy Traffic Engine via Docker
+        run: |
+          echo "Building and launching Traffic Engine..."
+          # Navigate to the specific directory
+          cd traffic_engine
+          
+          # 1. Ensure the persistent file exists so Docker doesn't crash on mount
+          touch history.json
+          
+          # 2. Safely stop and remove the old container if it exists
+          docker stop traffic_engine_app || true
+          docker rm traffic_engine_app || true
+          
+          # 3. Build the fresh image
+          docker build -t traffic_engine .
+          
+          # 4. Run the new container
+          docker run -d \
+            --name traffic_engine_app \
+            --restart unless-stopped \
+            -p 5000:5000 \
+            -v $(pwd)/history.json:/app/history.json \
+            traffic_engine
+
+      - name: Verification (Traffic Engine)
+        run: |
+          echo "⏳ Waiting 5s for Traffic Engine boot..."
+          sleep 5
+          if [ "$(docker inspect -f '{{.State.Running}}' traffic_engine_app)" = "true" ]; then
+              echo "✅ Traffic Engine is online and listening on Port 5000."
+          else
+              echo "❌ CRITICAL: Traffic Engine crashed. Fetching logs..."
+              docker logs --tail 20 traffic_engine_app
               exit 1
           fi
