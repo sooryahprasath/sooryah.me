@@ -32,18 +32,25 @@ CLASS_NAMES = {
     14: "Person" 
 }
 
-# --- IDLE LOGIC CONFIG ---
+# --- IDLE LOGIC ---
 last_access_time = 0 
 IDLE_TIMEOUT = 60 
 
 HISTORY_FILE = "history.json"
 MODEL_PATH = "best.pt" 
 
-# Start with a blank frame so it's never 'None'
-output_frame = cv2.imencode('.jpg', np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8))[1].tobytes()
 lock = threading.Lock()
 
-# --- GLOBAL STATE FOR ASYNC AI ---
+# --- STANDBY FRAME FOR MOBILE BROWSERS ---
+# This prevents the stream from timing out while the AI loads
+standby_img = np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8)
+cv2.putText(standby_img, "VM Waking Up... Connecting to RTSP...", (100, FRAME_HEIGHT//2), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
+_, standby_encoded = cv2.imencode('.jpg', standby_img, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
+STANDBY_FRAME = bytearray(standby_encoded)
+
+output_frame = STANDBY_FRAME
+
+# --- GLOBAL STATE ---
 latest_frame_for_ai = None
 boxes_to_draw = []
 ai_lock = threading.Lock()
@@ -69,41 +76,51 @@ class HistoryManager:
 history = HistoryManager()
 current_stats = {"status": "Starting", "total_all_time": history.total_count}
 
-class ThreadedCamera:
-    """Consumes the RTSP stream continuously so the buffer doesn't break"""
+class OnDemandCamera:
+    """Connects to the RTSP stream ONLY when someone is on the site"""
     def __init__(self, src):
         self.src = src
-        self.cap = cv2.VideoCapture(self.src, cv2.CAP_FFMPEG)
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) 
-        self.grabbed, self.frame = self.cap.read()
-        self.started = False
+        self.cap = None
+        self.frame = None
         self.read_lock = threading.Lock()
+        self.is_running = False
+        self.thread = None
 
     def start(self):
-        if self.started: return None
-        self.started = True
-        self.thread = threading.Thread(target=self.update, args=())
-        self.thread.daemon = True
-        self.thread.start()
-        return self
+        if not self.is_running:
+            self.is_running = True
+            self.cap = cv2.VideoCapture(self.src, cv2.CAP_FFMPEG)
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            self.thread = threading.Thread(target=self.update, daemon=True)
+            self.thread.start()
+
+    def stop(self):
+        self.is_running = False
+        if self.cap:
+            self.cap.release()
+            self.cap = None
+        with self.read_lock:
+            self.frame = None
 
     def update(self):
-        while self.started:
+        while self.is_running:
+            if not self.cap or not self.cap.isOpened():
+                time.sleep(0.1)
+                continue
             grabbed, frame = self.cap.read()
             if not grabbed:
                 self.cap.release()
-                time.sleep(2)
+                time.sleep(1)
                 self.cap = cv2.VideoCapture(self.src, cv2.CAP_FFMPEG)
+                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                 continue
             with self.read_lock:
-                self.grabbed = grabbed
                 self.frame = frame
 
     def read(self):
         with self.read_lock:
-            return self.grabbed, self.frame.copy() if self.frame is not None else None
+            return self.frame is not None, self.frame.copy() if self.frame is not None else None
 
-# --- BACKGROUND AI WORKER ---
 def ai_worker():
     global latest_frame_for_ai, boxes_to_draw, current_stats, history, last_access_time, ai_worker_started
     if ai_worker_started: return
@@ -119,12 +136,11 @@ def ai_worker():
     previous_ids = set()
 
     while True:
-        # HARD IDLE: Completely pause AI operations
         if (time.time() - last_access_time) > IDLE_TIMEOUT:
             with ai_lock:
                 boxes_to_draw = []
                 current_stats["status"] = "AI Idle (Saving Resources)"
-            time.sleep(1.0) # Reduced sleep so it wakes up faster
+            time.sleep(1.0)
             continue
 
         with ai_lock:
@@ -174,35 +190,39 @@ def ai_worker():
                     "total_all_time": history.total_count, 
                     **current_raw_counts
                 }
-                if current_raw_counts:
-                    ts = datetime.datetime.now().strftime("%H:%M:%S")
-                    current_stats['log'] = f"[{ts}] TRACKING: {current_raw_counts}"
-        except Exception as e:
-            print(f"AI error: {e}")
+        except Exception:
+            pass
 
         time.sleep(AI_INTERVAL_SEC)
 
-# --- RENDERING & SYNC ---
 def start_engine():
     global output_frame, latest_frame_for_ai, boxes_to_draw
     rtsp_url = "rtsp://127.0.0.1:8554/video_feed"
     os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
     
-    cam = ThreadedCamera(rtsp_url).start()
+    # Do not start camera immediately. Let OnDemand logic handle it.
+    cam = OnDemandCamera(rtsp_url)
     threading.Thread(target=ai_worker, daemon=True).start()
 
     while True:
-        # THE CPU SAVER: If idle, skip heavy math but wake up instantly
-        if (time.time() - last_access_time) > IDLE_TIMEOUT:
-            time.sleep(0.5) # Reduced from 1.0s to prevent stream timeouts on wake
+        is_active = (time.time() - last_access_time) < IDLE_TIMEOUT
+        
+        # IDLE: Stop camera, release network, reset to Standby frame
+        if not is_active:
+            cam.stop()
+            with lock:
+                output_frame = STANDBY_FRAME
+            time.sleep(1.0)
             continue
+
+        # ACTIVE: Start camera (only initializes if not running)
+        cam.start()
 
         success, frame = cam.read()
         if not success or frame is None:
             time.sleep(0.01)
             continue
 
-        # This heavy math ONLY runs when a user is active
         draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         draw_frame = cv2.convertScaleAbs(draw_frame, alpha=CONTRAST_ALPHA, beta=BRIGHTNESS_BETA)
 
@@ -223,16 +243,20 @@ def start_engine():
 @app.route("/video_feed")
 def video_feed():
     global last_access_time
-    last_access_time = time.time() # Wake up system
+    last_access_time = time.time()
     
     def generate():
         global last_access_time
+        # Instantly send the standby frame so mobile browsers don't timeout the connection
+        yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + STANDBY_FRAME + b'\r\n')
+        
         while True:
-            # Keep system awake as long as this stream is active
             last_access_time = time.time() 
             with lock:
-                if output_frame: 
-                    yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + output_frame + b'\r\n')
+                frame_to_send = output_frame
+                
+            if frame_to_send: 
+                yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame_to_send + b'\r\n')
             time.sleep(1.0 / FPS_LIMIT)
             
     return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
@@ -240,7 +264,7 @@ def video_feed():
 @app.route("/api/stats")
 def stats():
     global last_access_time
-    last_access_time = time.time() # Wake up system
+    last_access_time = time.time()
     with lock: return jsonify(current_stats)
 
 if __name__ == "__main__":
