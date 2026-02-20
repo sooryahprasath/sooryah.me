@@ -28,17 +28,32 @@ services:
       - RADAR_IP=${RADAR_IP}
     restart: always
 
+  # --- NEW: Media Server (Splits the Stream) ---
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: mediamtx
+    network_mode: "host"
+    restart: always
+    environment:
+      - MTX_PROTOCOLS=tcp
+      # Pulls the heavy stream from the physical camera once
+      - MTX_PATHS_CAM_SOURCE=rtsp://${CAMERA_USER}:${CAMERA_PASS}@${CAMERA_IP}:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif
+      - MTX_PATHS_CAM_SOURCEONDEMAND=yes
+      # Binds the HLS Web Player to Port 5500 for Cloudflare
+      - MTX_HLSADDRESS=:5500
+
   # Traffic AI Engine & Video Stream (Port 5000)
   traffic-engine:
     build: ./traffic_engine
     container_name: traffic-engine
     network_mode: "host"
     restart: always
+    depends_on:
+      - mediamtx
     environment:
       - CAMERA_USER=${CAMERA_USER}
       - CAMERA_PASS=${CAMERA_PASS}
       - CAMERA_IP=${CAMERA_IP}
-    # Explicitly runs the independent AI script
     command: python traffic.py
 
   # Traffic Data Ingestion Service (to InfluxDB)

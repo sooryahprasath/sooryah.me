@@ -12,17 +12,17 @@ from ultralytics import YOLO
 app = Flask(__name__)
 CORS(app)
 
-# --- 1. PERFORMANCE & COMPRESSION ---
+# --- PERFORMANCE & COMPRESSION ---
 FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080  
 FPS_LIMIT = 12                          
 AI_INTERVAL_SEC = 1.0                   
-JPEG_QUALITY = 35       # Highly compressed to stop the network/Flask stutter
+JPEG_QUALITY = 35       
 
-# --- 2. SOFTWARE COLOR CONTROL ---
-CONTRAST_ALPHA = 1.1    # Slight contrast bump
-BRIGHTNESS_BETA = -40   # Aggressively darken the image to kill the sun glare
+# --- SOFTWARE COLOR CONTROL ---
+CONTRAST_ALPHA = 1.1    
+BRIGHTNESS_BETA = -40   
 
-# --- 3. TRAFFIC TUNING ---
+# --- TRAFFIC TUNING ---
 AI_RESOLUTION = 640    
 CONFIDENCE = 0.20      
 CLASS_NAMES = {0: "PERSON", 1: "BICYCLE", 2: "CAR", 3: "MOTORCYCLE", 5: "BUS", 7: "TRUCK"}
@@ -95,14 +95,13 @@ class ThreadedCamera:
 def start_engine():
     global output_frame, current_stats
     try:
-        # UPGRADED AI: Using the 'Small' model instead of 'Nano' for better recognition
         model = YOLO("yolov8s.pt") 
     except Exception as e:
         print(f"Model error: {e}")
         return
 
-    user, pwd, ip = os.getenv('CAMERA_USER'), os.getenv('CAMERA_PASS'), os.getenv('CAMERA_IP')
-    rtsp_url = f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif"
+    # CRITICAL FIX: Because of network_mode: "host", we use localhost to reach MediaMTX
+    rtsp_url = "rtsp://127.0.0.1:8554/cam"
     
     os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
     
@@ -120,8 +119,6 @@ def start_engine():
             continue
 
         draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
-        
-        # Apply Digital Sunglasses
         draw_frame = cv2.convertScaleAbs(draw_frame, alpha=CONTRAST_ALPHA, beta=BRIGHTNESS_BETA)
 
         now = time.time()
@@ -154,7 +151,7 @@ def start_engine():
                 last_valid_counts = smoothed_counts      
                 
                 with lock:
-                    current_stats = {"status": "YOLOv8s Running", "total_all_time": history.total_count, **current_raw_counts}
+                    current_stats = {"status": "MediaMTX Backend Online", "total_all_time": history.total_count, **current_raw_counts}
                     if current_raw_counts:
                         ts = datetime.datetime.now().strftime("%H:%M:%S")
                         current_stats['log'] = f"[{ts}] DETECTED: {current_raw_counts}"
@@ -165,7 +162,6 @@ def start_engine():
             cv2.putText(draw_frame, label, (x1, y1-15), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
         with lock:
-            # Apply maximum compression
             _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
             output_frame = bytearray(encoded)
         
