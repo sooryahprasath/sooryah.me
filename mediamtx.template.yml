@@ -1,9 +1,8 @@
-hlsAddress: :5500
-# Allows MediaMTX to generate a JPEG on the fly
-hlsAlwaysRemux: yes
+# Disable HLS and enable MJPEG
+mjpegAddress: :5500
 
 paths:
   video_feed:
     source: rtsp://${CAMERA_USER}:${CAMERA_PASS}@${CAMERA_IP}:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif
-    sourceOnDemand: yes
+    sourceOnDemand: no  # Keep it 'always on' so Windy/Browsers get an instant frame
     sourceProtocol: tcp

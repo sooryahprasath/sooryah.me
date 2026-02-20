@@ -35,12 +35,10 @@ services:
     network_mode: "host"
     restart: always
     environment:
-      # Passes the credentials to the mediamtx.yml file
       - CAMERA_USER=${CAMERA_USER}
       - CAMERA_PASS=${CAMERA_PASS}
       - CAMERA_IP=${CAMERA_IP}
     volumes:
-      # Mounts your new configuration file into the container
       - ./mediamtx.yml:/mediamtx.yml
 
   # Traffic AI Engine & Video Stream (Port 5000)
