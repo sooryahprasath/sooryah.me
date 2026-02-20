@@ -32,9 +32,9 @@ CLASS_NAMES = {
     14: "Person" 
 }
 
-# --- IDLE LOGIC ---
+# --- IDLE LOGIC CONFIG ---
 last_access_time = 0 
-IDLE_TIMEOUT = 60 
+IDLE_TIMEOUT = 60 # AI and Renderer sleep after 60s of inactivity
 
 HISTORY_FILE = "history.json"
 MODEL_PATH = "best.pt" 
@@ -42,11 +42,10 @@ MODEL_PATH = "best.pt"
 output_frame = cv2.imencode('.jpg', np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8))[1].tobytes()
 lock = threading.Lock()
 
-# --- GLOBAL STATE ---
+# --- GLOBAL STATE FOR ASYNC AI ---
 latest_frame_for_ai = None
 boxes_to_draw = []
 ai_lock = threading.Lock()
-# Singleton flag to prevent duplicate workers seen in your htop
 ai_worker_started = False 
 
 class HistoryManager:
@@ -70,6 +69,7 @@ history = HistoryManager()
 current_stats = {"status": "Starting", "total_all_time": history.total_count}
 
 class ThreadedCamera:
+    """Consumes the RTSP stream continuously so the buffer doesn't break"""
     def __init__(self, src):
         self.src = src
         self.cap = cv2.VideoCapture(self.src, cv2.CAP_FFMPEG)
@@ -102,7 +102,7 @@ class ThreadedCamera:
         with self.read_lock:
             return self.grabbed, self.frame.copy() if self.frame is not None else None
 
-# --- AI WORKER WITH HARD IDLING ---
+# --- BACKGROUND AI WORKER ---
 def ai_worker():
     global latest_frame_for_ai, boxes_to_draw, current_stats, history, last_access_time, ai_worker_started
     if ai_worker_started: return
@@ -118,19 +118,19 @@ def ai_worker():
     previous_ids = set()
 
     while True:
-        # DEEP IDLE: Stop all inference and frames if no one is watching
+        # HARD IDLE: Completely pause AI operations
         if (time.time() - last_access_time) > IDLE_TIMEOUT:
             with ai_lock:
                 boxes_to_draw = []
-                current_stats["status"] = "AI Sleeping (CPU Saved)"
-            time.sleep(5) # Long sleep to release CPU back to host
+                current_stats["status"] = "AI Idle (Saving Resources)"
+            time.sleep(2.0) # Deep sleep
             continue
 
         with ai_lock:
             frame_to_process = latest_frame_for_ai.copy() if latest_frame_for_ai is not None else None
 
         if frame_to_process is None:
-            time.sleep(0.1)
+            time.sleep(0.01)
             continue
 
         try:
@@ -173,8 +173,11 @@ def ai_worker():
                     "total_all_time": history.total_count, 
                     **current_raw_counts
                 }
-        except:
-            pass
+                if current_raw_counts:
+                    ts = datetime.datetime.now().strftime("%H:%M:%S")
+                    current_stats['log'] = f"[{ts}] TRACKING: {current_raw_counts}"
+        except Exception as e:
+            print(f"AI error: {e}")
 
         time.sleep(AI_INTERVAL_SEC)
 
@@ -182,32 +185,36 @@ def ai_worker():
 def start_engine():
     global output_frame, latest_frame_for_ai, boxes_to_draw
     rtsp_url = "rtsp://127.0.0.1:8554/video_feed"
+    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
     
     cam = ThreadedCamera(rtsp_url).start()
-    
-    # Start singleton thread
     threading.Thread(target=ai_worker, daemon=True).start()
 
     while True:
+        # THE CPU SAVER: If idle, skip all video processing entirely
+        if (time.time() - last_access_time) > IDLE_TIMEOUT:
+            time.sleep(1.0) # Deep sleep for renderer
+            continue
+
         success, frame = cam.read()
         if not success or frame is None:
             time.sleep(0.01)
             continue
 
+        # This heavy math ONLY runs when a user is active
         draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         draw_frame = cv2.convertScaleAbs(draw_frame, alpha=CONTRAST_ALPHA, beta=BRIGHTNESS_BETA)
 
-        # Only pass frame and draw boxes if NOT idle
-        if (time.time() - last_access_time) < IDLE_TIMEOUT:
-            with ai_lock:
-                latest_frame_for_ai = draw_frame.copy()
-                current_boxes = boxes_to_draw.copy()
+        with ai_lock:
+            latest_frame_for_ai = draw_frame.copy()
+            current_boxes = boxes_to_draw.copy()
 
-            for (x1, y1, x2, y2, label) in current_boxes:
-                cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(draw_frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        for (x1, y1, x2, y2, label) in current_boxes:
+            cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(draw_frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
         with lock:
+            # JPEG encoding ONLY happens when a user is active
             _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
             output_frame = bytearray(encoded)
         
@@ -216,7 +223,7 @@ def start_engine():
 @app.route("/video_feed")
 def video_feed():
     global last_access_time
-    last_access_time = time.time() 
+    last_access_time = time.time() # Wake up system
     def generate():
         while True:
             with lock:
@@ -227,9 +234,9 @@ def video_feed():
 @app.route("/api/stats")
 def stats():
     global last_access_time
-    last_access_time = time.time() 
+    last_access_time = time.time() # Wake up system
     with lock: return jsonify(current_stats)
 
 if __name__ == "__main__":
-    # debug=False is mandatory to prevent duplicate CPU-heavy forks
+    # debug=False prevents duplicate Flask worker processes
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
