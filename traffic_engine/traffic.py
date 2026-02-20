@@ -34,11 +34,12 @@ CLASS_NAMES = {
 
 # --- IDLE LOGIC CONFIG ---
 last_access_time = 0 
-IDLE_TIMEOUT = 60 # AI and Renderer sleep after 60s of inactivity
+IDLE_TIMEOUT = 60 
 
 HISTORY_FILE = "history.json"
 MODEL_PATH = "best.pt" 
 
+# Start with a blank frame so it's never 'None'
 output_frame = cv2.imencode('.jpg', np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8))[1].tobytes()
 lock = threading.Lock()
 
@@ -123,7 +124,7 @@ def ai_worker():
             with ai_lock:
                 boxes_to_draw = []
                 current_stats["status"] = "AI Idle (Saving Resources)"
-            time.sleep(2.0) # Deep sleep
+            time.sleep(1.0) # Reduced sleep so it wakes up faster
             continue
 
         with ai_lock:
@@ -191,9 +192,9 @@ def start_engine():
     threading.Thread(target=ai_worker, daemon=True).start()
 
     while True:
-        # THE CPU SAVER: If idle, skip all video processing entirely
+        # THE CPU SAVER: If idle, skip heavy math but wake up instantly
         if (time.time() - last_access_time) > IDLE_TIMEOUT:
-            time.sleep(1.0) # Deep sleep for renderer
+            time.sleep(0.5) # Reduced from 1.0s to prevent stream timeouts on wake
             continue
 
         success, frame = cam.read()
@@ -214,7 +215,6 @@ def start_engine():
             cv2.putText(draw_frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
         with lock:
-            # JPEG encoding ONLY happens when a user is active
             _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
             output_frame = bytearray(encoded)
         
@@ -224,11 +224,17 @@ def start_engine():
 def video_feed():
     global last_access_time
     last_access_time = time.time() # Wake up system
+    
     def generate():
+        global last_access_time
         while True:
+            # Keep system awake as long as this stream is active
+            last_access_time = time.time() 
             with lock:
-                if output_frame: yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + output_frame + b'\r\n')
+                if output_frame: 
+                    yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + output_frame + b'\r\n')
             time.sleep(1.0 / FPS_LIMIT)
+            
     return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 @app.route("/api/stats")
@@ -238,5 +244,4 @@ def stats():
     with lock: return jsonify(current_stats)
 
 if __name__ == "__main__":
-    # debug=False prevents duplicate Flask worker processes
     app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
