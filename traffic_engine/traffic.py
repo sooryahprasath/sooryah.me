@@ -14,8 +14,9 @@ CORS(app)
 
 # --- PERFORMANCE & COMPRESSION ---
 FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080  
-FPS_LIMIT = 12                          
-AI_INTERVAL_SEC = 1.0                    
+FPS_LIMIT = 15                          
+# AI_INTERVAL_SEC is reduced for more frequent "checks", but Tracker handles the gaps
+AI_INTERVAL_SEC = 0.05 
 JPEG_QUALITY = 35       
 
 # --- SOFTWARE COLOR CONTROL ---
@@ -25,7 +26,7 @@ BRIGHTNESS_BETA = -40
 # --- BENGALURU TRAFFIC TUNING ---
 AI_RESOLUTION = 640     
 CONFIDENCE = 0.25
-# Updated to 15 classes including the new 'Person' class
+# 15 classes including 'Person'
 CLASS_NAMES = {
     0: "Hatchback", 1: "Sedan", 2: "SUV", 3: "MUV", 4: "Bus", 
     5: "Truck", 6: "Three-wheeler", 7: "Two-wheeler", 8: "LCV", 
@@ -35,10 +36,10 @@ CLASS_NAMES = {
 
 # --- IDLE LOGIC CONFIG ---
 last_access_time = 0 
-IDLE_TIMEOUT = 60 # Seconds until AI sleeps to save VM resources
+IDLE_TIMEOUT = 60 
 
 HISTORY_FILE = "history.json"
-MODEL_PATH = "best.pt" # Ensure this file is in your traffic_engine folder
+MODEL_PATH = "best.pt" 
 
 output_frame = cv2.imencode('.jpg', np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8))[1].tobytes()
 lock = threading.Lock()
@@ -69,10 +70,12 @@ history = HistoryManager()
 current_stats = {"status": "Starting", "total_all_time": history.total_count}
 
 class ThreadedCamera:
+    """Threaded Camera with LIFO Buffer Flushing to eliminate stream lag"""
     def __init__(self, src):
         self.src = src
         self.cap = cv2.VideoCapture(self.src, cv2.CAP_FFMPEG)
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        # Force smallest possible buffer at the OS level
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) 
         self.grabbed, self.frame = self.cap.read()
         self.started = False
         self.read_lock = threading.Lock()
@@ -92,86 +95,98 @@ class ThreadedCamera:
                 self.cap.release()
                 time.sleep(2)
                 self.cap = cv2.VideoCapture(self.src, cv2.CAP_FFMPEG)
-                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                 continue
             with self.read_lock:
                 self.grabbed = grabbed
+                # BUFFER FLUSHING: Overwrite old frames so we only process the LATEST packet
                 self.frame = frame
 
     def read(self):
         with self.read_lock:
-            frame = self.frame.copy() if self.frame is not None else None
-            return self.grabbed, frame
+            return self.grabbed, self.frame.copy() if self.frame is not None else None
 
-    def stop(self):
-        self.started = False
-        self.thread.join()
-        self.cap.release()
-
-# --- BACKGROUND AI THREAD ---
+# --- BACKGROUND AI WORKER (TRACKING & UNIQUE COUNTING) ---
 def ai_worker():
     global latest_frame_for_ai, boxes_to_draw, current_stats, history, last_access_time
     try:
-        model = YOLO(MODEL_PATH) 
-        print(f"✅ Loaded Bengaluru Traffic weights from {MODEL_PATH}")
+        model = YOLO(MODEL_PATH)
+        print(f"✅ AI Tracking Online using {MODEL_PATH}")
     except Exception as e:
         print(f"❌ Model error: {e}")
         return
 
-    previous_raw_counts = {} 
-    last_valid_counts = {}   
+    # To track unique vehicle IDs and prevent double-counting
+    previous_ids = set()
 
     while True:
-        # IDLE CHECK: If no request in IDLE_TIMEOUT, skip inference
+        # IDLE CHECK
         if (time.time() - last_access_time) > IDLE_TIMEOUT:
             with ai_lock:
                 boxes_to_draw = []
                 current_stats["status"] = "AI Idle (Saving Resources)"
-            time.sleep(2) # Deep sleep while idle
+            time.sleep(2)
             continue
 
         with ai_lock:
             frame_to_process = latest_frame_for_ai.copy() if latest_frame_for_ai is not None else None
 
         if frame_to_process is None:
-            time.sleep(0.1)
+            time.sleep(0.01)
             continue
 
         try:
-            results = model(frame_to_process, classes=list(CLASS_NAMES.keys()), verbose=False, imgsz=AI_RESOLUTION, conf=CONFIDENCE)
+            # TRACKING ENGINE: Persistent tracking sticks boxes to objects across frames
+            results = model.track(
+                frame_to_process, 
+                persist=True, # Critical: Keeps IDs stable
+                classes=list(CLASS_NAMES.keys()), 
+                conf=CONFIDENCE, 
+                imgsz=AI_RESOLUTION, 
+                verbose=False,
+                tracker="bytetrack.yaml" # Fast, efficient tracker
+            )
+
             current_raw_counts = {}
             new_boxes = []
-            
-            for r in results:
-                for box in r.boxes:
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    label = CLASS_NAMES.get(int(box.cls[0]), "Unknown")
-                    new_boxes.append((x1, y1, x2, y2, label))
-                    current_raw_counts[label] = current_raw_counts.get(label, 0) + 1
-            
-            smoothed_counts = {}
-            all_keys = set(current_raw_counts.keys()) | set(previous_raw_counts.keys())
-            for label in all_keys:
-                smoothed_counts[label] = max(current_raw_counts.get(label, 0), previous_raw_counts.get(label, 0))
+            current_ids = set()
 
-            new_v = sum([max(0, smoothed_counts.get(l, 0) - last_valid_counts.get(l, 0)) for l in smoothed_counts])
-            if new_v > 0: history.increment(new_v)
+            # Process tracker results
+            if results[0].boxes.id is not None:
+                boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
+                ids = results[0].boxes.id.cpu().numpy().astype(int)
+                clss = results[0].boxes.cls.cpu().numpy().astype(int)
+
+                for box, obj_id, cls in zip(boxes, ids, clss):
+                    label = CLASS_NAMES.get(cls, "Unknown")
+                    # Display label with the unique ID
+                    new_boxes.append((*box, f"{label} #{obj_id}"))
+                    current_raw_counts[label] = current_raw_counts.get(label, 0) + 1
+                    current_ids.add(obj_id)
+
+            # UNIQUE COUNTING: Only increment for NEW vehicle IDs seen for the first time
+            newly_detected_objects = current_ids - previous_ids
+            if len(newly_detected_objects) > 0:
+                history.increment(len(newly_detected_objects))
             
-            previous_raw_counts = current_raw_counts 
-            last_valid_counts = smoothed_counts      
-            
+            # Update history of seen IDs
+            previous_ids = current_ids
+
             with ai_lock:
                 boxes_to_draw = new_boxes
-                current_stats = {"status": "AI Live (Processing)", "total_all_time": history.total_count, **current_raw_counts}
+                current_stats = {
+                    "status": "AI Live (Tracking Mode)", 
+                    "total_all_time": history.total_count, 
+                    **current_raw_counts
+                }
                 if current_raw_counts:
                     ts = datetime.datetime.now().strftime("%H:%M:%S")
-                    current_stats['log'] = f"[{ts}] DETECTED: {current_raw_counts}"
+                    current_stats['log'] = f"[{ts}] TRACKING: {current_raw_counts}"
         except Exception as e:
-            print(f"AI Processing Error: {e}")
+            print(f"AI error: {e}")
 
         time.sleep(AI_INTERVAL_SEC)
 
-# --- MAIN VIDEO STREAM THREAD ---
+# --- RENDERING & SYNC ---
 def start_engine():
     global output_frame, latest_frame_for_ai, boxes_to_draw
     
@@ -184,30 +199,34 @@ def start_engine():
     while True:
         success, frame = cam.read()
         if not success or frame is None:
-            time.sleep(0.05)
+            time.sleep(0.01)
             continue
 
+        # Resize and adjust colors
         draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         draw_frame = cv2.convertScaleAbs(draw_frame, alpha=CONTRAST_ALPHA, beta=BRIGHTNESS_BETA)
 
+        # Pass frame to AI and grab the most recent tracker boxes
         with ai_lock:
             latest_frame_for_ai = draw_frame.copy()
             current_boxes = boxes_to_draw.copy()
 
+        # LATENCY SYNC: Drawing boxes directly onto the frame
         for (x1, y1, x2, y2, label) in current_boxes:
             cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(draw_frame, label, (x1, y1-15), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+            cv2.putText(draw_frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
         with lock:
             _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
             output_frame = bytearray(encoded)
         
-        time.sleep(0.02)
+        # Tighter sleep (0.01s) for 100fps rendering potential (syncs boxes better)
+        time.sleep(0.01)
 
 @app.route("/video_feed")
 def video_feed():
     global last_access_time
-    last_access_time = time.time() # Wake up AI on feed request
+    last_access_time = time.time()
     def generate():
         while True:
             with lock:
@@ -218,7 +237,7 @@ def video_feed():
 @app.route("/api/stats")
 def stats():
     global last_access_time
-    last_access_time = time.time() # Wake up AI on API request
+    last_access_time = time.time()
     with lock: return jsonify(current_stats)
 
 if __name__ == "__main__":
