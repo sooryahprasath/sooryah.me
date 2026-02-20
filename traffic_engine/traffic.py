@@ -12,15 +12,15 @@ from ultralytics import YOLO
 app = Flask(__name__)
 CORS(app)
 
-# CONFIG - INCREASED RESOLUTION
-# Using 1080p for a crisp visual feed
-FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080 
-FPS_LIMIT = 12
-AI_INTERVAL_SEC = 2.0
+# CONFIG - MAXIMUM RESOLUTION (3K)
+# Note: 3K is typically 3072 x 1728
+FRAME_WIDTH, FRAME_HEIGHT = 3072, 1728 
+FPS_LIMIT = 8           # Reduced FPS to keep CPU from overheating at 3K
+AI_INTERVAL_SEC = 3.0    # Check AI every 3 seconds to give the CPU a rest
 HISTORY_FILE = "history.json"
 CLASS_NAMES = {0: "PERSON", 1: "BICYCLE", 2: "CAR", 3: "MOTORCYCLE", 5: "BUS", 7: "TRUCK"}
 
-# Initialize with a blank frame
+# GLOBAL STATE
 output_frame = cv2.imencode('.jpg', np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8))[1].tobytes()
 lock = threading.Lock()
 
@@ -47,19 +47,20 @@ current_stats = {"status": "Starting", "total_all_time": history.total_count}
 def start_engine():
     global output_frame, current_stats
     try:
+        # Load the smallest model to maximize speed at high res
         model = YOLO("yolov8n.pt") 
     except: return
 
     user, pwd, ip = os.getenv('CAMERA_USER'), os.getenv('CAMERA_PASS'), os.getenv('CAMERA_IP')
     
-    # URL with ONVIF parameters for stability
+    # 3K URL - Ensure channel and subtype are correct for your camera's high-res stream
     rtsp_url = f"rtsp://{user}:{pwd}@{ip}:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif"
     
-    # Force TCP transport for high resolution to prevent frame corruption/smearing
+    # CRITICAL: Force TCP to handle the massive 3K data stream without corruption
     os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
     
     cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) # Force latest frame only
     
     last_ai_time = 0
     previous_raw_counts = {} 
@@ -72,10 +73,9 @@ def start_engine():
             cap.release()
             time.sleep(2)
             cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
             continue
 
-        # Resize to 1080p
+        # Resize to full 3K for display
         draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         now = time.time()
         
@@ -83,8 +83,8 @@ def start_engine():
         if now - last_ai_time > AI_INTERVAL_SEC:
             last_ai_time = now
             try:
-                # We use imgsz=640 here. It's sharp enough for 1080p but 
-                # much lighter than running AI on the full 1080p/3K pixels.
+                # OPTIMIZATION: Even though video is 3K, AI only looks at a 640px version.
+                # This keeps the CPU load manageable.
                 results = model(draw_frame, classes=list(CLASS_NAMES.keys()), verbose=False, imgsz=640)
                 current_raw_counts = {}
                 new_boxes = []
@@ -111,22 +111,23 @@ def start_engine():
                 last_valid_counts = smoothed_counts      
                 
                 with lock:
-                    current_stats = {"status": "Online", "total_all_time": history.total_count, **current_raw_counts}
+                    current_stats = {"status": "Online (3K Mode)", "total_all_time": history.total_count, **current_raw_counts}
                     if current_raw_counts:
                         ts = datetime.datetime.now().strftime("%H:%M:%S")
                         current_stats['log'] = f"[{ts}] DETECTED: {current_raw_counts}"
             except: pass
 
-        # Draw Labels (Scaled for 1080p)
+        # Draw Labels (Large scale for 3K)
         for (x1, y1, x2, y2, label) in temp_boxes:
-            cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 255, 0), 3)
-            cv2.putText(draw_frame, label, (x1, y1-15), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+            cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 255, 0), 6) # Thicker lines
+            cv2.putText(draw_frame, label, (x1, y1-20), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0), 4)
 
         with lock:
-            # Compression quality 65 helps keep the data transfer smooth at 1080p
-            _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 65])
+            # Compression quality 50 - Lowered for 3K to avoid lagging the browser
+            _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
             output_frame = bytearray(encoded)
         
+        # CPU BREATHING ROOM
         time.sleep(0.01)
 
 @app.route("/video_feed")
@@ -135,6 +136,7 @@ def video_feed():
         while True:
             with lock:
                 if output_frame: yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + output_frame + b'\r\n')
+            # The browser can only handle so much 3K data; we cap it at our set FPS
             time.sleep(1.0 / FPS_LIMIT)
     return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
