@@ -29,6 +29,7 @@ services:
     restart: always
 
   # --- NEW: Media Server (Splits the Stream) ---
+# --- Media Server (Splits the Stream) ---
   mediamtx:
     image: bluenviron/mediamtx:latest
     container_name: mediamtx
@@ -36,10 +37,11 @@ services:
     restart: always
     environment:
       - MTX_PROTOCOLS=tcp
-      # Pulls the heavy stream from the physical camera once
       - MTX_PATHS_CAM_SOURCE=rtsp://${CAMERA_USER}:${CAMERA_PASS}@${CAMERA_IP}:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif
       - MTX_PATHS_CAM_SOURCEONDEMAND=yes
-      # Binds the HLS Web Player to Port 5500 for Cloudflare
+      # CRITICAL FIX: Forces TCP to stop the gray/magenta smearing
+      - MTX_PATHS_CAM_SOURCEPROTOCOL=tcp
+      # Binds the HLS Web Player to Port 5500
       - MTX_HLSADDRESS=:5500
 
   # Traffic AI Engine & Video Stream (Port 5000)
