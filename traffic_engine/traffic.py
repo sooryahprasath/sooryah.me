@@ -15,19 +15,26 @@ CORS(app)
 # --- PERFORMANCE & COMPRESSION ---
 FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080  
 FPS_LIMIT = 12                          
-AI_INTERVAL_SEC = 1.0                   
+AI_INTERVAL_SEC = 1.0                    
 JPEG_QUALITY = 35       
 
 # --- SOFTWARE COLOR CONTROL ---
-CONTRAST_ALPHA = 1.1    
-BRIGHTNESS_BETA = -40   
+CONTRAST_ALPHA = 1.1     
+BRIGHTNESS_BETA = -40    
 
-# --- TRAFFIC TUNING ---
-AI_RESOLUTION = 640    
-CONFIDENCE = 0.20      
-CLASS_NAMES = {0: "PERSON", 1: "BICYCLE", 2: "CAR", 3: "MOTORCYCLE", 5: "BUS", 7: "TRUCK"}
+# --- BENGALURU TRAFFIC TUNING ---
+AI_RESOLUTION = 640     
+CONFIDENCE = 0.25  # Slightly increased to reduce false positives
+# Updated to match the UVH-26 14-class taxonomy we trained
+CLASS_NAMES = {
+    0: "Hatchback", 1: "Sedan", 2: "SUV", 3: "MUV", 4: "Bus", 
+    5: "Truck", 6: "Three-wheeler", 7: "Two-wheeler", 8: "LCV", 
+    9: "Mini-bus", 10: "Tempo-traveller", 11: "Bicycle", 12: "Van", 13: "Other"
+}
 
 HISTORY_FILE = "history.json"
+# Ensure the weights file is in the same directory as this script
+MODEL_PATH = "best.pt" 
 
 output_frame = cv2.imencode('.jpg', np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8))[1].tobytes()
 lock = threading.Lock()
@@ -101,16 +108,17 @@ class ThreadedCamera:
 def ai_worker():
     global latest_frame_for_ai, boxes_to_draw, current_stats, history
     try:
-        model = YOLO("yolov8s.pt") 
+        # POINTING TO YOUR CUSTOM BEST.PT WEIGHTS
+        model = YOLO(MODEL_PATH) 
+        print(f"✅ Successfully loaded custom model from {MODEL_PATH}")
     except Exception as e:
-        print(f"Model error: {e}")
+        print(f"❌ Model error: {e}")
         return
 
     previous_raw_counts = {} 
     last_valid_counts = {}   
 
     while True:
-        # Grab the latest frame without blocking the video stream
         with ai_lock:
             frame_to_process = latest_frame_for_ai.copy() if latest_frame_for_ai is not None else None
 
@@ -119,6 +127,7 @@ def ai_worker():
             continue
 
         try:
+            # Detection logic using your custom 14 classes
             results = model(frame_to_process, classes=list(CLASS_NAMES.keys()), verbose=False, imgsz=AI_RESOLUTION, conf=CONFIDENCE)
             current_raw_counts = {}
             new_boxes = []
@@ -126,6 +135,7 @@ def ai_worker():
             for r in results:
                 for box in r.boxes:
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
+                    # Ensure we map custom IDs correctly to Bengaluru vehicle names
                     label = CLASS_NAMES.get(int(box.cls[0]), "Unknown")
                     new_boxes.append((x1, y1, x2, y2, label))
                     current_raw_counts[label] = current_raw_counts.get(label, 0) + 1
@@ -141,14 +151,14 @@ def ai_worker():
             previous_raw_counts = current_raw_counts 
             last_valid_counts = smoothed_counts      
             
-            # Update the global boxes for the video stream to draw
             with ai_lock:
                 boxes_to_draw = new_boxes
-                current_stats = {"status": "Async AI Online", "total_all_time": history.total_count, **current_raw_counts}
+                current_stats = {"status": "Bengaluru Traffic AI Online", "total_all_time": history.total_count, **current_raw_counts}
                 if current_raw_counts:
                     ts = datetime.datetime.now().strftime("%H:%M:%S")
                     current_stats['log'] = f"[{ts}] DETECTED: {current_raw_counts}"
-        except: pass
+        except Exception as e:
+            print(f"AI Loop Error: {e}")
 
         time.sleep(AI_INTERVAL_SEC)
 
@@ -156,12 +166,11 @@ def ai_worker():
 def start_engine():
     global output_frame, latest_frame_for_ai, boxes_to_draw
     
+    # Adjust RTSP URL if your streamer is running on a different port or VM
     rtsp_url = "rtsp://127.0.0.1:8554/video_feed"
     os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
     
     cam = ThreadedCamera(rtsp_url).start()
-    
-    # Start the AI brain in the background
     threading.Thread(target=ai_worker, daemon=True).start()
 
     while True:
@@ -173,12 +182,11 @@ def start_engine():
         draw_frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         draw_frame = cv2.convertScaleAbs(draw_frame, alpha=CONTRAST_ALPHA, beta=BRIGHTNESS_BETA)
 
-        # Silently pass the frame to the AI
         with ai_lock:
             latest_frame_for_ai = draw_frame.copy()
             current_boxes = boxes_to_draw.copy()
 
-        # Draw the boxes (This is instant)
+        # Draw Bengaluru-specific labels (Three-wheeler, Tempo-traveller, etc.)
         for (x1, y1, x2, y2, label) in current_boxes:
             cv2.rectangle(draw_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(draw_frame, label, (x1, y1-15), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
@@ -187,7 +195,7 @@ def start_engine():
             _, encoded = cv2.imencode(".jpg", draw_frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
             output_frame = bytearray(encoded)
         
-        time.sleep(0.02) # Fast, smooth rendering loop
+        time.sleep(0.02)
 
 @app.route("/video_feed")
 def video_feed():
