@@ -181,11 +181,11 @@ def video_feed():
             time.sleep(1.0 / FPS_LIMIT)
     return Response(gen(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
-@app.route("/api/stats")
-def stats():
-    global last_access_time
-    last_access_time = time.time()
-    return jsonify(current_stats)
+# @app.route("/api/stats")
+# def stats():
+#     global last_access_time
+#     last_access_time = time.time()
+#     return jsonify(current_stats)
 
 if __name__ == "__main__":
     threading.Thread(target=engine_loop, daemon=True).start()
