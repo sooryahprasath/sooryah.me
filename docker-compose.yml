@@ -41,6 +41,13 @@ services:
     volumes:
       - ./mediamtx.yml:/mediamtx.yml
 
+  mjpeg-bridge:
+    build: ./traffic_engine
+    container_name: mjpeg-bridge
+    network_mode: "host"
+    restart: always
+    command: python mjpeg_bridge.py
+
   # Traffic AI Engine & Video Stream (Port 5000)
   traffic-engine:
     build: ./traffic_engine
@@ -77,3 +84,4 @@ services:
     command: tunnel run
     environment:
       - TUNNEL_TOKEN=${TUNNEL_TOKEN:-eyJhIjoiZGE5NGE1MzRiMzY2ZDk1Zjc4ODliZjkzZjA1MzkxMWIiLCJ0IjoiNzMzNzhkZmEtMWEyNy00ODk3LThkMDMtZmM5M2Y3ZWU1MDA5IiwicyI6Ik0yTTFNR05tWWpFdE5qUXhZeTAwTkRRMkxXRTRaalF0WVRaa1ptUTJOMk01TkRFMiJ9}
+
