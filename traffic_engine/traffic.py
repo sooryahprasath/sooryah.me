@@ -4,7 +4,7 @@ import os
 import threading
 import json
 import numpy as np
-from flask import Flask, Response, jsonify
+from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 from ultralytics import YOLO
 
@@ -38,6 +38,8 @@ last_access_time = 0
 latest_frame_for_ai = None
 boxes_to_draw = []
 ai_worker_started = False 
+# Keep track of active connections
+active_viewers = 0 
 
 # Standby Frame
 standby_img = np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8)
@@ -146,7 +148,8 @@ def ai_worker():
     previous_ids = set()
 
     while True:
-        if (time.time() - last_access_time) > IDLE_TIMEOUT:
+        # Instead of just time, we check if there are any active viewers
+        if active_viewers == 0 and (time.time() - last_access_time) > IDLE_TIMEOUT:
             with ai_lock: 
                 boxes_to_draw = []
                 current_stats["status"] = "Idling"
@@ -196,7 +199,7 @@ def engine_loop():
     threading.Thread(target=ai_worker, daemon=True).start()
     
     while True:
-        is_idle = (time.time() - last_access_time) > IDLE_TIMEOUT
+        is_idle = active_viewers == 0 and (time.time() - last_access_time) > IDLE_TIMEOUT
         
         if is_idle:
             if cam.is_running:
@@ -239,36 +242,45 @@ def engine_loop():
             
         time.sleep(0.01)
 
+# --- UPDATED VIDEO FEED ROUTINE ---
 @app.route("/video_feed")
 def video_feed():
-    global last_access_time
-    last_access_time = time.time()
+    global active_viewers, last_access_time
     
-    def gen():
+    def generate():
+        global active_viewers, last_access_time
+        active_viewers += 1
+        print(f"🔌 Client connected. Total active viewers: {active_viewers}")
+        
         try:
-            yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + STANDBY_FRAME + b'\r\n')
             while True:
-                global last_access_time
-                last_access_time = time.time() 
+                # Force update the clock so we never idle while streaming
+                last_access_time = time.time()
                 
                 with lock: 
                     frame = output_frame
+                
+                # We yield the multipart header and image bytes
                 yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
                 time.sleep(1.0 / FPS_LIMIT)
-        except GeneratorExit:
-            # Client closed the connection (browser tab closed)
-            print("🔌 Client disconnected from video feed.")
+                
+        except (GeneratorExit, Exception) as e:
+            # This block captures both the clean GeneratorExit and any OS-level IOError
+            # when the socket suddenly closes.
+            pass
+        finally:
+            active_viewers = max(0, active_viewers - 1)
+            print(f"🔌 Client disconnected. Total active viewers: {active_viewers}")
+            # Ensure the clock is set exactly when they leave, so the IDLE_TIMEOUT countdown begins accurately
+            last_access_time = time.time()
 
-    return Response(gen(), mimetype="multipart/x-mixed-replace; boundary=frame")
+    return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 @app.route("/api/stats")
 def stats():
     global last_access_time
-    # Only update access time if we are not already idling
-    # This prevents an automated dashboard from keeping the heavy processing alive
-    # if nobody is actually watching the video feed.
-    if (time.time() - last_access_time) <= IDLE_TIMEOUT:
-        last_access_time = time.time() 
+    # We no longer strictly rely on the stats API to keep the video alive.
+    # The active_viewers counter handles that now. 
     return jsonify(current_stats)
 
 if __name__ == "__main__":
