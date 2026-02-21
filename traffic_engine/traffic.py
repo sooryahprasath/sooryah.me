@@ -66,7 +66,6 @@ class HistoryManager:
 history = HistoryManager()
 current_stats = {"status": "Starting", "total_all_time": history.total_count}
 
-# --- UPDATED OnDemandCamera ---
 class OnDemandCamera:
     def __init__(self, src):
         self.src = src
@@ -75,14 +74,15 @@ class OnDemandCamera:
         self.read_lock = threading.Lock()
         self.is_running = False
         self.thread = None
-        self.last_frame_time = time.time() # Watchdog timer
+        self.last_frame_time = time.time()
 
     def start(self):
         if not self.is_running:
             print("📷 [CAMERA] Starting RTSP connection...")
             self.is_running = True
-            # Tuned FFMPEG options to fail fast instead of hanging forever
-            os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;5000000|threads;2"
+            
+            # Use UDP for faster packet dropping (less blocking) if TCP is hanging
+            os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp|stimeout;2000000|threads;2"
             self.cap = cv2.VideoCapture(self.src, cv2.CAP_FFMPEG)
             
             if self.cap.isOpened():
@@ -97,14 +97,15 @@ class OnDemandCamera:
 
     def stop(self):
         if self.is_running:
-            print("📷 [CAMERA] Stopping connection...")
-            self.is_running = False
-            # Don't join the thread here, let it die naturally to prevent blocking
+            print("📷 [CAMERA] Stop requested...")
+            self.is_running = False 
+            time.sleep(0.2) 
             if self.cap:
                 try:
                     self.cap.release()
-                except:
-                    pass
+                    print("📷 [CAMERA] Resource released.")
+                except Exception as e:
+                    print(f"⚠️ [CAMERA] Error releasing: {e}")
             self.cap = None
             with self.read_lock:
                 self.frame = None
@@ -114,29 +115,26 @@ class OnDemandCamera:
             if not self.cap or not self.cap.isOpened():
                 break
             
-            grabbed, frame = self.cap.read()
-            if not grabbed:
-                print("⚠️ [CAMERA] Dropped frame or empty buffer.")
-                time.sleep(0.5)
+            if not self.cap.grab():
+                time.sleep(0.1) 
                 continue
-            
-            with self.read_lock:
-                self.frame = frame
-                self.last_frame_time = time.time()
+                
+            ret, frame = self.cap.retrieve()
+            if ret:
+                with self.read_lock:
+                    self.frame = frame
+                    self.last_frame_time = time.time()
 
-        print("📷 [CAMERA] Update thread exiting.")
-        self.is_running = False
+        print("📷 [CAMERA] Update thread exiting cleanly.")
 
     def read(self):
         with self.read_lock:
-            # Watchdog: If we haven't received a frame in 5 seconds, assume dead
             if self.is_running and (time.time() - self.last_frame_time > 5):
                  print("🚨 [CAMERA] Watchdog tripped! Stream is frozen.")
-                 self.is_running = False # Force a restart on the next loop
+                 self.is_running = False 
                  return False, None
             
             return self.frame is not None, self.frame.copy() if self.frame is not None else None
-
 
 def ai_worker():
     global latest_frame_for_ai, boxes_to_draw, current_stats, history, last_access_time, ai_worker_started
@@ -144,12 +142,10 @@ def ai_worker():
     ai_worker_started = True
     print("🧠 [AI] Worker thread started.")
     
-    # Initialize YOLO only once
     model = YOLO(MODEL_PATH)
     previous_ids = set()
 
     while True:
-        # Check Idle State
         if (time.time() - last_access_time) > IDLE_TIMEOUT:
             with ai_lock: 
                 boxes_to_draw = []
@@ -179,7 +175,6 @@ def ai_worker():
                     counts[lbl] = counts.get(lbl, 0) + 1
                     current_ids.add(obj_id)
                     
-            # Update history only for newly tracked objects
             new_objects_count = len(current_ids - previous_ids)
             if new_objects_count > 0:
                 history.increment(new_objects_count)
@@ -194,7 +189,6 @@ def ai_worker():
             
         time.sleep(AI_INTERVAL_SEC)
 
-# --- UPDATED Engine Loop ---
 def engine_loop():
     global output_frame, latest_frame_for_ai
     print("⚙️ [ENGINE] Main engine loop starting.")
@@ -210,18 +204,16 @@ def engine_loop():
             with lock: 
                 output_frame = STANDBY_FRAME
             with ai_lock:
-                latest_frame_for_ai = None # Clear the old frame so AI stops looping it
+                latest_frame_for_ai = None 
             time.sleep(1)
             continue
             
-        # If not idle, ensure camera is running
         if not cam.is_running:
             cam.start()
             
         success, frame = cam.read()
         
         if not success:
-            # Show a reconnecting frame if stream dropped mid-session
             error_img = np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8)
             cv2.putText(error_img, "Stream Dropped. Reconnecting...", (100, FRAME_HEIGHT//2), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 4)
             _, err_encoded = cv2.imencode('.jpg', error_img, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
@@ -230,21 +222,17 @@ def engine_loop():
             time.sleep(0.5)
             continue
 
-        # Valid frame received, process it
         frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         frame = cv2.convertScaleAbs(frame, alpha=CONTRAST_ALPHA, beta=BRIGHTNESS_BETA)
         
-        # Give a copy to the AI
         with ai_lock:
             latest_frame_for_ai = frame.copy()
             cur_boxes = boxes_to_draw.copy()
             
-        # Draw boxes on the broadcast frame
         for (x1, y1, x2, y2, label) in cur_boxes:
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
             
-        # Encode and set for broadcast
         with lock:
             _, en = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
             output_frame = bytearray(en)
@@ -255,26 +243,32 @@ def engine_loop():
 def video_feed():
     global last_access_time
     last_access_time = time.time()
-    # Let the client know the ping was received
     
     def gen():
-        yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + STANDBY_FRAME + b'\r\n')
-        while True:
-            # Update access time constantly while reading stream
-            global last_access_time
-            last_access_time = time.time() 
-            
-            with lock: 
-                frame = output_frame
-            yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-            time.sleep(1.0 / FPS_LIMIT)
-            
+        try:
+            yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + STANDBY_FRAME + b'\r\n')
+            while True:
+                global last_access_time
+                last_access_time = time.time() 
+                
+                with lock: 
+                    frame = output_frame
+                yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                time.sleep(1.0 / FPS_LIMIT)
+        except GeneratorExit:
+            # Client closed the connection (browser tab closed)
+            print("🔌 Client disconnected from video feed.")
+
     return Response(gen(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 @app.route("/api/stats")
 def stats():
     global last_access_time
-    last_access_time = time.time() # Calling stats also keeps the server awake
+    # Only update access time if we are not already idling
+    # This prevents an automated dashboard from keeping the heavy processing alive
+    # if nobody is actually watching the video feed.
+    if (time.time() - last_access_time) <= IDLE_TIMEOUT:
+        last_access_time = time.time() 
     return jsonify(current_stats)
 
 if __name__ == "__main__":
