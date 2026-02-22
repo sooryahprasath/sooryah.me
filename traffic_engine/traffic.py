@@ -16,9 +16,10 @@ FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080
 FPS_LIMIT = 15                          
 AI_INTERVAL_SEC = 0.05 
 JPEG_QUALITY = 35       
-CONTRAST_ALPHA = 1.1     
-BRIGHTNESS_BETA = -40    
-AI_RESOLUTION = 640     
+# Set contrast and brightness to neutral so CLAHE can do the heavy lifting
+CONTRAST_ALPHA = 1.0     
+BRIGHTNESS_BETA = 0      
+AI_RESOLUTION = 800     # Increased resolution for better detection at distance
 CONFIDENCE = 0.15 
 CLASS_NAMES = {
     0: "Hatchback", 1: "Sedan", 2: "SUV", 3: "MUV", 4: "Bus", 
@@ -39,7 +40,6 @@ latest_frame_for_ai = None
 new_frame_available = False 
 boxes_to_draw = []
 ai_worker_started = False 
-# Keep track of active connections
 active_viewers = 0 
 
 # Standby Frame
@@ -86,8 +86,6 @@ class OnDemandCamera:
         if not self.is_running:
             print("📷 [CAMERA] Starting RTSP connection...")
             self.is_running = True
-            
-            # Use UDP for faster packet dropping (less blocking) if TCP is hanging
             os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp|stimeout;2000000|threads;2"
             self.cap = cv2.VideoCapture(self.src, cv2.CAP_FFMPEG)
             
@@ -130,7 +128,6 @@ class OnDemandCamera:
                 with self.read_lock:
                     self.frame = frame
                     self.last_frame_time = time.time()
-
         print("📷 [CAMERA] Update thread exiting cleanly.")
 
     def read(self):
@@ -139,7 +136,6 @@ class OnDemandCamera:
                  print("🚨 [CAMERA] Watchdog tripped! Stream is frozen.")
                  self.is_running = False 
                  return False, None
-            
             return self.frame is not None, self.frame.copy() if self.frame is not None else None
 
 
@@ -161,7 +157,6 @@ def ai_worker():
             continue
             
         with ai_lock: 
-            # Safely grab the frame only if it exists and is flagged as new
             if new_frame_available and latest_frame_for_ai is not None:
                 frame = latest_frame_for_ai.copy()
                 new_frame_available = False
@@ -248,7 +243,15 @@ def engine_loop():
             continue
 
         frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
-        frame = cv2.convertScaleAbs(frame, alpha=CONTRAST_ALPHA, beta=BRIGHTNESS_BETA)
+        
+        # --- Night Vision Enhancement (CLAHE) ---
+        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+        l_channel, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        cl = clahe.apply(l_channel)
+        limg = cv2.merge((cl,a,b))
+        frame = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        # ----------------------------------------
         
         with ai_lock:
             latest_frame_for_ai = frame.copy()
@@ -277,24 +280,16 @@ def video_feed():
         
         try:
             while True:
-                # Force update the clock so we never idle while streaming
                 last_access_time = time.time()
-                
                 with lock: 
                     frame = output_frame
-                
-                # We yield the multipart header and image bytes
                 yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
                 time.sleep(1.0 / FPS_LIMIT)
-                
         except (GeneratorExit, Exception) as e:
-            # This block captures both the clean GeneratorExit and any OS-level IOError
-            # when the socket suddenly closes.
             pass
         finally:
             active_viewers = max(0, active_viewers - 1)
             print(f"🔌 Client disconnected. Total active viewers: {active_viewers}")
-            # Ensure the clock is set exactly when they leave, so the IDLE_TIMEOUT countdown begins accurately
             last_access_time = time.time()
 
     return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
