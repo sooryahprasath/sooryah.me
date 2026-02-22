@@ -36,6 +36,7 @@ ai_lock = threading.Lock()
 # --- STATE ---
 last_access_time = 0 
 latest_frame_for_ai = None
+new_frame_available = False  # <--- ADD THIS LINE
 boxes_to_draw = []
 ai_worker_started = False 
 # Keep track of active connections
@@ -143,16 +144,15 @@ class OnDemandCamera:
 
 
 def ai_worker():
-    global latest_frame_for_ai, boxes_to_draw, current_stats, history, last_access_time, ai_worker_started
+    global latest_frame_for_ai, new_frame_available, boxes_to_draw, current_stats, history, last_access_time, ai_worker_started
     if ai_worker_started: return
     ai_worker_started = True
-    print("🧠 [AI] Worker thread started.")
+    print("🧠 [AI] Worker thread started. Using ByteTrack algorithm.")
     
     model = YOLO(MODEL_PATH)
     previous_ids = set()
 
     while True:
-        # Instead of just time, we check if there are any active viewers
         if active_viewers == 0 and (time.time() - last_access_time) > IDLE_TIMEOUT:
             with ai_lock: 
                 boxes_to_draw = []
@@ -161,24 +161,28 @@ def ai_worker():
             continue
             
         with ai_lock: 
-            frame = latest_frame_for_ai.copy() if latest_frame_for_ai is not None else None
+            # ONLY grab the frame if it is a brand new one from the camera
+            if new_frame_available:
+                frame = latest_frame_for_ai.copy()
+                new_frame_available = False # Consume the flag so we don't process it twice
+            else:
+                frame = None
             
         if frame is None:
-            time.sleep(0.1)
+            time.sleep(0.02) # Wait briefly for the camera to catch up
             continue
             
         try:
-            results = model.track(frame, persist=True, conf=CONFIDENCE, imgsz=AI_RESOLUTION, verbose=False)
+            # 🚀 UPGRADE: Switched to ByteTrack and raised confidence to 0.25 to stop "ghost" tracking
+            results = model.track(frame, persist=True, conf=0.25, imgsz=AI_RESOLUTION, tracker="bytetrack.yaml", verbose=False)
             new_boxes = []
             current_ids = set()
             counts = {}
             
-            # UPDATED DRAWING LOGIC: Always draw if objects are detected, regardless of tracking ID
             if len(results[0].boxes) > 0:
                 xyxy = results[0].boxes.xyxy.cpu().numpy().astype(int)
                 cls_data = results[0].boxes.cls.cpu().numpy().astype(int)
                 
-                # Check if the tracker assigned IDs yet
                 if results[0].boxes.id is not None:
                     track_ids = results[0].boxes.id.cpu().numpy().astype(int)
                 else:
@@ -189,14 +193,13 @@ def ai_worker():
                     
                     if obj_id is not None:
                         label_str = f"{lbl} #{obj_id}"
-                        current_ids.add(obj_id) # Only count it if we have a firm tracking ID
+                        current_ids.add(obj_id) 
                     else:
                         label_str = f"{lbl} (Tracking...)"
                         
                     new_boxes.append((*box, label_str))
                     counts[lbl] = counts.get(lbl, 0) + 1
                     
-            # Update historical counts
             new_objects_count = len(current_ids - previous_ids)
             if new_objects_count > 0:
                 history.increment(new_objects_count)
@@ -250,6 +253,7 @@ def engine_loop():
         
         with ai_lock:
             latest_frame_for_ai = frame.copy()
+            new_frame_available = True
             cur_boxes = boxes_to_draw.copy()
             
         for (x1, y1, x2, y2, label) in cur_boxes:
