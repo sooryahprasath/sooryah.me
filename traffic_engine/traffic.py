@@ -28,7 +28,7 @@ CLASS_NAMES = {
 }
 IDLE_TIMEOUT = 60 
 HISTORY_FILE = "/app/history.json"
-MODEL_PATH = "/app/best.pt" 
+MODEL_PATH = "/app/uvh_26_blr_8k.pt" 
 
 lock = threading.Lock()
 ai_lock = threading.Lock()
@@ -53,13 +53,16 @@ class HistoryManager:
         self.file = HISTORY_FILE
         self.total_count = 0
         self.load()
+        
     def load(self):
         if os.path.exists(self.file):
             try:
                 with open(self.file, 'r') as f: self.total_count = json.load(f).get("total", 0)
             except: self.total_count = 0
+            
     def save(self):
         with open(self.file, 'w') as f: json.dump({"total": self.total_count}, f)
+        
     def increment(self, amount):
         if amount > 0:
             self.total_count += amount
@@ -138,6 +141,7 @@ class OnDemandCamera:
             
             return self.frame is not None, self.frame.copy() if self.frame is not None else None
 
+
 def ai_worker():
     global latest_frame_for_ai, boxes_to_draw, current_stats, history, last_access_time, ai_worker_started
     if ai_worker_started: return
@@ -169,15 +173,30 @@ def ai_worker():
             current_ids = set()
             counts = {}
             
-            if results[0].boxes.id is not None:
-                for box, obj_id, cls in zip(results[0].boxes.xyxy.cpu().numpy().astype(int), 
-                                            results[0].boxes.id.cpu().numpy().astype(int), 
-                                            results[0].boxes.cls.cpu().numpy().astype(int)):
+            # UPDATED DRAWING LOGIC: Always draw if objects are detected, regardless of tracking ID
+            if len(results[0].boxes) > 0:
+                xyxy = results[0].boxes.xyxy.cpu().numpy().astype(int)
+                cls_data = results[0].boxes.cls.cpu().numpy().astype(int)
+                
+                # Check if the tracker assigned IDs yet
+                if results[0].boxes.id is not None:
+                    track_ids = results[0].boxes.id.cpu().numpy().astype(int)
+                else:
+                    track_ids = [None] * len(xyxy) 
+
+                for box, obj_id, cls in zip(xyxy, track_ids, cls_data):
                     lbl = CLASS_NAMES.get(cls, "Object")
-                    new_boxes.append((*box, f"{lbl} #{obj_id}"))
-                    counts[lbl] = counts.get(lbl, 0) + 1
-                    current_ids.add(obj_id)
                     
+                    if obj_id is not None:
+                        label_str = f"{lbl} #{obj_id}"
+                        current_ids.add(obj_id) # Only count it if we have a firm tracking ID
+                    else:
+                        label_str = f"{lbl} (Tracking...)"
+                        
+                    new_boxes.append((*box, label_str))
+                    counts[lbl] = counts.get(lbl, 0) + 1
+                    
+            # Update historical counts
             new_objects_count = len(current_ids - previous_ids)
             if new_objects_count > 0:
                 history.increment(new_objects_count)
@@ -191,6 +210,7 @@ def ai_worker():
             print(f"⚠️ [AI] Inference error: {e}")
             
         time.sleep(AI_INTERVAL_SEC)
+
 
 def engine_loop():
     global output_frame, latest_frame_for_ai
