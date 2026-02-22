@@ -36,7 +36,7 @@ ai_lock = threading.Lock()
 # --- STATE ---
 last_access_time = 0 
 latest_frame_for_ai = None
-new_frame_available = False  # <--- ADD THIS LINE
+new_frame_available = False 
 boxes_to_draw = []
 ai_worker_started = False 
 # Keep track of active connections
@@ -161,19 +161,18 @@ def ai_worker():
             continue
             
         with ai_lock: 
-            # ONLY grab the frame if it is a brand new one from the camera
-            if new_frame_available:
+            # Safely grab the frame only if it exists and is flagged as new
+            if new_frame_available and latest_frame_for_ai is not None:
                 frame = latest_frame_for_ai.copy()
-                new_frame_available = False # Consume the flag so we don't process it twice
+                new_frame_available = False
             else:
                 frame = None
             
         if frame is None:
-            time.sleep(0.02) # Wait briefly for the camera to catch up
+            time.sleep(0.02)
             continue
             
         try:
-            # 🚀 UPGRADE: Switched to ByteTrack and raised confidence to 0.25 to stop "ghost" tracking
             results = model.track(frame, persist=True, conf=0.25, imgsz=AI_RESOLUTION, tracker="bytetrack.yaml", verbose=False)
             new_boxes = []
             current_ids = set()
@@ -216,7 +215,7 @@ def ai_worker():
 
 
 def engine_loop():
-    global output_frame, latest_frame_for_ai
+    global output_frame, latest_frame_for_ai, new_frame_available
     print("⚙️ [ENGINE] Main engine loop starting.")
     cam = OnDemandCamera("rtsp://127.0.0.1:8554/video_feed")
     threading.Thread(target=ai_worker, daemon=True).start()
@@ -303,8 +302,6 @@ def video_feed():
 @app.route("/api/stats")
 def stats():
     global last_access_time
-    # We no longer strictly rely on the stats API to keep the video alive.
-    # The active_viewers counter handles that now. 
     return jsonify(current_stats)
 
 if __name__ == "__main__":
