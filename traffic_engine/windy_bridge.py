@@ -5,32 +5,41 @@ from flask import Flask, Response
 
 app = Flask(__name__)
 
-# Force FFmpeg to use TCP and set a 5-second timeout
+# FFmpeg settings for stable RTSP over TCP
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;5000000"
 
 def generate_frames():
-    # Connect to the local MediaMTX stream
+    # 🔥 MOVE Capture inside the generator so it only starts when someone connects
     cap = cv2.VideoCapture("rtsp://127.0.0.1:8554/video_feed")
     
-    while True:
-        success, frame = cap.read()
-        if not success:
-            cap.release()
-            time.sleep(2) # Wait before reconnecting
-            cap = cv2.VideoCapture("rtsp://127.0.0.1:8554/video_feed")
-            continue
-        
-        # JPEG quality 30 is the sweet spot for Windy.com ingestion
-        ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 30])
-        if ret:
-            yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+    try:
+        while True:
+            success, frame = cap.read()
+            if not success:
+                # If camera fails, wait and retry
+                time.sleep(2)
+                cap.release()
+                cap = cv2.VideoCapture("rtsp://127.0.0.1:8554/video_feed")
+                continue
+            
+            # Sweet spot for low-bandwidth Windy ingestion
+            ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 30])
+            if ret:
+                yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+            
+            # 🛑 THE FIX: Force the CPU to sleep for 1 second between frames.
+            # Windy needs snapshots, not 60FPS. This will drop CPU from 50% to ~2%.
+            time.sleep(1.0) 
 
-# This handles both /video_feed and /video_feed/
+    finally:
+        # 🧹 Crucial: Release the camera if the client (Windy) disconnects
+        print("Client disconnected, releasing resources.")
+        cap.release()
+
 @app.route('/video_feed/')
 @app.route('/video_feed')
 def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == "__main__":
-    # Binding to 5500 directly as requested
-    app.run(host='0.0.0.0', port=5500)
+    app.run(host='0.0.0.0', port=5500, threaded=True)
