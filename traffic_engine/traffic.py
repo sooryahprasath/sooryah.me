@@ -18,7 +18,7 @@ AI_INTERVAL_SEC = 0.05
 JPEG_QUALITY = 35       
 CONTRAST_ALPHA = 1.0     
 BRIGHTNESS_BETA = 0      
-AI_RESOLUTION = 800     
+AI_RESOLUTION = 640     
 CONFIDENCE = 0.15 
 CLASS_NAMES = {
     0: "Hatchback", 1: "Sedan", 2: "SUV", 3: "MUV", 4: "Bus", 
