@@ -39,6 +39,7 @@ latest_frame_for_ai = None
 new_frame_available = False 
 ai_worker_started = False 
 active_viewers = 0 
+last_ai_update_time = time.time() # ⏱️ Watchdog Timer
 
 # Standby Frame
 standby_img = np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), np.uint8)
@@ -138,8 +139,7 @@ class OnDemandCamera:
 
 
 def ai_worker():
-    # 🚀 FIX: We import output_frame into the AI thread so it can push the synced image
-    global latest_frame_for_ai, new_frame_available, current_stats, history, last_access_time, ai_worker_started, output_frame
+    global latest_frame_for_ai, new_frame_available, current_stats, history, last_access_time, ai_worker_started, output_frame, last_ai_update_time
     if ai_worker_started: return
     ai_worker_started = True
     print("🧠 [AI] Worker thread started. Using ByteTrack algorithm.")
@@ -190,7 +190,6 @@ def ai_worker():
                         
                     counts[lbl] = counts.get(lbl, 0) + 1
                     
-                    # 🚀 FIX: Draw the box directly onto the frame the AI just processed
                     x1, y1, x2, y2 = box
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     cv2.putText(frame, label_str, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
@@ -203,10 +202,10 @@ def ai_worker():
             with ai_lock:
                 current_stats = {"status": "AI Live", "total_all_time": history.total_count, **counts}
                 
-            # 🚀 FIX: Encode the perfectly synced frame and hand it back to the web server
             with lock:
                 _, en = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
                 output_frame = bytearray(en)
+                last_ai_update_time = time.time() # ⏱️ Reset the watchdog!
                 
         except Exception as e:
             print(f"⚠️ [AI] Inference error: {e}")
@@ -215,7 +214,7 @@ def ai_worker():
 
 
 def engine_loop():
-    global output_frame, latest_frame_for_ai, new_frame_available
+    global output_frame, latest_frame_for_ai, new_frame_available, last_ai_update_time
     print("⚙️ [ENGINE] Main engine loop starting.")
     cam = OnDemandCamera("rtsp://127.0.0.1:8554/video_feed")
     threading.Thread(target=ai_worker, daemon=True).start()
@@ -228,6 +227,7 @@ def engine_loop():
                 cam.stop()
             with lock: 
                 output_frame = STANDBY_FRAME
+                last_ai_update_time = time.time() # Keep watchdog fed while idle
             with ai_lock:
                 latest_frame_for_ai = None 
             time.sleep(1)
@@ -256,11 +256,18 @@ def engine_loop():
         limg = cv2.merge((cl,a,b))
         frame = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
         
-        # We simply hand the camera frame to the AI and let the AI handle the drawing
         with ai_lock:
             latest_frame_for_ai = frame.copy()
             new_frame_available = True
             
+        # 🚦 FAIL-OPEN WATCHDOG 🚦
+        # If AI hasn't updated the frame in 2 seconds, bypass the AI and show raw video.
+        if time.time() - last_ai_update_time > 2.0:
+            cv2.putText(frame, "⚠️ DPI ENGINE OVERLOAD - STREAMING RAW FEED", (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
+            with lock:
+                _, en = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
+                output_frame = bytearray(en)
+                
         time.sleep(0.01)
 
 # --- UPDATED VIDEO FEED ROUTINE ---
