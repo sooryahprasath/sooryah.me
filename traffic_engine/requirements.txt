@@ -2,5 +2,6 @@ flask
 flask-cors
 ultralytics
 opencv-python-headless
-influxdb-client
-requests
+numpy
+ultralytics
+openvino   <--- ADD THIS LINE
