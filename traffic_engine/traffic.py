@@ -14,7 +14,7 @@ CORS(app)
 # --- CONFIG ---
 FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080  
 FPS_LIMIT = 15                          
-AI_INTERVAL_SEC = 0.05 
+AI_INTERVAL_SEC = 0.2 
 JPEG_QUALITY = 35       
 CONTRAST_ALPHA = 1.0     
 BRIGHTNESS_BETA = 0      
