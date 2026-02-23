@@ -29,7 +29,8 @@ CLASS_NAMES = {
 }
 IDLE_TIMEOUT = 60 
 HISTORY_FILE = "/app/history.json"
-MODEL_PATH = "/app/uvh_26_blr_8k.pt" 
+# 🚀 UPGRADE: Pointing directly to the newly compiled OpenVINO model folder
+MODEL_PATH = "/app/uvh_26_blr_8k_openvino_model" 
 
 lock = threading.Lock()
 ai_lock = threading.Lock()
