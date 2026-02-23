@@ -16,10 +16,9 @@ FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080
 FPS_LIMIT = 15                          
 AI_INTERVAL_SEC = 0.05 
 JPEG_QUALITY = 35       
-# Set contrast and brightness to neutral so CLAHE can do the heavy lifting
 CONTRAST_ALPHA = 1.0     
 BRIGHTNESS_BETA = 0      
-AI_RESOLUTION = 800     # Increased resolution for better detection at distance
+AI_RESOLUTION = 800     
 CONFIDENCE = 0.15 
 CLASS_NAMES = {
     0: "Hatchback", 1: "Sedan", 2: "SUV", 3: "MUV", 4: "Bus", 
@@ -29,7 +28,6 @@ CLASS_NAMES = {
 }
 IDLE_TIMEOUT = 60 
 HISTORY_FILE = "/app/history.json"
-# 🚀 UPGRADE: Pointing directly to the newly compiled OpenVINO model folder
 MODEL_PATH = "/app/uvh_26_blr_8k_openvino_model" 
 
 lock = threading.Lock()
@@ -39,7 +37,6 @@ ai_lock = threading.Lock()
 last_access_time = 0 
 latest_frame_for_ai = None
 new_frame_available = False 
-boxes_to_draw = []
 ai_worker_started = False 
 active_viewers = 0 
 
@@ -141,7 +138,8 @@ class OnDemandCamera:
 
 
 def ai_worker():
-    global latest_frame_for_ai, new_frame_available, boxes_to_draw, current_stats, history, last_access_time, ai_worker_started
+    # 🚀 FIX: We import output_frame into the AI thread so it can push the synced image
+    global latest_frame_for_ai, new_frame_available, current_stats, history, last_access_time, ai_worker_started, output_frame
     if ai_worker_started: return
     ai_worker_started = True
     print("🧠 [AI] Worker thread started. Using ByteTrack algorithm.")
@@ -152,7 +150,6 @@ def ai_worker():
     while True:
         if active_viewers == 0 and (time.time() - last_access_time) > IDLE_TIMEOUT:
             with ai_lock: 
-                boxes_to_draw = []
                 current_stats["status"] = "Idling"
             time.sleep(1)
             continue
@@ -170,7 +167,6 @@ def ai_worker():
             
         try:
             results = model.track(frame, persist=True, conf=0.25, imgsz=AI_RESOLUTION, tracker="bytetrack.yaml", verbose=False)
-            new_boxes = []
             current_ids = set()
             counts = {}
             
@@ -192,8 +188,12 @@ def ai_worker():
                     else:
                         label_str = f"{lbl} (Tracking...)"
                         
-                    new_boxes.append((*box, label_str))
                     counts[lbl] = counts.get(lbl, 0) + 1
+                    
+                    # 🚀 FIX: Draw the box directly onto the frame the AI just processed
+                    x1, y1, x2, y2 = box
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.putText(frame, label_str, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                     
             new_objects_count = len(current_ids - previous_ids)
             if new_objects_count > 0:
@@ -201,8 +201,12 @@ def ai_worker():
             previous_ids = current_ids
             
             with ai_lock:
-                boxes_to_draw = new_boxes
                 current_stats = {"status": "AI Live", "total_all_time": history.total_count, **counts}
+                
+            # 🚀 FIX: Encode the perfectly synced frame and hand it back to the web server
+            with lock:
+                _, en = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
+                output_frame = bytearray(en)
                 
         except Exception as e:
             print(f"⚠️ [AI] Inference error: {e}")
@@ -245,27 +249,17 @@ def engine_loop():
 
         frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
         
-        # --- Night Vision Enhancement (CLAHE) ---
         lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
         l_channel, a, b = cv2.split(lab)
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
         cl = clahe.apply(l_channel)
         limg = cv2.merge((cl,a,b))
         frame = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-        # ----------------------------------------
         
+        # We simply hand the camera frame to the AI and let the AI handle the drawing
         with ai_lock:
             latest_frame_for_ai = frame.copy()
             new_frame_available = True
-            cur_boxes = boxes_to_draw.copy()
-            
-        for (x1, y1, x2, y2, label) in cur_boxes:
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(frame, label, (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-            
-        with lock:
-            _, en = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
-            output_frame = bytearray(en)
             
         time.sleep(0.01)
 
